@@ -1035,7 +1035,7 @@
   }
   function stepOnce() { if (MODE==="mock" && mock.picks) { autoPickOne(); mock.nextAt=0; pushMock(); } }
   function resetMock() {
-    mock.running=false; mock.picks=null; mock.nextAt=0;
+    mock.running=false; mock.picks=null; mock.nextAt=0; timer.pick=null;
     $("btnRun").textContent="▶ Start"; $("btnRun").classList.add("primary");
     ensureSkeleton().then(pushMock);
   }
@@ -1085,10 +1085,11 @@
 
   async function setMode(m) {
     MODE = m;
+    timer.pick = null;   // reset the pick-clock on mode switch (don't carry a running live clock into mock)
     $("mLive").classList.toggle("on", m==="live"); $("mMock").classList.toggle("on", m==="mock");
     $("mockBar").classList.toggle("hidden", m!=="mock");
     $("conn").className = m==="mock" ? "dot" : "dot live";
-    if (m==="mock") { await ensureSkeleton(); pushMock(); } else { timer.pick=null; pollLive(); }
+    if (m==="mock") { await ensureSkeleton(); pushMock(); } else { pollLive(); }
   }
 
   (async () => {
