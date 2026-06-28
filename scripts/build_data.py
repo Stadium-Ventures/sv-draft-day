@@ -25,6 +25,23 @@ ID_TO_ABBR = {
 }
 DRAFT_YEAR = 2026
 
+NAME_TO_ABBR = {
+    "arizona diamondbacks":"ARI","atlanta braves":"ATL","baltimore orioles":"BAL","boston red sox":"BOS",
+    "chicago cubs":"CHC","chicago white sox":"CHW","cincinnati reds":"CIN","cleveland guardians":"CLE",
+    "colorado rockies":"COL","detroit tigers":"DET","houston astros":"HOU","kansas city royals":"KC",
+    "los angeles angels":"LAA","los angeles dodgers":"LAD","miami marlins":"MIA","milwaukee brewers":"MIL",
+    "minnesota twins":"MIN","new york mets":"NYM","new york yankees":"NYY","philadelphia phillies":"PHI",
+    "pittsburgh pirates":"PIT","san diego padres":"SD","san francisco giants":"SF","seattle mariners":"SEA",
+    "st. louis cardinals":"STL","st louis cardinals":"STL","tampa bay rays":"TB","texas rangers":"TEX",
+    "toronto blue jays":"TOR","washington nationals":"WSH",
+}
+def name_to_abbr(name):
+    if not name: return None
+    n = str(name).strip().lower()
+    if n in NAME_TO_ABBR: return NAME_TO_ABBR[n]
+    if "athletics" in n: return "ATH"
+    return None
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "..", "public", "data")
 COMPOSITE = os.path.expanduser("~/Desktop/claude/draft-rankings-composite/outputs/composite_latest.csv")
@@ -202,7 +219,53 @@ def build_orgs(path):
             "classN": known,
             "recentR1": recent_r1[:4],
         }
+
+    # merge richer org-review metrics (development outcomes, draft-type trends, homegrown)
+    extras = parse_claude_pull(wb)
+    for ab, ex in extras.items():
+        if ab in orgs:
+            orgs[ab].update(ex)
     return orgs
+
+
+def parse_claude_pull(wb):
+    """Per-team development + draft-trend metrics from the 'Claude Data Pull' sheet
+    (teams are columns). Returns { ABBR: {dev:{...}, trends:{...}, homegrown} }."""
+    if "Claude Data Pull" not in wb.sheetnames:
+        return {}
+    rows = list(wb["Claude Data Pull"].iter_rows(values_only=True))
+    hdr = next((r for r in rows if r and any(isinstance(c, str) and "Diamondbacks" in c for c in r)), None)
+    if not hdr:
+        return {}
+    col_abbr = {i: name_to_abbr(c) for i, c in enumerate(hdr) if name_to_abbr(c)}
+    def row_for(label):
+        for r in rows:
+            lab = next((str(x) for x in r[:2] if x not in (None, "")), "")
+            if lab.strip().lower() == label.lower():
+                return r
+        return None
+    def vals(label):
+        r = row_for(label); out = {}
+        if r:
+            for i, ab in col_abbr.items():
+                v = r[i] if i < len(r) else None
+                if isinstance(v, (int, float)): out[ab] = v
+        return out
+    fields = {
+        "mlbDebut": "MLB Debut %", "arb": "Reach Arbitration %",
+        "posDebut": "Position Debut %", "pitDebut": "Pitcher Debut %",
+        "ncaaPos": "NCAA Pos", "ncaaPitcher": "NCAA Pitcher", "hsPos": "HS Pos", "hsPitcher": "HS Pitcher",
+        "homegrown": "Homegrown",
+    }
+    data = {k: vals(v) for k, v in fields.items()}
+    out = {}
+    for ab in col_abbr.values():
+        out[ab] = {
+            "dev": {k: round(data[k][ab], 3) for k in ("mlbDebut","arb","posDebut","pitDebut") if ab in data[k]},
+            "trends": {k: round(data[k][ab], 3) for k in ("ncaaPos","ncaaPitcher","hsPos","hsPitcher") if ab in data[k]},
+        }
+        if ab in data["homegrown"]: out[ab]["homegrown"] = int(data["homegrown"][ab])
+    return out
 
 
 def _fetch_draft(year):

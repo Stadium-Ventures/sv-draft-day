@@ -44,6 +44,13 @@
   .idot { width:12px; height:12px; border-radius:50%; border:1px solid rgba(0,0,0,.15); display:inline-block; }
   .pdw { font-size:10px; font-weight:800; color:var(--red); border:1px solid var(--red); border-radius:4px; padding:1px 5px; }
   .grade { font-size:12px; font-weight:800; color:#fff; border-radius:6px; padding:2px 7px; }
+  .grade[data-org] { cursor:help; }
+  #orgTip { position:fixed; z-index:60; max-width:270px; background:#141414; color:#fff; border-radius:10px;
+            padding:11px 13px; font-size:12px; line-height:1.5; box-shadow:0 8px 24px rgba(0,0,0,.28); pointer-events:none; display:none; }
+  #orgTip .ot-h { font-weight:900; font-size:13px; margin-bottom:5px; }
+  #orgTip .ot-sec { color:#ff6a63; font-weight:800; font-size:10px; text-transform:uppercase; letter-spacing:.4px; margin-top:7px; margin-bottom:1px; }
+  #orgTip .ot-row { display:flex; justify-content:space-between; gap:16px; }
+  #orgTip .ot-row span { color:#aaa; } #orgTip .ot-row b { font-variant-numeric:tabular-nums; }
 
   /* clients view */
   .summary { display:flex; gap:18px; flex-wrap:wrap; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 18px; margin-bottom:14px; }
@@ -258,6 +265,8 @@
     </table>
   </section>
 </main>
+
+<div id="orgTip"></div>
 
 <script>
   const $ = (id) => document.getElementById(id);
@@ -516,7 +525,7 @@
       if (pk) {
         const f = fit(comp, pk.team, latestIntel(c.key, pk.team), state);
         status = `<span class="status dr">DRAFTED #${pk.overall} · ${pk.team} · ${moneyCell(pk)}
-                  <span class="grade" style="background:${f.color}">${f.grade}</span></span>`;
+                  <span class="grade" data-org="${pk.team}" style="background:${f.color}">${f.grade}</span></span>`;
       } else {
         // interested teams, ranked by fit
         const teams = [...new Set(DATA.intel.filter(r=>normName(r.player)===c.key).map(r=>teamAlias(r.team)))]
@@ -529,7 +538,7 @@
           const ou = (comp && x.nx) ? negBonus(comp, x.nx.slot, x.nx.overall) - x.nx.slot : null;  // floor-aware est. over/under
           return `<div class="ct"><span class="idot" style="background:${COLOR_HEX[(x.rec?.color||"").toLowerCase()]||"#ccc"}"></span>
             <span class="tm">${x.t}</span>${x.rec?.workout?'<span class="pdw">PDW</span>':""}
-            <span class="grade" style="background:${x.f.color}">${x.f.grade}</span>
+            <span class="grade" data-org="${x.t}" style="background:${x.f.color}">${x.f.grade}</span>
             <span class="nx">${x.nx?`#${x.nx.overall} ${fmtM(x.nx.slot)}${ou!=null?` · ${fmtVsSlot(ou)}`:""}`:"no picks left"}${pool?` · ammo ${fmtM(pool.room)}`:""}</span></div>`;
         }).join("") || `<div class="ct" style="color:#9aa0a6">No logged team interest yet.</div>`;
       }
@@ -816,7 +825,7 @@
       const ou = (comp && x.nx) ? negBonus(comp, x.nx.slot, x.nx.overall) - x.nx.slot : null;
       return `<div class="ct"><span class="idot" style="background:${COLOR_HEX[(x.rec?.color||"").toLowerCase()]||"#ccc"}"></span>
         <span class="tm">${teamLink(x.t)}</span>${x.rec?.workout?'<span class="pdw">PDW</span>':""}
-        <span class="grade" style="background:${x.f.color}">${x.f.grade}</span>
+        <span class="grade" data-org="${x.t}" style="background:${x.f.color}">${x.f.grade}</span>
         <span class="nx">${x.nx?`next #${x.nx.overall} ${fmtM(x.nx.slot)}`:"no picks left"}${ou!=null?" · "+ouTag(ou,true):""}${pool?` · ammo ${fmtM(pool.room)}`:""}</span></div>`;
     }).join("") : `<div class="placeholder">No logged team interest.</div>`;
     h += `</div>`;
@@ -862,7 +871,7 @@
       const nx=teamNextPick(state,t); const ou=(x.c.comp&&nx)?negBonus(x.c.comp,nx.slot,nx.overall)-nx.slot:null;
       return `<div class="ct"><span class="idot" style="background:${COLOR_HEX[(x.rec?.color||"").toLowerCase()]||"#ccc"}"></span>
         <span class="nm">${playerLink(x.c.name)}</span>${x.rec?.workout?'<span class="pdw">PDW</span>':""}
-        <span class="grade" style="background:${x.f.color}">${x.f.grade}</span>
+        <span class="grade" data-org="${t}" style="background:${x.f.color}">${x.f.grade}</span>
         <span class="nx">${x.dr?`drafted #${x.dr.overall}`:(ou!=null?ouTag(ou,true):"")}</span></div>`;
     }).join("") : `<div class="placeholder">None on file.</div>`;
     h += `</div></div>`;
@@ -1092,7 +1101,52 @@
     if (m==="mock") { await ensureSkeleton(); pushMock(); } else { pollLive(); }
   }
 
+  // ---------- org-review hover tooltip (on fit grades) ----------
+  function orgTipHtml(team) {
+    const o = DATA.orgs[team];
+    if (!o) return `<div class="ot-h">${team}</div><div style="color:#aaa">No org-review data.</div>`;
+    const pct = (v) => v==null ? "—" : Math.round(v*100)+"%";
+    const d = o.dev || {}, t = o.trends || {};
+    const hs = (t.hsPos!=null||t.hsPitcher!=null) ? (t.hsPos||0)+(t.hsPitcher||0) : null;
+    const col = (t.ncaaPos!=null||t.ncaaPitcher!=null) ? (t.ncaaPos||0)+(t.ncaaPitcher||0) : null;
+    const arms = (t.ncaaPitcher!=null||t.hsPitcher!=null) ? (t.ncaaPitcher||0)+(t.hsPitcher||0) : null;
+    const row = (k,v) => `<div class="ot-row"><span>${k}</span><b>${v}</b></div>`;
+    let h = `<div class="ot-h">${team} · ${o.teamName||"org review"}</div>`;
+    h += row("System rank", o.orgRank!=null ? "#"+o.orgRank : "—");
+    if (Object.keys(d).length) {
+      h += `<div class="ot-sec">Develops (drafted → MLB)</div>`;
+      h += row("Reach MLB", pct(d.mlbDebut)) + row("Reach arbitration", pct(d.arb));
+      if (d.posDebut!=null||d.pitDebut!=null) h += row("Pos / pitcher debut", pct(d.posDebut)+" / "+pct(d.pitDebut));
+    }
+    if (hs!=null) {
+      h += `<div class="ot-sec">Draft mix ('21–25)</div>`;
+      h += row("College / HS", pct(col)+" / "+pct(hs)) + row("Pitchers", pct(arms));
+    }
+    if (o.homegrown!=null) h += row("Homegrown (40-man)", o.homegrown);
+    return h;
+  }
+  function initOrgTooltip() {
+    const tip = document.getElementById("orgTip");
+    document.addEventListener("mouseover", (e) => {
+      const el = e.target.closest && e.target.closest("[data-org]");
+      if (!el) return;
+      tip.innerHTML = orgTipHtml(el.getAttribute("data-org"));
+      tip.style.display = "block";
+    });
+    document.addEventListener("mousemove", (e) => {
+      if (tip.style.display !== "block") return;
+      let x = e.clientX + 14, y = e.clientY + 16;
+      if (x + tip.offsetWidth > innerWidth) x = e.clientX - tip.offsetWidth - 14;
+      if (y + tip.offsetHeight > innerHeight) y = e.clientY - tip.offsetHeight - 16;
+      tip.style.left = Math.max(6,x) + "px"; tip.style.top = Math.max(6,y) + "px";
+    });
+    document.addEventListener("mouseout", (e) => {
+      if (e.target.closest && e.target.closest("[data-org]")) tip.style.display = "none";
+    });
+  }
+
   (async () => {
+    initOrgTooltip();
     await loadStatic();
     try { await loadOrder(); } catch (e) {}   // slot table for demandFor() in all views
     pollLive();
