@@ -26,6 +26,10 @@
 
   .bar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:8px 16px; background:#fff7f8; border-bottom:1px solid var(--line); position:sticky; top:90px; z-index:5; }
   .bar.hidden { display:none; }
+  .prebanner { display:flex; align-items:center; justify-content:center; gap:8px; padding:9px 16px; background:#fff; border-bottom:1px solid var(--line); font-size:13px; font-weight:700; color:var(--ink); position:sticky; top:90px; z-index:4; }
+  .prebanner b { color:var(--red); font-variant-numeric:tabular-nums; }
+  .pulse { width:8px; height:8px; border-radius:50%; background:var(--red); box-shadow:0 0 0 0 rgba(255,42,34,.5); animation:pulse 1.6s infinite; }
+  @keyframes pulse { 70% { box-shadow:0 0 0 7px rgba(255,42,34,0); } 100% { box-shadow:0 0 0 0 rgba(255,42,34,0); } }
   .ctl { border:1px solid var(--line); background:#fff; border-radius:8px; padding:6px 11px; font:inherit; font-weight:700; cursor:pointer; }
   .ctl.primary { background:var(--red); color:#fff; border-color:var(--red); }
   .bar select { font:inherit; padding:6px 8px; border:1px solid var(--line); border-radius:8px; }
@@ -173,6 +177,8 @@
   <span class="note" id="mockNote">Pause, then click a Best-Available row to draft manually.</span>
 </div>
 
+<div id="preBanner" class="prebanner" style="display:none"></div>
+
 <main>
   <!-- OUR CLIENTS (hero) -->
   <section id="viewClients" class="view on">
@@ -256,6 +262,15 @@
   const $ = (id) => document.getElementById(id);
   const fmt$ = (n) => n == null ? "—" : "$" + Math.round(n).toLocaleString();
   const fmtM = (n) => n == null ? "—" : "$" + (n/1e6).toFixed(2) + "M";
+  const DRAFT_START = Date.UTC(2026, 6, 11, 17, 30, 0);   // Jul 11 2026, 1:30 PM ET (EDT = UTC-4)
+  function fmtCountdown(ms) {
+    if (ms < 0) ms = 0; let s = Math.floor(ms/1000);
+    const d = Math.floor(s/86400); s -= d*86400;
+    const h = Math.floor(s/3600); s -= h*3600;
+    const m = Math.floor(s/60); s -= m*60;
+    const p = (n) => String(n).padStart(2,"0");
+    return (d>0 ? d+"d " : "") + p(h)+":"+p(m)+":"+p(s);
+  }
   const LATE_EXEMPT = 150000;   // rounds 11+ (slot 0): only bonus above this counts vs the pool
   const CUSHION = 1.05;         // teams may exceed pool by 5% before forfeiting a 1st-round pick
   // Budget-engine params, calibrated to the 2021-25 over/under curve (slot-tracker).
@@ -525,6 +540,18 @@
   // ---------- VIEW: ON THE CLOCK ----------
   function renderClock(state) {
     $("clockCard").classList.toggle("mock", MODE==="mock");
+    if (isPreDraft()) {                                   // live, pre-draft -> countdown hero (not "on the clock")
+      $("clockCard").classList.remove("mock");
+      $("pickNo").textContent = "LIVE · 2026 MLB DRAFT — not started";
+      $("teamAbbr").innerHTML = `<span id="draftCountdown" style="font-size:clamp(28px,8vw,42px)">${fmtCountdown(DRAFT_START-Date.now())}</span>`;
+      $("teamName").textContent = "";
+      $("cdTime").textContent = ""; $("cdLabel").textContent = "begins Fri Jul 11 · 1:30 PM ET";
+      $("ocAlert").innerHTML = `<div class="alert" style="color:var(--muted);background:#fff;border-color:var(--line)">Board, clients & projections below are live for prep — the clock goes live when the first pick is in.</div>`;
+      $("poolRow").innerHTML = "";
+      renderTendencies(null); renderIntel(null, new Set());
+      $("recent").innerHTML = `<div class="placeholder">No picks yet — the draft hasn't started.</div>`;
+      return;
+    }
     const oc = state.onClock;
     if (oc) {
       $("pickNo").textContent = `${MODE==="mock"?"MOCK · ":""}On the clock · Pick #${oc.overall} · Round ${oc.round} (${oc.roundPick})`;
@@ -1011,8 +1038,21 @@
     if (mock.speed==="realtime") mock.nextAt = timer.endsAt;
     else if (force || !mock.nextAt) mock.nextAt = Date.now() + speedDelay();
   }
+  let lastPre = false;
+  const isPreDraft = () => MODE==="live" && currentState && currentState.madeCount===0 && Date.now() < DRAFT_START;
+  function updatePreDraft() {
+    const pre = isPreDraft(), b = $("preBanner");
+    if (b) {
+      if (pre) { b.style.display = ""; b.innerHTML = `<span class="pulse"></span> 2026 MLB Draft begins in <b>${fmtCountdown(DRAFT_START-Date.now())}</b> &middot; Fri July 11 &middot; 1:30 PM ET`; }
+      else b.style.display = "none";
+    }
+    if (pre) { const sp = document.getElementById("draftCountdown"); if (sp) sp.textContent = fmtCountdown(DRAFT_START-Date.now()); }
+  }
   function tick() {
     renderCountdown();
+    const pre = isPreDraft();
+    if (pre !== lastPre) { lastPre = pre; renderActive(); }   // flip to live the moment the draft starts
+    updatePreDraft();
     if (MODE!=="mock" || !mock.running || !mock.picks) return;
     const st = derive(mock.picks, 2026);
     if (!st.onClock) { mock.running=false; $("btnRun").textContent="▶ Start"; $("btnRun").classList.add("primary"); pushMock(); return; }
