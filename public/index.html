@@ -78,6 +78,7 @@
   .countdown { margin-left:auto; text-align:right; }
   .cd-time { font-size:46px; font-weight:900; font-variant-numeric:tabular-nums; line-height:1; }
   .cd-time.low { color:var(--red); }
+  .cd-time.days { font-size:clamp(24px,6vw,34px); }
   .cd-label { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; }
   .alert { margin-top:12px; background:#fff5f6; border:1px solid #f1b8c1; border-radius:10px; padding:10px 12px; font-size:14px; font-weight:700; color:var(--red); }
   .pool-row { display:flex; gap:10px; flex-wrap:wrap; margin-top:16px; }
@@ -120,7 +121,8 @@
   .outag.under { background:#fff3e0; color:#e65100; }
   .outag.atslot { background:#f1f3f5; color:#6b7280; }
   .outag.est { opacity:.85; border:1px dashed currentColor; padding:0 4px; }
-  table.ba th.sortable { cursor:default; }
+  table.ba th.sortable { cursor:pointer; user-select:none; white-space:nowrap; }
+  table.ba th.sortable:hover { color:var(--red); }
   .cc.clickable { cursor:pointer; } .cc.clickable:hover { border-color:var(--red); }
   table.ba tr.clickable { cursor:pointer; } table.ba tr.clickable:hover { background:#fff5f6; }
   .tlink { color:var(--red); font-weight:800; text-decoration:none; cursor:pointer; }
@@ -216,20 +218,9 @@
 
   <!-- BONUS POOLS (all 30 teams) -->
   <section id="viewPools" class="view">
-    <div class="ba-filters">
-      <label>Sort
-        <select id="poolSort" onchange="renderPools()">
-          <option value="pct">Spend % of pool</option>
-          <option value="room">Room / ammo (low→high)</option>
-          <option value="over">Over/under slot</option>
-          <option value="pool">Pool size</option>
-          <option value="team">Team</option>
-        </select>
-      </label>
-      <span class="count" id="poolNote"></span>
-    </div>
+    <div class="ba-filters"><span class="count" id="poolNote"></span></div>
     <table class="ba">
-      <thead><tr><th>Team</th><th>Pool</th><th class="hide-sm">Picks</th><th class="hide-sm">Committed slot</th><th>Spent</th><th>Over/Under</th><th>Room</th><th>%</th></tr></thead>
+      <thead id="poolHead"></thead>
       <tbody id="poolBody"></tbody>
     </table>
   </section>
@@ -410,7 +401,12 @@
     timer = { pick: p.overall, remainingMs: allot, endsAt: clockRunning() ? Date.now()+allot : null };
   }
   function renderCountdown() {
-    if (isPreDraft()) { $("cdTime").textContent = ""; return; }       // no pick-clock before the draft starts
+    if (isPreDraft()) {                                   // pre-draft: clock shows time until first pick
+      $("cdTime").textContent = fmtCountdown(DRAFT_START - Date.now());
+      $("cdTime").classList.remove("low"); $("cdTime").classList.add("days");
+      return;
+    }
+    $("cdTime").classList.remove("days");
     if (!timer.pick) { $("cdTime").textContent = "--:--"; return; }
     const leftMs = timer.endsAt != null ? (timer.endsAt - Date.now()) : timer.remainingMs;  // frozen when paused
     const left = Math.max(0, Math.round(leftMs/1000));
@@ -557,24 +553,13 @@
   // ---------- VIEW: ON THE CLOCK ----------
   function renderClock(state) {
     $("clockCard").classList.toggle("mock", MODE==="mock");
-    if (isPreDraft()) {                                   // live, pre-draft -> countdown hero (not "on the clock")
-      $("clockCard").classList.remove("mock");
-      $("pickNo").textContent = "LIVE · 2026 MLB DRAFT — not started";
-      $("teamAbbr").innerHTML = `<span id="draftCountdown" style="font-size:clamp(28px,8vw,42px)">${fmtCountdown(DRAFT_START-Date.now())}</span>`;
-      $("teamName").textContent = "";
-      $("cdTime").textContent = ""; $("cdLabel").textContent = "begins Fri Jul 11 · 1:30 PM ET";
-      $("ocAlert").innerHTML = `<div class="alert" style="color:var(--muted);background:#fff;border-color:var(--line)">Board, clients & projections below are live for prep — the clock goes live when the first pick is in.</div>`;
-      $("poolRow").innerHTML = "";
-      renderTendencies(null); renderIntel(null, new Set());
-      $("recent").innerHTML = `<div class="placeholder">No picks yet — the draft hasn't started.</div>`;
-      return;
-    }
+    const pre = isPreDraft();
     const oc = state.onClock;
     if (oc) {
-      $("pickNo").textContent = `${MODE==="mock"?"MOCK · ":""}On the clock · Pick #${oc.overall} · Round ${oc.round} (${oc.roundPick})`;
+      $("pickNo").textContent = `${MODE==="mock"?"MOCK · ":""}${pre?"Up first":"On the clock"} · Pick #${oc.overall} · Round ${oc.round} (${oc.roundPick})`;
       $("teamAbbr").innerHTML = oc.team ? `<span class="tlink" onclick="openTeam('${oc.team}')">${oc.team}</span>` : (oc.teamName || "—");
       $("teamName").textContent = oc.teamName || "";
-      $("cdLabel").textContent = `allotted ${Math.floor(allotment(oc.round)/60)}:${String(allotment(oc.round)%60).padStart(2,"0")}`;
+      $("cdLabel").textContent = pre ? "until first pick · Jul 11, 1:30 PM ET" : `allotted ${Math.floor(allotment(oc.round)/60)}:${String(allotment(oc.round)%60).padStart(2,"0")}`;
       const drafted = new Set(state.picks.filter(p=>p.isDrafted&&p.player).map(p=>normName(p.player)));
       $("ocAlert").innerHTML = "";   // interest is already shown in the "Interest in our guys" panel below
       const pool = state.poolsMap[oc.team];
@@ -684,14 +669,24 @@
   function jumpCurrent() { document.getElementById("ocRow")?.scrollIntoView({ block:"center", behavior:"smooth" }); }
 
   // ---------- VIEW: BONUS POOLS ----------
+  const POOL_COLS = [["team","Team"],["pool","Pool"],["picksMade","Picks"],["committedSlot","Committed slot"],
+                     ["poolCharge","Spent"],["overUnder","Over/Under"],["room","Room"],["pctNum","%"]];
+  let poolSort = { key:"pctNum", dir:-1 };   // dir: -1 desc, 1 asc
+  window.sortPools = (key) => {
+    if (poolSort.key === key) poolSort.dir *= -1;
+    else poolSort = { key, dir: key==="team" ? 1 : -1 };
+    renderPools();
+  };
   function renderPools() {
     if (!currentState) return;
-    const sort = $("poolSort").value;
-    const cmp = {
-      pct:(a,b)=>b.pctNum-a.pctNum, room:(a,b)=>a.room-b.room,
-      over:(a,b)=>b.overUnder-a.overUnder, pool:(a,b)=>b.pool-a.pool, team:(a,b)=>a.team.localeCompare(b.team),
-    }[sort] || ((a,b)=>b.pctNum-a.pctNum);
-    const pools = currentState.pools.slice().sort(cmp);
+    $("poolHead").innerHTML = "<tr>" + POOL_COLS.map(([k,label]) => {
+      const arrow = poolSort.key===k ? (poolSort.dir<0 ? " ▾" : " ▴") : "";
+      const cls = (k==="picksMade"||k==="committedSlot") ? "hide-sm" : "";
+      return `<th class="sortable ${cls}" onclick="sortPools('${k}')">${label}${arrow}</th>`;
+    }).join("") + "</tr>";
+    const { key, dir } = poolSort;
+    const pools = currentState.pools.slice().sort((a,b) =>
+      key==="team" ? dir*a.team.localeCompare(b.team) : dir*(((a[key]??0)) - ((b[key]??0))));
     $("poolNote").textContent = currentState.poolsEst
       ? "Spent is estimated from the model until signing bonuses are reported"
       : `${currentState.madeCount} picks in`;
