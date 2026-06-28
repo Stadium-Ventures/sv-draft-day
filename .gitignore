@@ -1,0 +1,9 @@
+node_modules/
+.vercel/
+.env
+.env.local
+*.log
+data/*.xlsx
+scratch/
+
+.DS_Store

@@ -1,0 +1,1052 @@
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SV Draft Day</title>
+<link rel="icon" href="/favicon.svg" />
+<style>
+  @font-face { font-family:'Satoshi'; src:url('/fonts/Satoshi-Regular.otf') format('opentype'); font-weight:400; font-display:swap; }
+  @font-face { font-family:'Satoshi'; src:url('/fonts/Satoshi-Medium.otf') format('opentype'); font-weight:500; font-display:swap; }
+  @font-face { font-family:'Satoshi'; src:url('/fonts/Satoshi-Bold.otf') format('opentype'); font-weight:700; font-display:swap; }
+  @font-face { font-family:'Satoshi'; src:url('/fonts/Satoshi-Black.otf') format('opentype'); font-weight:900; font-display:swap; }
+  :root { --red:#ff2a22; --red-deep:#d81e17; --ink:#141414; --muted:#6b6b6b; --line:#e3e3e3; --bg:#f4f3f1; --card:#ffffff; --good:#1a7f37; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:15px/1.45 'Satoshi',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; color:var(--ink); background:var(--bg); -webkit-font-smoothing:antialiased; }
+  header { display:flex; align-items:center; gap:12px; padding:10px 16px; background:#fff; border-bottom:3px solid var(--red); position:sticky; top:0; z-index:6; }
+  header .logo { height:26px; width:auto; display:block; }
+  header .title { font-weight:900; letter-spacing:.2px; font-size:17px; }
+  header .badge { margin-left:auto; font-size:12px; font-weight:700; color:var(--red); border:1px solid var(--red); border-radius:999px; padding:3px 10px; }
+  .dot { width:9px; height:9px; border-radius:50%; background:#bbb; display:inline-block; }
+  .dot.live { background:var(--good); } .dot.err { background:var(--red); }
+  .seg { display:inline-flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  .seg button { border:0; background:#fff; padding:6px 12px; font:inherit; font-weight:700; cursor:pointer; color:var(--muted); }
+  .seg button.on { background:var(--red); color:#fff; }
+
+  .tabs { display:flex; gap:4px; padding:8px 16px 0; background:#fff; border-bottom:1px solid var(--line); position:sticky; top:49px; z-index:5; }
+  .tabs button { border:0; border-bottom:3px solid transparent; background:none; padding:8px 14px; font:inherit; font-weight:700; color:var(--muted); cursor:pointer; }
+  .tabs button.on { color:var(--ink); border-bottom-color:var(--red); }
+
+  .bar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:8px 16px; background:#fff7f8; border-bottom:1px solid var(--line); position:sticky; top:90px; z-index:5; }
+  .bar.hidden { display:none; }
+  .ctl { border:1px solid var(--line); background:#fff; border-radius:8px; padding:6px 11px; font:inherit; font-weight:700; cursor:pointer; }
+  .ctl.primary { background:var(--red); color:#fff; border-color:var(--red); }
+  .bar select { font:inherit; padding:6px 8px; border:1px solid var(--line); border-radius:8px; }
+  .bar .note { color:var(--muted); font-size:12px; margin-left:auto; }
+
+  main { max-width:1080px; margin:0 auto; padding:16px; }
+  .view { display:none; } .view.on { display:block; }
+
+  /* shared */
+  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); margin:22px 0 8px; }
+  .placeholder { color:var(--muted); font-size:13px; border:1px dashed var(--line); border-radius:10px; padding:12px; background:#fff; }
+  .idot { width:12px; height:12px; border-radius:50%; border:1px solid rgba(0,0,0,.15); display:inline-block; }
+  .pdw { font-size:10px; font-weight:800; color:var(--red); border:1px solid var(--red); border-radius:4px; padding:1px 5px; }
+  .grade { font-size:12px; font-weight:800; color:#fff; border-radius:6px; padding:2px 7px; }
+
+  /* clients view */
+  .summary { display:flex; gap:18px; flex-wrap:wrap; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 18px; margin-bottom:14px; }
+  .summary .k { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; }
+  .summary .v { font-size:24px; font-weight:900; font-variant-numeric:tabular-nums; }
+  .clients { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .cc { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; }
+  .cc.drafted { opacity:.92; border-color:#cfe8d6; }
+  .cc .top { display:flex; align-items:baseline; gap:8px; }
+  .cc .rk { font-weight:900; color:var(--red); }
+  .cc .nm { font-weight:800; font-size:17px; }
+  .cc .pl { color:var(--muted); font-size:13px; margin-left:auto; }
+  .cc .status { margin:6px 0 10px; font-size:13px; font-weight:700; }
+  .cc .status.av { color:var(--muted); } .cc .status.dr { color:var(--good); }
+  .ct { display:flex; align-items:center; gap:8px; padding:5px 0; border-top:1px solid var(--line); font-size:13px; }
+  .ct .tm { font-weight:800; min-width:38px; } .ct .nx { color:var(--muted); margin-left:auto; text-align:right; font-variant-numeric:tabular-nums; }
+
+  /* clock view */
+  .clock-card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px 20px; }
+  .clock-card.mock { border-color:#f1b8c1; box-shadow:0 0 0 2px #fdeef0; }
+  .pick-no { font-size:13px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; }
+  .team-line { display:flex; align-items:center; gap:14px; margin:6px 0 2px; }
+  .team-abbr { font-size:44px; font-weight:900; line-height:1; }
+  .team-name { font-size:15px; color:var(--muted); }
+  .countdown { margin-left:auto; text-align:right; }
+  .cd-time { font-size:46px; font-weight:900; font-variant-numeric:tabular-nums; line-height:1; }
+  .cd-time.low { color:var(--red); }
+  .cd-label { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; }
+  .alert { margin-top:12px; background:#fff5f6; border:1px solid #f1b8c1; border-radius:10px; padding:10px 12px; font-size:14px; font-weight:700; color:var(--red); }
+  .pool-row { display:flex; gap:18px; flex-wrap:wrap; margin-top:14px; padding-top:14px; border-top:1px solid var(--line); }
+  .stat .k { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; }
+  .stat .v { font-size:20px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .cols { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px; }
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; }
+  .panel h3 { margin:0 0 10px; font-size:12px; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .chip { font-size:12px; font-weight:600; background:#f1f3f5; border-radius:999px; padding:4px 10px; }
+  .chip .lab { color:var(--muted); }
+  .r1 { margin-top:10px; font-size:13px; color:var(--muted); } .r1 div { padding:2px 0; }
+  .intel .row { display:flex; align-items:center; gap:9px; padding:3px 0; }
+  .intel .nm { font-weight:700; } .intel .sc { color:var(--muted); font-size:13px; margin-left:auto; }
+  .recent { display:flex; flex-direction:column; gap:6px; }
+  .pick { display:flex; align-items:center; gap:10px; background:#fff; border:1px solid var(--line); border-radius:10px; padding:8px 12px; }
+  .pick .ov { font-weight:800; min-width:38px; color:var(--red); }
+  .pick .who { font-weight:700; } .pick .rkbadge { font-size:11px; font-weight:700; color:var(--good); }
+  .pick .clab { font-size:11px; font-weight:700; color:#fff; background:var(--good); border-radius:4px; padding:0 5px; }
+  .pick .meta { color:var(--muted); font-size:13px; margin-left:auto; text-align:right; }
+
+  /* best available */
+  .ba-filters { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px; }
+  .ba-filters select, .ba-filters input { font:inherit; padding:6px 9px; border:1px solid var(--line); border-radius:8px; }
+  .ba-filters label { font-size:12px; font-weight:700; color:var(--muted); display:inline-flex; align-items:center; gap:5px; }
+  .ba-filters .count { margin-left:auto; color:var(--muted); font-size:13px; font-weight:700; }
+  table.ba { width:100%; border-collapse:collapse; background:#fff; border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  table.ba th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); padding:8px 10px; border-bottom:1px solid var(--line); background:#fafafa; }
+  table.ba td { padding:7px 10px; border-bottom:1px solid #f0f1f3; font-size:14px; }
+  table.ba tr.sv { background:#fff5f6; }
+  table.ba tr.draftable:hover { background:#fdeef0; cursor:pointer; }
+  table.ba .rk { font-weight:800; color:var(--red); }
+  .lvl { font-size:11px; font-weight:700; border-radius:4px; padding:1px 6px; }
+  .lvl.HS { background:#eef2ff; color:#3949ab; } .lvl.College { background:#e8f5e9; color:#2e7d32; }
+  .lvl.JUCO { background:#fff3e0; color:#e65100; } .lvl.Unk { background:#f1f3f5; color:#6b7280; }
+  .svtag { font-size:10px; font-weight:800; color:#fff; background:var(--red); border-radius:4px; padding:1px 5px; }
+  .outag { font-size:10px; font-weight:800; border-radius:4px; padding:1px 5px; white-space:nowrap; }
+  .outag.over { background:#e8f5e9; color:#1a7f37; }
+  .outag.under { background:#fff3e0; color:#e65100; }
+  .outag.atslot { background:#f1f3f5; color:#6b7280; }
+  .outag.est { opacity:.85; border:1px dashed currentColor; padding:0 4px; }
+  table.ba th.sortable { cursor:default; }
+  .cc.clickable { cursor:pointer; } .cc.clickable:hover { border-color:var(--red); }
+  table.ba tr.clickable { cursor:pointer; } table.ba tr.clickable:hover { background:#fff5f6; }
+  .tlink { color:var(--red); font-weight:800; text-decoration:none; cursor:pointer; }
+  .tlink:hover { text-decoration:underline; }
+  .detail-head { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+  .detail-head .big { font-size:26px; font-weight:900; }
+  .backbtn { margin-bottom:12px; }
+
+  /* board */
+  .board { display:flex; flex-direction:column; gap:3px; }
+  .rnd { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); margin:10px 0 3px; }
+  .brow { display:flex; align-items:center; gap:9px; background:#fff; border:1px solid var(--line); border-radius:8px; padding:6px 10px; font-size:14px; }
+  .brow .ov { font-weight:800; min-width:42px; color:var(--red); font-variant-numeric:tabular-nums; }
+  .brow .tm { font-weight:800; min-width:40px; }
+  .brow .who { font-weight:700; }
+  .brow .rkbadge { font-size:11px; font-weight:700; color:var(--good); }
+  .brow .meta { color:var(--muted); font-size:12px; margin-left:auto; font-variant-numeric:tabular-nums; }
+  .brow.up { background:#fafbfc; color:#9aa0a6; } .brow.up .tm { color:#6b7280; }
+  .brow.sv { background:#fff5f6; border-color:#f1b8c1; }
+  .brow.oc { border-color:var(--red); box-shadow:0 0 0 2px #fdeef0; }
+
+  @media (max-width:680px) {
+    .team-abbr { font-size:34px; } .cd-time { font-size:34px; }
+    .countdown { margin-left:0; text-align:left; width:100%; }
+    .cols, .clients { grid-template-columns:1fr; }
+    table.ba .hide-sm { display:none; }
+    .bar { top:90px; }
+  }
+</style>
+
+<header>
+  <img src="/brand/sv-logo.svg" alt="Stadium Ventures" class="logo" />
+  <span class="title">Draft Day</span>
+  <span id="conn" class="dot"></span>
+  <span class="seg" style="margin-left:8px">
+    <button id="mLive" class="on" onclick="setMode('live')">● Live</button>
+    <button id="mMock" onclick="setMode('mock')">⚙ Mock</button>
+  </span>
+  <span class="badge" id="yearBadge">2026 MLB DRAFT</span>
+</header>
+
+<nav class="tabs">
+  <button id="tabClients" class="on" onclick="setView('clients')">Our Clients</button>
+  <button id="tabClock" onclick="setView('clock')">On The Clock</button>
+  <button id="tabPools" onclick="setView('pools')">Bonus Pools</button>
+  <button id="tabBoard" onclick="setView('board')">Board</button>
+  <button id="tabBest" onclick="setView('best')">Best Available</button>
+</nav>
+
+<div class="bar hidden" id="mockBar">
+  <button class="ctl primary" id="btnRun" onclick="toggleRun()">▶ Start</button>
+  <button class="ctl" id="btnStep" onclick="stepOnce()">⏭ Step</button>
+  <label style="font-size:12px;color:#6b7280;font-weight:700">Speed
+    <select id="speed" onchange="onSpeed()">
+      <option value="realtime">Real-time (clock)</option>
+      <option value="fast" selected>Fast · 1.2s</option>
+      <option value="turbo">Turbo · 0.3s</option>
+      <option value="instant">Instant</option>
+    </select>
+  </label>
+  <button class="ctl" onclick="resetMock()">↺ Reset</button>
+  <span class="note" id="mockNote">Pause, then click a Best-Available row to draft manually.</span>
+</div>
+
+<main>
+  <!-- OUR CLIENTS (hero) -->
+  <section id="viewClients" class="view on">
+    <div class="summary" id="clientSummary"></div>
+    <div class="clients" id="clientCards"></div>
+  </section>
+
+  <!-- ON THE CLOCK -->
+  <section id="viewClock" class="view">
+    <div class="clock-card" id="clockCard">
+      <div class="pick-no" id="pickNo">Loading…</div>
+      <div class="team-line">
+        <span class="team-abbr" id="teamAbbr">—</span>
+        <span class="team-name" id="teamName"></span>
+        <div class="countdown"><div class="cd-time" id="cdTime">--:--</div><div class="cd-label" id="cdLabel">on the clock</div></div>
+      </div>
+      <div id="ocAlert"></div>
+      <div class="pool-row" id="poolRow"></div>
+    </div>
+    <div class="cols">
+      <div class="panel"><h3 id="tendHdr">Org tendencies</h3><div class="chips" id="tendChips"></div><div class="r1" id="recentR1"></div></div>
+      <div class="panel"><h3 id="intelHdr">Interest in our guys</h3><div class="intel" id="intelList"></div></div>
+    </div>
+    <h2>Recent picks</h2>
+    <div class="recent" id="recent"></div>
+  </section>
+
+  <!-- BONUS POOLS (all 30 teams) -->
+  <section id="viewPools" class="view">
+    <div class="ba-filters">
+      <label>Sort
+        <select id="poolSort" onchange="renderPools()">
+          <option value="pct">Spend % of pool</option>
+          <option value="room">Room / ammo (low→high)</option>
+          <option value="over">Over/under slot</option>
+          <option value="pool">Pool size</option>
+          <option value="team">Team</option>
+        </select>
+      </label>
+      <span class="count" id="poolNote"></span>
+    </div>
+    <table class="ba">
+      <thead><tr><th>Team</th><th>Pool</th><th class="hide-sm">Picks</th><th class="hide-sm">Committed slot</th><th>Spent</th><th>Over/Under</th><th>Room</th><th>%</th></tr></thead>
+      <tbody id="poolBody"></tbody>
+    </table>
+  </section>
+
+  <!-- BOARD (running log of all picks) -->
+  <section id="viewBoard" class="view">
+    <div class="ba-filters">
+      <label><input type="checkbox" id="bSv" onchange="renderBoard()"> SV picks only</label>
+      <button class="ctl" onclick="jumpCurrent()">↧ Jump to current pick</button>
+      <span class="count" id="boardCount"></span>
+    </div>
+    <div id="boardList" class="board"></div>
+  </section>
+
+  <!-- DETAIL (player or team drill-down) -->
+  <section id="viewDetail" class="view">
+    <button class="ctl backbtn" onclick="closeDetail()">← Back</button>
+    <div id="detailBody"></div>
+  </section>
+
+  <!-- BEST AVAILABLE -->
+  <section id="viewBest" class="view">
+    <div class="ba-filters">
+      <label>Level <select id="fLevel" onchange="renderBest()"><option>All</option><option>HS</option><option>College</option><option>JUCO</option></select></label>
+      <label>Pos <select id="fPos" onchange="renderBest()"><option>All</option><option>P</option><option>C</option><option>IF</option><option>OF</option></select></label>
+      <label><input type="checkbox" id="fSv" onchange="renderBest()"> SV clients only</label>
+      <input id="fQuery" placeholder="search name / school" oninput="renderBest()" style="min-width:180px" />
+      <span class="count" id="baCount"></span>
+    </div>
+    <table class="ba">
+      <thead><tr><th>#</th><th>Player</th><th>Pos</th><th>Lvl</th><th class="hide-sm">School</th><th class="hide-sm">Age</th></tr></thead>
+      <tbody id="baBody"></tbody>
+    </table>
+  </section>
+</main>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const fmt$ = (n) => n == null ? "—" : "$" + Math.round(n).toLocaleString();
+  const fmtM = (n) => n == null ? "—" : "$" + (n/1e6).toFixed(2) + "M";
+  const LATE_EXEMPT = 150000;   // rounds 11+ (slot 0): only bonus above this counts vs the pool
+  const CUSHION = 1.05;         // teams may exceed pool by 5% before forfeiting a 1st-round pick
+  // Budget-engine params, calibrated to the 2021-25 over/under curve (slot-tracker).
+  const ENG = {
+    LAMBDA: 4.5,          // cost of money: talent points sacrificed per $1M
+    BANK_K: 2.5,          // spare money vs picks left -> lower cost-of-money (spend the cushion)
+    RESERVE: 90000,       // $ reserved per remaining pool pick so late picks stay signable
+    TOP_DISCOUNT: 0.90,   // elite picks (<=10) sign under the mega-slot
+    RAMP_DIV: 24,         // leverage premium ramps in from pick 1 to ~pick 25
+    EROSION_RATE: 0.010,  // a slider's price erodes per spot fallen past his rank
+    EROSION_FLOOR: 0.40,
+    HOLD: { HS:0.90, JUCO:0.85, "College-JR":0.55, "College-SR":0.15 }, // over-slot premium captured
+    POS_LEAN: 14, INTEREST_MAX: 3,
+  };
+  const fmtOU = (n) => !n ? "at slot" : (n>0 ? "+"+fmtM(n)+" over" : fmtM(-n)+" banked");
+  const fmtVsSlot = (n) => n==null ? "" : (!n ? "at slot" : (n>0 ? "+"+fmtM(n)+" over slot" : fmtM(-n)+" under slot"));
+  const MEDICAL_FLOOR = 0.75;   // combine-medical consent guarantees >=75% of slot
+  let MEDICALS = {};            // normName -> "yes" | "no"  (absent = unknown)
+  try { MEDICALS = JSON.parse(localStorage.getItem("dd:medicals") || "{}"); } catch (e) {}
+  const medicalOf = (comp) => comp ? (MEDICALS[normName(comp.name)] || "unknown") : "unknown";
+  window.setMedical = (key, val) => {
+    if (val === "unknown") delete MEDICALS[key]; else MEDICALS[key] = val;
+    try { localStorage.setItem("dd:medicals", JSON.stringify(MEDICALS)); } catch (e) {}
+    renderActive();
+  };
+
+  // Known landing range (your intel) — HARD lock: a player can't be drafted before
+  // range.lo and is taken by range.hi, in projections AND mocks.
+  let RANGES = {};   // normName -> { lo, hi }  (pick numbers)
+  try { RANGES = JSON.parse(localStorage.getItem("dd:ranges") || "{}"); } catch (e) {}
+  const rangeOf = (comp) => comp ? RANGES[normName(comp.name)] : null;
+  const roundSpan = (r) => { const ps=(ORDER?.picks||[]).filter(p=>String(p.round)===String(r)); return ps.length?{first:Math.min(...ps.map(p=>p.overall)), last:Math.max(...ps.map(p=>p.overall))}:null; };
+  const roundOfPick = (n) => (ORDER?.picks||[]).find(p=>p.overall===n)?.round;
+  function saveRanges(key) { try { localStorage.setItem("dd:ranges", JSON.stringify(RANGES)); } catch (e) {}
+    delete projCache[key]; if (selected && selected.id===key) computeProjection(key); renderActive(); }
+  window.setRange = (key, lo, hi) => {
+    lo = parseInt(lo,10) || null; hi = parseInt(hi,10) || null;
+    if (!lo && !hi) delete RANGES[key]; else RANGES[key] = { lo, hi };
+    saveRanges(key);
+  };
+  window.setRangeByRound = (key, rLo, rHi) => { const a=roundSpan(rLo), b=roundSpan(rHi); if(a&&b) window.setRange(key, a.first, b.last); };
+  window.clearRange = (key) => { delete RANGES[key]; saveRanges(key); };
+  const TEAMINTEL_URL = "https://sv-teamintel.vercel.app/teamintel.json";
+  const SUFFIX = /\b(jr|sr|ii|iii|iv|v)\b/g;
+  const normName = (s) => (s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"")
+      .replace(/[.''`\-]/g," ").replace(SUFFIX,"").replace(/[^a-z\s]/g," ").replace(/\s+/g," ").trim();
+  const teamAlias = (t) => (t === "OAK" ? "ATH" : t);
+  const isPitcher = (pos) => /(^|\b)(P|RHP|LHP|SP|RP)\b/i.test(pos || "");
+  const COLOR_HEX = { green:"#1a7f37","light green":"#86c98b", yellow:"#e3b505", orange:"#e8820e", red:"#C8102E" };
+
+  let DATA = { composite:[], compByName:new Map(), orgs:{}, intel:[], clients:new Set(), clientList:[], leverage:null };
+
+  // ----- bonus / leverage model: expected bonus = slot-at-rank × leverage multiplier -----
+  function levelClass(comp) {
+    if (!comp) return "College-JR";
+    if (comp.level === "HS") return "HS";
+    if (comp.level === "JUCO") return "JUCO";
+    const a = parseFloat(comp.age);
+    if (comp.level === "College") return (a && a >= 21.5) ? "College-SR" : "College-JR";
+    return (a && a <= 18.5) ? "HS" : "College-JR";   // Unk -> age proxy
+  }
+  function leverageMult(comp) {
+    const L = DATA.leverage && DATA.leverage.mult; if (!L) return 1;
+    const cell = L[levelClass(comp)];
+    if (cell && cell[comp.posGroup] != null) return cell[comp.posGroup];
+    if (cell && cell["_"] != null) return cell["_"];
+    return L["_"] || 1;
+  }
+  function effMult(comp) {                             // leverage, ramped in (top picks ~ slot) + elite discount
+    const ramp = Math.min(1, Math.max(0, (comp.rank-1)/ENG.RAMP_DIV));
+    let m = 1 + (leverageMult(comp)-1)*ramp;
+    if (comp.rank <= 10) m *= ENG.TOP_DISCOUNT;
+    return m;
+  }
+  function demandFor(comp) {                           // expected market bonus for the player
+    if (!comp) return null;
+    return Math.round((slotForRank(comp.rank) || LATE_EXEMPT) * effMult(comp));
+  }
+  // negotiated bonus if `comp` is taken at a given pick (slot) and overall position
+  function negBonus(comp, pickSlot, overall) {
+    let dem = (slotForRank(comp.rank) || LATE_EXEMPT) * effMult(comp);
+    if (overall > comp.rank) dem *= Math.max(ENG.EROSION_FLOOR, 1 - ENG.EROSION_RATE*(overall-comp.rank));
+    if (pickSlot <= 0) return Math.round(Math.min(dem, 175000));
+    const hold = ENG.HOLD[levelClass(comp)] ?? 0.5;
+    let b = dem <= pickSlot ? dem : pickSlot + (dem-pickSlot)*hold;
+    if (medicalOf(comp) === "yes") b = Math.max(b, MEDICAL_FLOOR*pickSlot);   // combine-medical 75% floor
+    return Math.max(50000, Math.round(b));
+  }
+  let MODE = "live", VIEW = "clients", selected = null;
+  const teamLink = (t) => t ? `<span class="tlink" onclick="openTeam('${t}')">${t}</span>` : "";
+  const playerLink = (name) => `<span class="tlink" onclick="openPlayer('${normName(name).replace(/'/g,"\\'")}')">${name}</span>`;
+  let currentState = null, lastLive = null, ORDER = null;
+  let mock = { picks:null, running:false, speed:"fast", nextAt:0, seeding:false };
+
+  async function loadStatic() {
+    try {
+      const [c, o, lev] = await Promise.all([
+        fetch("/data/composite.json").then(r=>r.json()),
+        fetch("/data/orgs.json").then(r=>r.json()),
+        fetch("/data/leverage.json").then(r=>r.json()).catch(()=>null),
+      ]);
+      DATA.composite = c; DATA.orgs = o; DATA.leverage = lev;
+      DATA.compByName = new Map(c.map(p => [normName(p.name), p]));
+    } catch (e) {}
+    try {
+      const ti = await fetch(TEAMINTEL_URL, { cache:"no-store" }).then(r=>r.json());
+      DATA.intel = Array.isArray(ti) ? ti : (ti.records || []);
+      DATA.clients = new Set(DATA.intel.map(r => normName(r.player)));
+      // distinct clients, attach composite entry
+      const names = [...new Set(DATA.intel.map(r => r.player))];
+      DATA.clientList = names.map(name => ({ name, key:normName(name), comp:DATA.compByName.get(normName(name)) || null }))
+        .sort((a,b) => (a.comp?.rank || 9999) - (b.comp?.rank || 9999));
+    } catch (e) {}
+  }
+  async function loadOrder() {
+    if (ORDER) return ORDER;
+    const r = await fetch("/data/order.json", { cache:"no-store" });
+    if (!r.ok) throw new Error("order " + r.status);
+    ORDER = await r.json(); return ORDER;
+  }
+
+  const allotment = (round) => { const r = parseInt(round,10)||1; return r<=1?300:r<=4?90:60; };
+  let timer = { pick:null, endsAt:0 };
+  function renderCountdown() {
+    if (!timer.pick) { $("cdTime").textContent = "--:--"; return; }
+    const left = Math.max(0, Math.round((timer.endsAt - Date.now())/1000));
+    $("cdTime").textContent = `${Math.floor(left/60)}:${String(left%60).padStart(2,"0")}`;
+    $("cdTime").classList.toggle("low", left <= 15);
+  }
+
+  // Actual bonus if known (mock engine, or live once signed); otherwise our model
+  // estimate. Live drafts have no bonus at pick time -> we project, flagged est.
+  function effectiveBonus(p) {
+    if (!p.isDrafted) return { bonus:null, est:false };
+    if (p.bonus != null) return { bonus:p.bonus, est:false };
+    const comp = DATA.compByName.get(normName(p.player||""));
+    if (comp) return { bonus: negBonus(comp, p.slot||0, p.overall), est:true };
+    return { bonus:null, est:false };
+  }
+  function ouTag(over, est) {
+    const cls = over>50000 ? "over" : over<-50000 ? "under" : "atslot";
+    const lab = (est?"EST ":"") + (over>50000?"OVER":over<-50000?"UNDER":"AT SLOT") + (Math.abs(over)>50000?" "+fmtM(Math.abs(over)):"");
+    return `<span class="outag ${cls}${est?" est":""}">${lab}</span>`;
+  }
+  function moneyCell(p) {            // "slot $X · $Y OVER $Z" with the slot kept visible
+    const eb = effectiveBonus(p), parts = [];
+    if (p.slot > 0) parts.push(`slot ${fmtM(p.slot)}`);
+    if (eb.bonus != null) parts.push(fmtM(eb.bonus));
+    let s = parts.join(" · ");
+    if (eb.bonus != null && p.slot > 0) s += " " + ouTag(eb.bonus - p.slot, eb.est);
+    return s;
+  }
+
+  function derive(picks, year) {
+    const onClockIndex = picks.findIndex(p => !p.isDrafted && !p.isPass);
+    const onClock = onClockIndex >= 0 ? picks[onClockIndex] : null;
+    const pools = {};
+    for (const p of picks) {
+      if (!p.team) continue;
+      const t = pools[p.team] = pools[p.team] || { team:p.team, teamName:p.teamName,
+        pool:0, picksTotal:0, picksMade:0, committedSlot:0, poolBonusPaid:0, poolCharge:0, hasEst:false };
+      const isPool = p.slot > 0;                    // rounds 1-10 + CB/comp/PPI (rounds 11+ carry slot 0)
+      if (isPool) { t.pool += p.slot; t.picksTotal += 1; }
+      if (p.isDrafted) {
+        if (isPool) { t.committedSlot += p.slot; t.picksMade += 1; }
+        const eb = effectiveBonus(p);
+        if (eb.bonus != null) {
+          if (eb.est) t.hasEst = true;
+          if (isPool) t.poolBonusPaid += eb.bonus;
+          t.poolCharge += isPool ? eb.bonus : Math.max(0, eb.bonus - LATE_EXEMPT);
+        }
+      }
+    }
+    for (const t of Object.values(pools)) {
+      t.remainingSlot = t.pool - t.committedSlot;        // slot $ of pool picks not yet made
+      t.ceiling = t.pool * CUSHION;                      // hard spend wall
+      t.room = t.ceiling - t.poolCharge;                 // AMMO: $ still spendable within the rules
+      t.overUnder = t.poolBonusPaid - t.committedSlot;   // picks over (+) / banked (−) vs slot to date
+      t.pctNum = t.pool ? (t.poolCharge - t.pool)/t.pool*100 : 0;
+    }
+    return { year, picks, onClockIndex, onClock, madeCount:picks.filter(p=>p.isDrafted).length, poolsMap:pools,
+             poolsEst: Object.values(pools).some(t=>t.hasEst),
+             pools:Object.values(pools).sort((a,b)=>a.team.localeCompare(b.team)) };
+  }
+
+  // latest intel record for client+team
+  function latestIntel(clientKey, team) {
+    return DATA.intel.filter(r => teamAlias(r.team)===team && normName(r.player)===clientKey)
+                     .sort((a,b)=>(b.date||"").localeCompare(a.date||""))[0] || null;
+  }
+  function teamNextPick(state, team) { return state.picks.find(p => p.team===team && !p.isDrafted) || null; }
+
+  // landing-spot fit FOR the client: interest 35 / dev 25 / type 20 / money 20
+  function fit(comp, team, rec, state) {
+    const o = DATA.orgs[team] || {};
+    const interestN = rec ? Math.max(0, Math.min(1, (rec.score||0)/6)) : 0;
+    const devN = o.orgRank != null ? Math.max(0, (31 - o.orgRank)/30) : 0.5;
+    let typeN = 0.5;
+    if (comp) {
+      const lean = (o.earlyPitcherPct!=null?o.earlyPitcherPct:50)/100;
+      const posN = isPitcher(comp.pos) ? lean : (1-lean);
+      let lvlN = 0.5;
+      if (comp.level==="HS" && o.hsPct!=null) lvlN = o.hsPct/100;
+      else if (comp.level==="College" && o.collegePct!=null) lvlN = o.collegePct/100;
+      typeN = (posN + lvlN)/2;
+    }
+    const pool = state.poolsMap[team];
+    const moneyN = pool && pool.ceiling ? Math.max(0, Math.min(1, pool.room/pool.ceiling)) : 0.5;
+    const score = Math.round(100*(0.35*interestN + 0.25*devN + 0.20*typeN + 0.20*moneyN));
+    const grade = score>=85?"A+":score>=75?"A":score>=66?"B+":score>=56?"B":score>=46?"C":"D";
+    const color = score>=75?"#1a7f37":score>=56?"#3949ab":score>=46?"#e8820e":"#9aa0a6";
+    return { score, grade, color };
+  }
+
+  // ---------- VIEW: OUR CLIENTS ----------
+  function renderClients(state) {
+    const drafted = new Map(); // key -> pick
+    state.picks.forEach(p => { if (p.isDrafted && p.player) drafted.set(normName(p.player), p); });
+    const dCount = DATA.clientList.filter(c => drafted.has(c.key)).length;
+    const secured = DATA.clientList.reduce((s,c)=>{ const pk = drafted.get(c.key); return s + (pk?.slot || 0); }, 0);
+    $("clientSummary").innerHTML = [
+      ["Clients tracked", DATA.clientList.length],
+      ["Drafted", dCount],
+      ["Still on board", DATA.clientList.length - dCount],
+      ["Slot $ secured", fmtM(secured)],
+    ].map(([k,v]) => `<div><div class="k">${k}</div><div class="v">${v}</div></div>`).join("");
+
+    if (!DATA.clientList.length) { $("clientCards").innerHTML = `<div class="placeholder">No client data — is sv-teamintel reachable?</div>`; return; }
+
+    $("clientCards").innerHTML = DATA.clientList.map(c => {
+      const comp = c.comp, pk = drafted.get(c.key);
+      const rkTxt = comp ? `#${comp.rank}` : "NR";
+      const plTxt = comp ? `${comp.pos} · ${comp.level}` : "";
+      let status, teamsHtml = "";
+      if (pk) {
+        const f = fit(comp, pk.team, latestIntel(c.key, pk.team), state);
+        status = `<span class="status dr">DRAFTED #${pk.overall} · ${pk.team} · ${moneyCell(pk)}
+                  <span class="grade" style="background:${f.color}">${f.grade}</span></span>`;
+      } else {
+        // interested teams, ranked by fit
+        const teams = [...new Set(DATA.intel.filter(r=>normName(r.player)===c.key).map(r=>teamAlias(r.team)))]
+          .map(t => { const rec = latestIntel(c.key, t); return { t, rec, f:fit(comp, t, rec, state), nx:teamNextPick(state, t) }; })
+          .sort((a,b)=> b.f.score - a.f.score).slice(0,4);
+        const dem = demandFor(comp);
+        status = `<span class="status av">On the board${dem!=null?` · est. value ~${fmt$(dem)} (${levelClass(comp).replace("College-","Col ")} ${comp.posGroup})`:""}</span>`;
+        teamsHtml = teams.map(x => {
+          const pool = state.poolsMap[x.t];
+          const ou = (comp && x.nx) ? negBonus(comp, x.nx.slot, x.nx.overall) - x.nx.slot : null;  // floor-aware est. over/under
+          return `<div class="ct"><span class="idot" style="background:${COLOR_HEX[(x.rec?.color||"").toLowerCase()]||"#ccc"}"></span>
+            <span class="tm">${x.t}</span>${x.rec?.workout?'<span class="pdw">PDW</span>':""}
+            <span class="grade" style="background:${x.f.color}">${x.f.grade}</span>
+            <span class="nx">${x.nx?`#${x.nx.overall} ${fmtM(x.nx.slot)}${ou!=null?` · ${fmtVsSlot(ou)}`:""}`:"no picks left"}${pool?` · ammo ${fmtM(pool.room)}`:""}</span></div>`;
+        }).join("") || `<div class="ct" style="color:#9aa0a6">No logged team interest yet.</div>`;
+      }
+      return `<div class="cc clickable ${pk?"drafted":""}" onclick="openPlayer('${c.key.replace(/'/g,"\\'")}')">
+        <div class="top"><span class="rk">${rkTxt}</span><span class="nm">${c.name}</span><span class="pl">${plTxt} ›</span></div>
+        ${status}${teamsHtml}</div>`;
+    }).join("");
+  }
+  // rough slot for a board rank: use the order's slot at that overall pick (approx draft stock -> $)
+  function slotForRank(rank) {
+    if (!ORDER || !ORDER.picks) return null;
+    const pk = ORDER.picks.find(p => p.overall === rank);
+    return pk ? pk.slot : null;
+  }
+
+  // ---------- VIEW: ON THE CLOCK ----------
+  function renderClock(state) {
+    $("clockCard").classList.toggle("mock", MODE==="mock");
+    const oc = state.onClock;
+    if (oc) {
+      $("pickNo").textContent = `${MODE==="mock"?"MOCK · ":""}On the clock · Pick #${oc.overall} · Round ${oc.round} (${oc.roundPick})`;
+      $("teamAbbr").innerHTML = oc.team ? `<span class="tlink" onclick="openTeam('${oc.team}')">${oc.team}</span>` : (oc.teamName || "—");
+      $("teamName").textContent = oc.teamName || "";
+      $("cdLabel").textContent = `allotted ${Math.floor(allotment(oc.round)/60)}:${String(allotment(oc.round)%60).padStart(2,"0")}`;
+      // agency alert: does this team like any of our STILL-AVAILABLE guys?
+      const drafted = new Set(state.picks.filter(p=>p.isDrafted&&p.player).map(p=>normName(p.player)));
+      const wants = DATA.clientList.filter(c => !drafted.has(c.key) && latestIntel(c.key, oc.team) && latestIntel(c.key, oc.team).score>0)
+                    .sort((a,b)=>(latestIntel(b.key,oc.team).score)-(latestIntel(a.key,oc.team).score));
+      $("ocAlert").innerHTML = wants.length
+        ? `<div class="alert">⚠ ${oc.team} has logged interest in ${wants.length} available client${wants.length>1?"s":""}: ${wants.map(c=>c.name).join(", ")}</div>` : "";
+      const pool = state.poolsMap[oc.team];
+      $("poolRow").innerHTML = pool ? [
+        ["Pick slot", fmt$(oc.slot)],
+        ["Room left (incl. 5%)", fmt$(pool.room)],
+        ["Spent / pool", `${fmtM(pool.poolCharge)} / ${fmtM(pool.pool)}`],
+        ["Over/under to date", fmtOU(pool.overUnder)],
+        ["Picks", `${pool.picksMade}/${pool.picksTotal}`],
+      ].map(([k,v]) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("") : "";
+      renderTendencies(oc.team); renderIntel(oc.team, drafted);
+    } else {
+      $("pickNo").textContent = MODE==="mock" ? "MOCK · Draft complete" : "Draft complete";
+      $("teamAbbr").textContent="✓"; $("teamName").textContent=""; $("ocAlert").innerHTML=""; $("poolRow").innerHTML="";
+      renderTendencies(null); renderIntel(null, new Set());
+    }
+    const made = state.picks.filter(p=>p.isDrafted).slice(-12).reverse();
+    $("recent").innerHTML = made.length ? made.map(p => {
+      const comp = DATA.compByName.get(normName(p.player||""));
+      const ours = DATA.clients.has(normName(p.player||""));
+      return `<div class="pick"><span class="ov">#${p.overall}</span><span class="who">${p.player||"—"}</span>
+        ${ours?'<span class="svtag">SV</span>':""}${p.bucket&&p.bucket!=="UNK"?`<span class="clab">${p.bucket}</span>`:""}
+        ${comp?`<span class="rkbadge">composite #${comp.rank}</span>`:""}
+        <span class="meta">${p.team||""}${p.school?" · "+p.school:""} · ${moneyCell(p)}</span></div>`;
+    }).join("") : `<div class="placeholder">No picks yet${MODE==="mock"?" — press Start.":"."}</div>`;
+  }
+  function renderTendencies(team) {
+    const o = DATA.orgs[team];
+    $("tendHdr").textContent = `If ${team||"—"} picks · org tendencies (landing-spot quality)`;
+    if (!o) { $("tendChips").innerHTML = `<span class="placeholder">No org profile.</span>`; $("recentR1").innerHTML=""; return; }
+    const chips = [];
+    if (o.orgRank!=null) chips.push(["Org dev rank", `#${o.orgRank}`]);
+    if (o.earlyPitcherPct!=null) chips.push(["Early picks pitchers", `${o.earlyPitcherPct}%`]);
+    if (o.hsPct!=null) chips.push(["HS", `${o.hsPct}%`]);
+    if (o.collegePct!=null) chips.push(["College", `${o.collegePct}%`]);
+    $("tendChips").innerHTML = chips.map(([l,v])=>`<span class="chip"><span class="lab">${l}</span> <b>${v}</b></span>`).join("");
+    $("recentR1").innerHTML = (o.recentR1||[]).length
+      ? "<div style='font-weight:700;color:#14161a;margin-bottom:2px'>Recent 1st-rounders</div>"+
+        o.recentR1.map(r=>`<div>${r.year} · ${r.player} (${r.pos}${r.school?", "+r.school:""})</div>`).join("") : "";
+  }
+  function renderIntel(team, drafted) {
+    $("intelHdr").textContent = `${team||"—"} interest in our guys`;
+    const recs = DATA.intel.filter(r => teamAlias(r.team)===team);
+    const byPlayer = new Map();
+    for (const r of recs) { const c=byPlayer.get(r.player); if (!c||(r.date||"")>(c.date||"")) byPlayer.set(r.player, r); }
+    const list = [...byPlayer.values()].sort((a,b)=>(b.score||0)-(a.score||0));
+    $("intelList").innerHTML = list.length ? list.map(r => {
+      const gone = drafted.has(normName(r.player));
+      return `<div class="row"><span class="idot" style="background:${COLOR_HEX[(r.color||"").toLowerCase()]||"#ccc"}"></span>
+        <span class="nm" style="${gone?"text-decoration:line-through;color:#9aa0a6":""}">${r.player}</span>
+        ${r.workout?'<span class="pdw">PDW</span>':""}${gone?'<span style="font-size:11px;color:#9aa0a6">drafted</span>':""}
+        <span class="sc">${r.score>0?"+":""}${r.score??""}</span></div>`;
+    }).join("") : `<div class="placeholder">No logged interest from ${team} on our clients.</div>`;
+  }
+
+  // ---------- VIEW: BEST AVAILABLE ----------
+  function renderBest() {
+    if (!currentState) return;
+    const drafted = new Set(currentState.picks.filter(p=>p.isDrafted&&p.player).map(p=>normName(p.player)));
+    const lvl = $("fLevel").value, pos = $("fPos").value, svOnly = $("fSv").checked, q = normName($("fQuery").value);
+    const clickable = MODE==="mock" && !mock.running && currentState.onClock;
+    const rows = DATA.composite.filter(p => {
+      if (drafted.has(normName(p.name))) return false;
+      if (lvl!=="All" && p.level!==lvl) return false;
+      if (pos!=="All" && p.posGroup!==pos) return false;
+      if (svOnly && !DATA.clients.has(normName(p.name))) return false;
+      if (q && !(normName(p.name).includes(q) || normName(p.school).includes(q))) return false;
+      return true;
+    });
+    $("baCount").textContent = `${rows.length} available${clickable?" · click a row to draft":""}`;
+    $("baBody").innerHTML = rows.map(p => {
+      const ours = DATA.clients.has(normName(p.name));
+      return `<tr class="${ours?"sv":""} ${clickable?"draftable":""}" ${clickable?`onclick="draftManual('${p.name.replace(/'/g,"\\'")}')"`:""}>
+        <td class="rk">#${p.rank}</td><td>${p.name} ${ours?'<span class="svtag">SV</span>':""}</td>
+        <td>${p.pos}</td><td><span class="lvl ${p.level}">${p.level}</span></td>
+        <td class="hide-sm">${p.school||""}</td><td class="hide-sm">${p.age||""}</td></tr>`;
+    }).join("") || `<tr><td colspan="6" style="color:#9aa0a6;padding:14px">No players match these filters.</td></tr>`;
+  }
+
+  // ---------- VIEW: BOARD (running log) ----------
+  function renderBoard(state) {
+    if (!state) return;
+    const svOnly = $("bSv").checked;
+    let html = "", lastRound = null;
+    for (const p of state.picks) {
+      const ours = p.isDrafted && DATA.clients.has(normName(p.player||""));
+      if (svOnly && !ours) continue;
+      if (!svOnly && p.round !== lastRound) { lastRound = p.round; html += `<div class="rnd">Round ${p.round}</div>`; }
+      const onclock = state.onClock && state.onClock.overall === p.overall;
+      const comp = p.isDrafted ? DATA.compByName.get(normName(p.player||"")) : null;
+      const cls = `brow ${p.isDrafted ? "" : "up"} ${ours ? "sv" : ""} ${onclock ? "oc" : ""}`.trim();
+      if (p.isDrafted) {
+        html += `<div class="${cls}"><span class="ov">#${p.overall}</span><span class="tm">${p.team||""}</span>
+          <span class="who">${p.player||"—"}</span>${ours?'<span class="svtag">SV</span>':""}
+          ${p.bucket&&p.bucket!=="UNK"?`<span class="clab">${p.bucket}</span>`:""}
+          ${comp?`<span class="rkbadge">#${comp.rank}</span>`:""}
+          <span class="meta">${p.pos||""} · ${moneyCell(p)}</span></div>`;
+      } else {
+        html += `<div class="${cls}" ${onclock?'id="ocRow"':""}><span class="ov">#${p.overall}</span><span class="tm">${p.team||""}</span>
+          <span class="who">${onclock?"⏱ ON THE CLOCK":"—"}</span>
+          <span class="meta">slot ${fmt$(p.slot)}</span></div>`;
+      }
+    }
+    $("boardList").innerHTML = html || `<div class="placeholder">No SV picks yet.</div>`;
+    $("boardCount").textContent = `${state.madeCount} of ${state.picks.length} picks made`;
+  }
+  function jumpCurrent() { document.getElementById("ocRow")?.scrollIntoView({ block:"center", behavior:"smooth" }); }
+
+  // ---------- VIEW: BONUS POOLS ----------
+  function renderPools() {
+    if (!currentState) return;
+    const sort = $("poolSort").value;
+    const cmp = {
+      pct:(a,b)=>b.pctNum-a.pctNum, room:(a,b)=>a.room-b.room,
+      over:(a,b)=>b.overUnder-a.overUnder, pool:(a,b)=>b.pool-a.pool, team:(a,b)=>a.team.localeCompare(b.team),
+    }[sort] || ((a,b)=>b.pctNum-a.pctNum);
+    const pools = currentState.pools.slice().sort(cmp);
+    $("poolNote").textContent = currentState.poolsEst
+      ? "Spent is estimated from the model until signing bonuses are reported"
+      : `${currentState.madeCount} picks in`;
+    $("poolBody").innerHTML = pools.map(t => {
+      const ouCls = t.overUnder>50000 ? "over" : t.overUnder<-50000 ? "under" : "atslot";
+      const pctCls = t.pctNum>=4.8 ? "over" : t.pctNum<0 ? "under" : "atslot";
+      return `<tr class="clickable" onclick="openTeam('${t.team}')">
+        <td><b>${t.team}</b></td>
+        <td>${fmtM(t.pool)}</td>
+        <td class="hide-sm">${t.picksMade}/${t.picksTotal}</td>
+        <td class="hide-sm">${fmtM(t.committedSlot)}</td>
+        <td>${fmtM(t.poolCharge)}${t.hasEst?' <span class="outag est atslot">est</span>':""}</td>
+        <td><span class="outag ${ouCls}">${fmtOU(t.overUnder)}</span></td>
+        <td>${fmtM(t.room)}</td>
+        <td><span class="outag ${pctCls}">${t.pctNum>=0?"+":""}${t.pctNum.toFixed(1)}%</span></td>
+      </tr>`;
+    }).join("");
+  }
+
+  // ---------- DETAIL: player / team drill-down ----------
+  const teamUpcoming = (state, t) => state.picks.filter(p => p.team===t && !p.isDrafted).sort((a,b)=>a.overall-b.overall);
+  const teamMade = (state, t) => state.picks.filter(p => p.team===t && p.isDrafted).sort((a,b)=>a.overall-b.overall);
+
+  // ----- engine landing projection: run the budget sim K times, record where he lands -----
+  let projCache = {};   // key -> { lands:[picks], made } | { computing:true }
+  const pctOf = (arr,p) => { if(!arr.length) return null; const s=arr.slice().sort((a,b)=>a-b); return s[Math.min(s.length-1, Math.max(0, Math.round(p*(s.length-1))))]; };
+  function projectLanding(key, K=50) {
+    if (!currentState) return null;
+    const base = currentState.picks, saved = mock.picks, lands = [];
+    for (let k=0;k<K;k++) {
+      mock.picks = base.map(p => ({...p}));
+      for (let i=0;i<mock.picks.length;i++) {
+        const pk = mock.picks[i];
+        if (pk.isDrafted) { if (normName(pk.player||"")===key) { lands.push(pk.overall); break; } continue; }
+        applyPick(i, choosePick(pk));
+        if (normName(mock.picks[i].player||"")===key) { lands.push(mock.picks[i].overall); break; }
+      }
+    }
+    mock.picks = saved;
+    return lands;
+  }
+  function computeProjection(key) {
+    if (!DATA.compByName.get(key)) return;
+    projCache[key] = { computing:true, made:currentState?currentState.madeCount:0 };
+    setTimeout(() => {
+      const lands = projectLanding(key, 50) || [];
+      projCache[key] = { lands, made:currentState?currentState.madeCount:0 };
+      if (selected && selected.type==="player" && selected.id===key) renderActive();
+    }, 20);
+  }
+  window.refreshProjection = (key) => { computeProjection(key); renderActive(); };
+
+  function renderLandingCard(c, state) {
+    const comp = c.comp;
+    if (!comp) return `<div class="placeholder">Unranked — no landing projection.</div>`;
+    const pk = state.picks.find(p => p.isDrafted && normName(p.player)===c.key);
+    if (pk) return `<div class="ct"><span class="ov" style="color:var(--good);font-weight:800;min-width:64px">DRAFTED</span> #${pk.overall} ${teamLink(pk.team)} · ${moneyCell(pk)}</div>`;
+    const cache = projCache[c.key];
+    if (!cache || cache.computing) return `<div class="placeholder">Projecting landing across simulations…</div>`;
+    const lands = cache.lands;
+    if (!lands || !lands.length) return `<div class="placeholder">No projection. <span class="tlink" onclick="refreshProjection('${c.key.replace(/'/g,"\\'")}')">retry</span></div>`;
+    const med = pctOf(lands,0.5), p10 = pctOf(lands,0.1), p90 = pctOf(lands,0.9), mn = Math.min(...lands);
+    const dens = (N) => lands.filter(l => Math.abs(l-N)<=2).length / lands.length;
+    const interested = new Set(DATA.intel.filter(r=>normName(r.player)===c.key).map(r=>teamAlias(r.team)).filter(t=>(latestIntel(c.key,t)?.score||0)>0));
+    const zoneLo = Math.max(1, mn-2), zoneHi = p90+4;
+    const spots = state.picks.filter(p => !p.isDrafted && p.overall>=zoneLo && p.overall<=zoneHi && interested.has(p.team))
+      .map(p => ({ p, d:dens(p.overall), rec:latestIntel(c.key,p.team), ou:negBonus(comp,p.slot,p.overall)-p.slot }))
+      .sort((a,b)=>a.p.overall-b.p.overall);
+    const counts = {}; lands.forEach(l => counts[l]=(counts[l]||0)+1);
+    const topPicks = Object.keys(counts).map(Number).sort((a,b)=>counts[b]-counts[a]).slice(0,3)
+      .map(N => { const p=state.picks.find(x=>x.overall===N); return p?`#${N} ${p.team} (${Math.round(counts[N]/lands.length*100)}%)`:null; }).filter(Boolean);
+    let h = `<div style="font-weight:700;margin-bottom:6px">Most likely <span style="color:var(--red)">#${med}</span> · range #${p10}–#${p90} · earliest #${mn}
+      <span style="color:#9aa0a6;font-weight:500">· ${lands.length} sims, as of ${cache.made} picks in</span>
+      <span class="tlink" style="font-size:12px;margin-left:6px" onclick="refreshProjection('${c.key.replace(/'/g,"\\'")}')">↻ recompute</span></div>`;
+    h += `<div style="font-size:12px;color:#6b7280;margin-bottom:8px">Top landing spots: ${topPicks.join(" · ")||"—"}</div>`;
+    h += `<div style="font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;margin-bottom:4px">Interested teams in his landing zone</div>`;
+    h += spots.length ? spots.map(s => `<div class="ct">
+        <span class="ov" style="min-width:46px;color:var(--red);font-weight:800">#${s.p.overall}</span>
+        <span class="idot" style="background:${COLOR_HEX[(s.rec?.color||"").toLowerCase()]||"#1a7f37"}"></span>
+        <span class="tm">${teamLink(s.p.team)}</span>${s.rec?.workout?'<span class="pdw">PDW</span>':""}
+        <span class="nx">slot ${fmtM(s.p.slot)} · lands here ~${Math.round(s.d*100)}% · ${ouTag(s.ou,true)}</span></div>`).join("")
+      : `<div class="placeholder">No interested team picks fall in his projected range (#${p10}–#${p90}).</div>`;
+    return h;
+  }
+
+  function renderPlayerDetail(state) {
+    const c = DATA.clientList.find(x => x.key===selected.id) || { name:selected.id, key:selected.id, comp:DATA.compByName.get(selected.id) };
+    const comp = c.comp;
+    const dem = demandFor(comp);
+    const pk = state.picks.find(p => p.isDrafted && normName(p.player)===c.key);
+    const ms = medicalOf(comp || c);
+    let h = `<div class="cc"><div class="detail-head"><span class="rk">${comp?"#"+comp.rank:"NR"}</span>
+      <span class="big">${c.name}</span><span class="pl">${comp?`${comp.pos} · ${levelClass(comp).replace("College-","Col ")}${comp.age?" · age "+comp.age:""}`:"unranked"}</span></div>`;
+    h += pk
+      ? `<div class="status dr" style="margin-top:8px">DRAFTED #${pk.overall} · ${teamLink(pk.team)} · ${moneyCell(pk)}</div>`
+      : `<div class="status av" style="margin-top:8px">On the board${dem!=null?` · est. market value ~${fmt$(dem)} (${comp?levelClass(comp).replace("College-","Col ")+" "+comp.posGroup:""})`:""}</div>`;
+    h += `<div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px">
+      <span style="color:#6b7280;font-weight:700">Combine medical:</span>
+      <span class="seg">
+        <button class="${ms==='yes'?'on':''}" onclick="setMedical('${c.key.replace(/'/g,"\\'")}','yes')">✓ Yes</button>
+        <button class="${ms==='no'?'on':''}" onclick="setMedical('${c.key.replace(/'/g,"\\'")}','no')">✗ No</button>
+        <button class="${ms==='unknown'?'on':''}" onclick="setMedical('${c.key.replace(/'/g,"\\'")}','unknown')">? Unknown</button>
+      </span>
+      ${ms==='yes' ? `<span class="outag over">${pk?`floor ${fmtM(MEDICAL_FLOOR*pk.slot)} · 75% of #${pk.overall} slot`:"guaranteed ≥75% of slot wherever drafted"}</span>`
+        : ms==='no' ? `<span class="outag under">no floor · under-slot deal possible</span>` : ""}</div>`;
+    h += `</div>`;
+
+    // known range (your intel) — hard lock input
+    const rg = comp ? RANGES[c.key] : null;
+    const rOpts = (sel) => Array.from({length:20},(_,i)=>i+1).map(r=>`<option ${String(r)===String(sel)?"selected":""}>${r}</option>`).join("");
+    const kqk = c.key.replace(/'/g,"\\'");
+    h += `<div class="panel" style="margin-top:14px"><h3>Known range — your intel (hard lock)</h3>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:13px">
+        <span style="color:#6b7280">earliest #</span><input id="rgLo" type="number" min="1" value="${rg?.lo||""}" style="width:64px;padding:5px;border:1px solid var(--line);border-radius:6px">
+        <span style="color:#6b7280">latest #</span><input id="rgHi" type="number" min="1" value="${rg?.hi||""}" style="width:64px;padding:5px;border:1px solid var(--line);border-radius:6px">
+        <button class="ctl" onclick="setRange('${kqk}', document.getElementById('rgLo').value, document.getElementById('rgHi').value)">Set</button>
+        <span style="color:#9aa0a6">or rounds</span>
+        <select id="rgRLo">${rOpts(rg?roundOfPick(rg.lo):1)}</select><span style="color:#9aa0a6">–</span><select id="rgRHi">${rOpts(rg?roundOfPick(rg.hi):1)}</select>
+        <button class="ctl" onclick="setRangeByRound('${kqk}', document.getElementById('rgRLo').value, document.getElementById('rgRHi').value)">Set rounds</button>
+        ${rg?`<button class="ctl" onclick="clearRange('${kqk}')">Clear</button>`:""}
+      </div>
+      ${rg?`<div style="margin-top:8px"><span class="outag over">🔒 Locked ${rg.lo?"#"+rg.lo:"—"}–${rg.hi?"#"+rg.hi:"—"}${rg.lo&&rg.hi?` (R${roundOfPick(rg.lo)}–R${roundOfPick(rg.hi)})`:""}</span> <span style="color:#9aa0a6;font-size:12px">engine + mocks obey this</span></div>`:`<div style="margin-top:6px;color:#9aa0a6;font-size:12px">No range set — projection uses the engine's own estimate.</div>`}</div>`;
+
+    const teams = [...new Set(DATA.intel.filter(r=>normName(r.player)===c.key).map(r=>teamAlias(r.team)))]
+      .map(t => { const rec=latestIntel(c.key,t); return { t, rec, f:fit(comp,t,rec,state), nx:teamNextPick(state,t) }; })
+      .sort((a,b)=>b.f.score-a.f.score);
+
+    h += `<div class="panel" style="margin-top:14px"><h3>Interested teams (${teams.length})</h3>`;
+    h += teams.length ? teams.map(x => {
+      const pool = state.poolsMap[x.t];
+      const ou = (comp && x.nx) ? negBonus(comp, x.nx.slot, x.nx.overall) - x.nx.slot : null;
+      return `<div class="ct"><span class="idot" style="background:${COLOR_HEX[(x.rec?.color||"").toLowerCase()]||"#ccc"}"></span>
+        <span class="tm">${teamLink(x.t)}</span>${x.rec?.workout?'<span class="pdw">PDW</span>':""}
+        <span class="grade" style="background:${x.f.color}">${x.f.grade}</span>
+        <span class="nx">${x.nx?`next #${x.nx.overall} ${fmtM(x.nx.slot)}`:"no picks left"}${ou!=null?" · "+ouTag(ou,true):""}${pool?` · ammo ${fmtM(pool.room)}`:""}</span></div>`;
+    }).join("") : `<div class="placeholder">No logged team interest.</div>`;
+    h += `</div>`;
+
+    const windows = teams.filter(x=>x.nx).sort((a,b)=>a.nx.overall-b.nx.overall).slice(0,8);
+    h += `<div class="panel" style="margin-top:14px"><h3>Upcoming windows — when he could come off</h3>`;
+    h += windows.length ? windows.map(x =>
+      `<div class="ct"><span class="ov" style="min-width:46px;color:var(--red);font-weight:800">#${x.nx.overall}</span>
+       <span class="tm">${teamLink(x.t)}</span><span class="nx">slot ${fmtM(x.nx.slot)} · fit ${x.f.grade}</span></div>`).join("")
+      : `<div class="placeholder">No interested teams with upcoming picks.</div>`;
+    h += `</div>`;
+
+    h += `<div class="panel" style="margin-top:14px"><h3>Landing projection (engine heat zone)</h3>${renderLandingCard(c, state)}</div>`;
+    $("detailBody").innerHTML = h;
+  }
+
+  function renderTeamDetail(state) {
+    const t = selected.id, pool = state.poolsMap[t], o = DATA.orgs[t] || {};
+    const teamName = (state.pools.find(p=>p.team===t)||{}).teamName || "";
+    let h = `<div class="cc"><div class="detail-head"><span class="big">${t}</span><span class="pl">${teamName}</span></div>`;
+    if (pool) h += `<div class="pool-row">${[
+      ["Pool", fmtM(pool.pool)], ["Spent", fmtM(pool.poolCharge)+(pool.hasEst?" est":"")],
+      ["Room (ammo)", fmtM(pool.room)], ["Over/under", fmtOU(pool.overUnder)], ["Picks", `${pool.picksMade}/${pool.picksTotal}`],
+    ].map(([k,v])=>`<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("")}</div>`;
+    h += `</div>`;
+
+    h += `<div class="cols" style="margin-top:14px"><div class="panel"><h3>Tendencies</h3>`;
+    const chips = [];
+    if (o.orgRank!=null) chips.push(["Org dev rank","#"+o.orgRank]);
+    if (o.earlyPitcherPct!=null) chips.push(["Early picks pitchers",o.earlyPitcherPct+"%"]);
+    if (o.hsPct!=null) chips.push(["HS",o.hsPct+"%"]);
+    if (o.collegePct!=null) chips.push(["College",o.collegePct+"%"]);
+    h += `<div class="chips">${chips.map(([l,v])=>`<span class="chip"><span class="lab">${l}</span> <b>${v}</b></span>`).join("")||"<span class='placeholder'>No profile.</span>"}</div>`;
+    h += (o.recentR1||[]).length ? `<div class="r1"><div style="font-weight:700;color:#14161a">Recent 1st-rounders</div>${o.recentR1.map(r=>`<div>${r.year} · ${r.player} (${r.pos})</div>`).join("")}</div>` : "";
+    h += `</div>`;
+
+    const clients = DATA.clientList.filter(c=>latestIntel(c.key,t)).map(c => {
+      const rec=latestIntel(c.key,t); const dr=state.picks.find(p=>p.isDrafted&&normName(p.player)===c.key);
+      return { c, rec, dr, f:fit(c.comp,t,rec,state) };
+    }).sort((a,b)=>b.f.score-a.f.score);
+    h += `<div class="panel"><h3>Our clients they like (${clients.length})</h3>`;
+    h += clients.length ? clients.map(x => {
+      const nx=teamNextPick(state,t); const ou=(x.c.comp&&nx)?negBonus(x.c.comp,nx.slot,nx.overall)-nx.slot:null;
+      return `<div class="ct"><span class="idot" style="background:${COLOR_HEX[(x.rec?.color||"").toLowerCase()]||"#ccc"}"></span>
+        <span class="nm">${playerLink(x.c.name)}</span>${x.rec?.workout?'<span class="pdw">PDW</span>':""}
+        <span class="grade" style="background:${x.f.color}">${x.f.grade}</span>
+        <span class="nx">${x.dr?`drafted #${x.dr.overall}`:(ou!=null?ouTag(ou,true):"")}</span></div>`;
+    }).join("") : `<div class="placeholder">None on file.</div>`;
+    h += `</div></div>`;
+
+    const up = teamUpcoming(state, t);
+    h += `<div class="panel" style="margin-top:14px"><h3>Upcoming picks (${up.length})</h3>`;
+    h += up.length ? `<div class="ba" style="gap:4px">${up.slice(0,16).map(p =>
+      `<div class="ct"><span class="ov" style="min-width:46px;color:var(--red);font-weight:800">#${p.overall}</span>
+       <span style="color:#6b7280">R${p.round}</span><span class="nx">slot ${p.slot>0?fmtM(p.slot):"—"}</span></div>`).join("")}</div>`
+      : `<div class="placeholder">No picks remaining.</div>`;
+    h += `</div>`;
+
+    const made = teamMade(state, t);
+    if (made.length) {
+      h += `<div class="panel" style="margin-top:14px"><h3>Picks made (${made.length})</h3>`;
+      h += made.map(p => { const ours=DATA.clients.has(normName(p.player||""));
+        return `<div class="ct"><span class="ov" style="min-width:46px;color:var(--red);font-weight:800">#${p.overall}</span>
+          <span>${ours?playerLink(p.player):(p.player||"—")}</span>${ours?'<span class="svtag">SV</span>':""}
+          <span class="nx">${moneyCell(p)}</span></div>`; }).join("");
+      h += `</div>`;
+    }
+    $("detailBody").innerHTML = h;
+  }
+
+  function renderDetail() {
+    if (!selected) return;
+    if (selected.type==="player") renderPlayerDetail(currentState); else renderTeamDetail(currentState);
+  }
+  function applyViewVis() {
+    const det = !!selected;
+    $("viewDetail").classList.toggle("on", det);
+    for (const [tab,sec,name] of VIEWS) { $(sec).classList.toggle("on", !det && name===VIEW); $(tab).classList.toggle("on", name===VIEW); }
+  }
+  window.openPlayer = (key) => {
+    selected={type:"player",id:key};
+    if (DATA.compByName.get(key) && !projCache[key]) computeProjection(key);
+    applyViewVis(); renderActive(); window.scrollTo(0,0);
+  };
+  window.openTeam = (team) => { selected={type:"team",id:team}; applyViewVis(); renderActive(); window.scrollTo(0,0); };
+  window.closeDetail = () => { selected=null; applyViewVis(); renderActive(); };
+
+  // ---------- state plumbing ----------
+  function setState(s) {
+    currentState = s;
+    if (s) $("yearBadge").textContent = `${s.year} MLB DRAFT`;
+    if (s && s.onClock) { if (s.onClock.overall !== timer.pick) timer = { pick:s.onClock.overall, endsAt:Date.now()+allotment(s.onClock.round)*1000 }; }
+    else timer.pick = null;
+    renderActive();
+  }
+  const VIEWS = [["tabClients","viewClients","clients"],["tabClock","viewClock","clock"],
+                 ["tabPools","viewPools","pools"],["tabBoard","viewBoard","board"],["tabBest","viewBest","best"]];
+  function renderActive() {
+    if (!currentState) return;
+    if (selected) {
+      const ae = document.activeElement;   // don't wipe range/medical inputs mid-edit on live ticks
+      if (!(ae && (ae.tagName==="INPUT" || ae.tagName==="SELECT"))) renderDetail();
+      return;
+    }
+    if (VIEW==="clients") renderClients(currentState);
+    else if (VIEW==="clock") renderClock(currentState);
+    else if (VIEW==="pools") renderPools();
+    else if (VIEW==="board") renderBoard(currentState);
+    else renderBest();
+  }
+  function setView(v) { selected=null; VIEW=v; applyViewVis(); renderActive(); }
+
+  // ---------- mock engine ----------
+  async function ensureSkeleton() {
+    if (mock.picks || mock.seeding) return;
+    mock.seeding = true;
+    try {
+      const o = await loadOrder();
+      mock.picks = o.picks.map(p => ({ ...p, isDrafted:false, isPass:false, player:null, playerId:null, school:null, schoolClass:null, bucket:"UNK", bonus:null, rank:null }));
+    } catch (e) { $("pickNo").textContent = "Couldn't load board — serve via a web server (vercel dev / python3 -m http.server)"; }
+    mock.seeding = false;
+  }
+  function availableComposite() {
+    const drafted = new Set(mock.picks.filter(p=>p.isDrafted&&p.player).map(p=>normName(p.player)));
+    return DATA.composite.filter(p => !drafted.has(normName(p.name)));
+  }
+  const jitterFor = (round) => { const r = parseInt(round,10)||1; return r<=1?3 : r<=4?6 : 10; };
+  // Per-team budget state from the current board (pool, committed charge, remaining slots).
+  function teamBudget(team, currentOverall) {
+    let pool=0, committed=0, slotsAfter=0, poolPicksAfter=0;
+    for (const p of mock.picks) {
+      if (p.team !== team) continue;
+      const isPool = p.slot > 0;
+      if (isPool) pool += p.slot;
+      if (p.isDrafted) { if (p.bonus) committed += isPool ? p.bonus : Math.max(0, p.bonus - LATE_EXEMPT); }
+      else if (isPool && p.overall !== currentOverall) { slotsAfter += p.slot; poolPicksAfter += 1; }
+    }
+    return { pool, committed, budget: pool*CUSHION, slotsAfter, poolPicksAfter };
+  }
+  // Budget-constrained pick: best affordable talent; unaffordable demand -> slides;
+  // teams with spare money overpay (banking earlier funds over-slot later).
+  function choosePick(pk) {
+    const team = pk.team;
+    const all = availableComposite();
+    if (!all.length) return null;
+    // hard manual ranges: anyone past their latest must be taken now (forced off the board)
+    const overdue = all.filter(c => { const r=rangeOf(c); return r && r.hi && pk.overall >= r.hi; });
+    if (overdue.length) {
+      overdue.sort((a,b) => (rangeOf(a).hi-rangeOf(b).hi) || (a.rank-b.rank));
+      return { comp: overdue[0], bonus: negBonus(overdue[0], pk.slot, pk.overall) };
+    }
+    // ...and anyone before their earliest isn't eligible yet
+    const avail = all.filter(c => { const r=rangeOf(c); return !(r && r.lo && pk.overall < r.lo); }).slice(0, 60);
+    if (!avail.length) return null;
+    const tb = teamBudget(team, pk.overall);
+    const headroom = tb.budget - tb.committed - ENG.RESERVE*tb.poolPicksAfter;
+    const extra = (tb.budget - tb.committed - tb.slotsAfter) / (tb.pool || 1);
+    const lamEff = Math.max(0.3, Math.min(ENG.LAMBDA*2, ENG.LAMBDA*(1 - ENG.BANK_K*extra)));
+    const o = DATA.orgs[team] || {}; const lean = (o.earlyPitcherPct!=null?o.earlyPitcherPct:50)/100;
+    const jit = jitterFor(pk.round);
+    let best=null, bestVal=-1e9, bestBonus=0;
+    for (const c of avail) {
+      const b = negBonus(c, pk.slot, pk.overall);
+      if (pk.slot > 0 && b > headroom) continue;        // can't afford -> he slides
+      let v = (350 - c.rank) - lamEff*(b/1e6);
+      v += (isPitcher(c.pos) ? (lean-.5) : (.5-lean)) * ENG.POS_LEAN;
+      const nm = normName(c.name);
+      if (DATA.clients.has(nm)) { const rec = latestIntel(nm, team); if (rec && rec.score>0) v += Math.min(rec.score*0.7, ENG.INTEREST_MAX); }
+      v += Math.random()*jit;
+      if (v > bestVal) { bestVal=v; best=c; bestBonus=b; }
+    }
+    if (!best) {                                        // nothing affordable -> cheapest available
+      best = avail.reduce((a,c) => negBonus(c,pk.slot,pk.overall) < negBonus(a,pk.slot,pk.overall) ? c : a, avail[0]);
+      bestBonus = negBonus(best, pk.slot, pk.overall);
+    }
+    // never let the resulting pool charge exceed the +5% ceiling
+    const charge = pk.slot>0 ? bestBonus : Math.max(0, bestBonus - LATE_EXEMPT);
+    const remain = Math.max(0, tb.budget - tb.committed);
+    if (charge > remain) bestBonus -= (charge - remain);
+    return { comp: best, bonus: bestBonus };
+  }
+  function applyPick(idx, choice) {
+    const pk = mock.picks[idx]; pk.isDrafted = true;
+    const comp = choice && choice.comp;
+    if (comp) {
+      pk.player=comp.name; pk.pos=comp.pos; pk.school=comp.school; pk.rank=comp.rank;
+      pk.bucket = comp.level==="HS" ? "HS" : comp.level==="College" ? "4YR" : comp.level==="JUCO" ? "JUCO" : "UNK";
+      pk.bonus = choice.bonus;
+    } else { pk.player=`Pick ${pk.overall}`; pk.bucket="UNK"; pk.bonus=null; }
+  }
+  function autoPickOne() {
+    const st = derive(mock.picks, mock.picks[0]?.year || 2026);
+    if (!st.onClock) return false;
+    applyPick(st.onClockIndex, choosePick(st.onClock)); return true;
+  }
+  window.draftManual = (name) => {
+    if (MODE!=="mock" || mock.running || !mock.picks) return;
+    const st = derive(mock.picks, 2026); if (!st.onClock) return;
+    const comp = DATA.compByName.get(normName(name));
+    applyPick(st.onClockIndex, comp ? { comp, bonus: negBonus(comp, st.onClock.slot, st.onClock.overall) } : null);
+    mock.nextAt = 0; pushMock();
+  };
+  function pushMock() { setState(derive(mock.picks, mock.picks[0]?.year || 2026)); }
+
+  function toggleRun() {
+    mock.running = !mock.running;
+    $("btnRun").textContent = mock.running ? "⏸ Pause" : "▶ Start";
+    $("btnRun").classList.toggle("primary", !mock.running);
+    if (mock.running) scheduleNext(true);
+    renderActive();
+  }
+  function stepOnce() { if (MODE==="mock" && mock.picks) { autoPickOne(); mock.nextAt=0; pushMock(); } }
+  function resetMock() {
+    mock.running=false; mock.picks=null; mock.nextAt=0;
+    $("btnRun").textContent="▶ Start"; $("btnRun").classList.add("primary");
+    ensureSkeleton().then(pushMock);
+  }
+  function onSpeed() { mock.speed = $("speed").value; mock.nextAt = 0; }
+  const speedDelay = () => mock.speed==="turbo" ? 300 : 1200;
+  function scheduleNext(force) {
+    const st = derive(mock.picks, 2026);
+    if (!st.onClock) { mock.nextAt = Infinity; return; }
+    if (mock.speed==="realtime") mock.nextAt = timer.endsAt;
+    else if (force || !mock.nextAt) mock.nextAt = Date.now() + speedDelay();
+  }
+  function tick() {
+    renderCountdown();
+    if (MODE!=="mock" || !mock.running || !mock.picks) return;
+    const st = derive(mock.picks, 2026);
+    if (!st.onClock) { mock.running=false; $("btnRun").textContent="▶ Start"; $("btnRun").classList.add("primary"); pushMock(); return; }
+    if (mock.speed==="instant") { while (autoPickOne()) {} mock.running=false; $("btnRun").textContent="✓ Done"; pushMock(); return; }
+    if (!mock.nextAt) scheduleNext(true);
+    if (Date.now() >= mock.nextAt) { autoPickOne(); scheduleNext(true); pushMock(); }
+  }
+
+  // ---------- live ----------
+  async function pollLive() {
+    if (MODE!=="live") return;
+    try {
+      const res = await fetch("/api/draft", { cache:"no-store" });
+      if (!res.ok) throw new Error(res.status);
+      lastLive = await res.json(); setState(derive(lastLive.picks, lastLive.year)); $("conn").className="dot live";
+    } catch (e) {
+      try { const o = await loadOrder(); setState(derive(o.picks.map(p=>({...p})), o.year)); $("conn").className="dot"; }
+      catch (e2) { $("conn").className="dot err"; $("pickNo").textContent="Couldn't load board — serve via vercel dev / python3 -m http.server"; }
+    }
+  }
+
+  async function setMode(m) {
+    MODE = m;
+    $("mLive").classList.toggle("on", m==="live"); $("mMock").classList.toggle("on", m==="mock");
+    $("mockBar").classList.toggle("hidden", m!=="mock");
+    $("conn").className = m==="mock" ? "dot" : "dot live";
+    if (m==="mock") { await ensureSkeleton(); pushMock(); } else { timer.pick=null; pollLive(); }
+  }
+
+  (async () => {
+    await loadStatic();
+    try { await loadOrder(); } catch (e) {}   // slot table for demandFor() in all views
+    pollLive();
+    setInterval(pollLive, 3000);
+    setInterval(tick, 250);
+  })();
+</script>
