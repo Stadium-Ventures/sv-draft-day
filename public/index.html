@@ -426,6 +426,10 @@
     EROSION_FLOOR: 0.40,
     HOLD: { HS:0.90, JUCO:0.85, "College-JR":0.55, "College-SR":0.15 }, // over-slot premium captured
     POS_LEAN: 14, INTEREST_MAX: 3,
+    INTEREST_W: 9,        // talent pts an interested team adds per unit of intel strength (pull toward fit)
+    DEV_W: 4,             // org-review dev-fit pull for teams interested in our guy
+    TOP_SEP: 5, TOP_SPAN: 6,  // convex separation concentrated in the true elite (top ~6): sticky above,
+                              // but a #9 gets ~none so he's free to slide. Thins the upward tail only.
     BAND: 0.25,           // signing bonus lands within slot +/-25% (95% of high picks do, 2015-24)
     FLOOR_MULT: 0.82,     // default personal walk-away ~= 0.82x market value (per-player capturable later)
     SAVE_W: 3.0,          // banking weight: talent pts a spreader gives per $1M saved vs slot.
@@ -1781,6 +1785,10 @@
     return DATA.composite.filter(p => !drafted.has(normName(p.name)));
   }
   const jitterFor = (round) => { const r = parseInt(round,10)||1; return r<=1?3 : r<=4?6 : 10; };
+  // Realistic board-disagreement variance (Gaussian), scaled by round — a #9 talent should have
+  // genuine paths across a wide range (and small tails higher/lower), not collapse to his rank.
+  function gaussian() { let u=0,v=0; while(!u)u=Math.random(); while(!v)v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+  const sdFor = (round) => { const r = parseInt(round,10)||1; return r<=1?11 : r<=4?15 : 22; };
   // Per-team budget state from the current board (pool, committed charge, remaining slots).
   function teamBudget(team, currentOverall) {
     let pool=0, committed=0, slotsAfter=0, poolPicksAfter=0;
@@ -1813,18 +1821,22 @@
     const extra = (tb.budget - tb.committed - tb.slotsAfter) / (tb.pool || 1);
     const lamEff = Math.max(0.3, Math.min(ENG.LAMBDA*2, ENG.LAMBDA*(1 - ENG.BANK_K*extra)));
     const o = DATA.orgs[team] || {}; const lean = (o.earlyPitcherPct!=null?o.earlyPitcherPct:50)/100;
-    const jit = jitterFor(pk.round);
+    const sd = sdFor(pk.round);
+    const orgDevN = o.orgRank!=null ? (31 - o.orgRank)/30 : 0.5;   // org-review dev fit (subtle pull)
     let best=null, bestVal=-1e9, bestBonus=0;
     for (const c of avail) {
       const b = negBonus(c, pk.slot, pk.overall);
       if (pk.slot > 0 && b > headroom) continue;        // can't afford -> he slides
-      let v = (350 - c.rank) - lamEff*(b/1e6);
+      // RANKINGS (talent, convex at top so elite picks are sticky) + MONEY + ORG + INTEL + VARIANCE
+      let v = (350 - c.rank) + Math.max(0, (ENG.TOP_SPAN - c.rank)) * ENG.TOP_SEP - lamEff*(b/1e6);
       v += (isPitcher(c.pos) ? (lean-.5) : (.5-lean)) * ENG.POS_LEAN;
-      // Banking: a spreader values the pool saved by an under-slot grab (fuels an over-slot pick later).
-      if (pk.slot > 0 && b < pk.slot) v += spreadOf(team) * ENG.SAVE_W * ((pk.slot - b)/1e6);
+      if (pk.slot > 0 && b < pk.slot) v += spreadOf(team) * ENG.SAVE_W * ((pk.slot - b)/1e6);  // banking
       const nm = normName(c.name);
-      if (DATA.clients.has(nm)) { const ti = teamInterest(nm, team); if (ti.strength>0) v += Math.min(ti.strength*6*0.7, ENG.INTEREST_MAX); }
-      v += Math.random()*jit;
+      if (DATA.clients.has(nm)) {                       // intel + org-dev pull (only where we have intel)
+        const ti = teamInterest(nm, team);
+        if (ti.strength>0) v += ti.strength * ENG.INTEREST_W + (orgDevN-0.5) * ENG.DEV_W;
+      }
+      v += gaussian() * sd;                             // board-disagreement spread (with tails)
       if (v > bestVal) { bestVal=v; best=c; bestBonus=b; }
     }
     if (!best) {                                        // nothing affordable -> cheapest available
