@@ -1345,10 +1345,6 @@
         <span class="exp-sub">${pk.teamName||""} · Round ${pk.round} · slot ${fmtM(pk.slot)}${pool?` · ammo ${fmtM(pool.room)}`:""}</span></div>
       <button class="ctl" onclick="closeExpand()">✕ Close</button></div>`;
 
-    const away = state.onClock ? (pk.overall - state.onClock.overall) : null;
-    if (away!=null && away>=0 && away<=3)
-      h += `<div class="exp-approach">⚡ ${away===0?"ON THE CLOCK NOW":away+" pick"+(away>1?"s":"")+" away"} — initiate floor / range / formal offers on true-fit clients.</div>`;
-
     h += `<div class="exp-section">Our clients — in play &amp; true fit <span class="exp-hint">declining probability at this pick</span></div>`;
     h += clients.length ? `<div class="exp-table">${clients.map(x=>renderClientRow(x, team, pk)).join("")}</div>`
                         : `<div class="placeholder">No clients project here and none logged a fit for ${team}.</div>`;
