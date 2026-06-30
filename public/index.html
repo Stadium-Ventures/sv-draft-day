@@ -251,24 +251,34 @@
   .pub-chip { font-size:12px; font-weight:600; background:#f1f3f5; border-radius:999px; padding:3px 10px; color:#374151; }
   .pub-chip .pub-rk { color:var(--muted); font-weight:700; }
 
-  /* ── Board: client panel (distribution at scale + color fit) ── */
-  .cp-wrap { background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:12px; }
-  .cp-pills { display:flex; flex-wrap:wrap; gap:6px; }
-  .cp-pill { font-size:12px; font-weight:700; border:1px solid var(--line); border-radius:999px; padding:4px 11px; cursor:pointer; background:#fff; color:#374151; }
-  .cp-pill:hover { border-color:var(--red); } .cp-pill.on { background:var(--red); color:#fff; border-color:var(--red); }
-  .cp-pill.dr { opacity:.5; } .cp-pill .pr { opacity:.65; font-weight:600; }
-  .cp-head { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin:12px 0 8px; }
-  .cp-head .rk { color:var(--red); font-weight:900; } .cp-head .nm { font-weight:900; font-size:18px; } .cp-head .meta { color:var(--muted); font-size:13px; }
-  .cp-stat { display:flex; gap:16px; flex-wrap:wrap; }
-  .cp-stat .k { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; } .cp-stat .v { font-weight:800; font-variant-numeric:tabular-nums; }
-  .cp-sec { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); margin:16px 0 8px; }
-  .cp-hist { display:flex; align-items:flex-end; gap:5px; height:130px; }
-  .cp-bar { flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; justify-content:flex-end; height:100%; min-width:28px; }
-  .cp-bar .bar { width:100%; background:linear-gradient(#ff6a63,#ff2a22); border-radius:4px 4px 0 0; min-height:2px; }
-  .cp-bar .pct { font-size:11px; font-weight:800; } .cp-bar .lab { font-size:10px; color:var(--muted); font-weight:700; white-space:nowrap; }
-  .cp-fitgrid { display:flex; flex-wrap:wrap; gap:7px; }
-  .cp-fit { display:flex; flex-direction:column; gap:1px; min-width:88px; border:1px solid var(--line); border-left-width:4px; border-radius:8px; padding:7px 10px; }
-  .cp-fit .t { font-weight:900; font-size:14px; } .cp-fit .p { font-size:14px; font-weight:800; } .cp-fit .d { font-size:11px; color:var(--muted); }
+  /* ── Board: heat layout (left rail + heat-colored master grid) ── */
+  .board-layout { display:flex; gap:14px; align-items:flex-start; }
+  .board-main { flex:1; min-width:0; }
+  #boardRail { width:212px; flex-shrink:0; }
+  #boardRail:empty { display:none; }
+  @media (max-width:760px){ .board-layout { flex-direction:column; } #boardRail { width:100%; } }
+  .rail { background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px 13px; position:sticky; top:140px; }
+  .rail-sec { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); margin:12px 0 6px; }
+  .rail-sec:first-child { margin-top:0; }
+  .lens-row { display:flex; flex-wrap:wrap; gap:5px; }
+  .lens { font-size:12px; font-weight:700; border:1px solid var(--line); border-radius:999px; padding:3px 10px; cursor:pointer; background:#fff; color:#374151; }
+  .lens:hover { border-color:var(--red); } .lens.on { background:var(--red); color:#fff; border-color:var(--red); }
+  .rail-players { max-height:230px; overflow-y:auto; display:flex; flex-direction:column; gap:2px; margin-top:2px; }
+  .rp { display:flex; align-items:center; gap:6px; padding:4px 7px; border-radius:7px; cursor:pointer; font-size:12px; }
+  .rp:hover { background:#f6f6f6; } .rp.on { background:var(--red); color:#fff; }
+  .rp .rp-nm { font-weight:700; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .rp .rp-rk { font-size:11px; opacity:.65; font-weight:600; } .rp.dr { opacity:.45; }
+  .rp .rp-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .rail-stat { margin-top:8px; }
+  .rail-stat .k { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.3px; }
+  .rail-stat .v { font-weight:800; font-variant-numeric:tabular-nums; font-size:13px; }
+  .rail-hist { display:flex; align-items:flex-end; gap:3px; height:64px; margin-top:6px; }
+  .rail-hist .b { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; min-width:14px; }
+  .rail-hist .b .bar { width:100%; background:var(--red); border-radius:2px 2px 0 0; min-height:1px; }
+  .rail-hist .b .lab { font-size:8px; color:var(--muted); font-weight:700; margin-top:2px; white-space:nowrap; }
+  /* heat-colored picks (bg set inline) */
+  .brow.heat .who { color:var(--ink); } .bcard.heat .bc-player { font-size:13px; font-weight:800; }
+  .heat-pct { font-weight:800; font-variant-numeric:tabular-nums; }
 </style>
 
 <header>
@@ -349,15 +359,19 @@
       <label><input type="checkbox" id="bSv" onchange="renderBoard(currentState)"> SV picks only</label>
       <button class="ctl" onclick="jumpCurrent()">↧ Jump to current pick</button>
       <span class="seg"><button id="btnBList" class="on" onclick="setBoardView('list')">≡ List</button><button id="btnBGrid" onclick="setBoardView('grid')">⊞ Grid</button></span>
-      <button class="ctl" id="btnClients" onclick="toggleClients()" style="font-weight:800">👤 Clients</button>
+      <button class="ctl" id="btnHeat" onclick="toggleHeat()" style="font-weight:800">🎯 Heat</button>
       <button class="ctl" id="btnWhatIf" onclick="toggleWhatIf()" style="background:#f4f2ff;border-color:#c7c3f4;color:#6366f1;font-weight:800">✦ Scenario</button>
-      <span class="ent-legend" id="entLegend" style="display:none"><span class="ent-dot" style="background:#e8820e"></span>Contested&nbsp;<span class="ent-dot" style="background:#1a7f37"></span>Chalk</span>
+      <span class="ent-legend" id="heatLegend" style="display:none">unlikely <span style="display:inline-block;width:70px;height:8px;border-radius:4px;background:linear-gradient(90deg,hsl(0,70%,82%),hsl(60,70%,75%),hsl(120,55%,72%));vertical-align:middle"></span> likely</span>
       <span class="count" id="boardCount"></span>
     </div>
-    <div id="clientPanel"></div>
     <div id="wiPanel"></div>
-    <div id="pickExpand"></div>
-    <div id="boardList" class="board"></div>
+    <div class="board-layout">
+      <div id="boardRail"></div>
+      <div class="board-main">
+        <div id="pickExpand"></div>
+        <div id="boardList" class="board"></div>
+      </div>
+    </div>
   </section>
 
   <!-- DETAIL (player or team drill-down) -->
@@ -477,8 +491,8 @@
   let inPlayByPick = {};       // overall -> { playerKey: count }  (board "who's in play")
   let boardSimK = 0;           // K of the last board sim (denominator for probabilities)
   let expandedPick = null;     // overall # whose in-play list is expanded, or null
-  let clientsOpen = false;     // Board "Clients" panel toggle (works in live + mock)
-  let boardClient = null;      // selected client key for the distribution/color-fit panel
+  let heatOn = true;           // master-grid red→green heat map (default on, live + mock)
+  let boardLens = { type:"all", value:null };  // "all" | {type:"pos",value:P/C/IF/OF} | {type:"player",value:key}
   let projInvalid = false;
 
   // ----- bonus / leverage model: expected bonus = slot-at-rank × leverage multiplier -----
@@ -910,15 +924,16 @@
   const surnameOf = (name) => { const last = (name||"").trim().split(/\s+/).pop()||""; return last.length>9 ? last.slice(0,9)+"…" : last; };
   function renderBoard(state) {
     if (!state) return;
-    // What If panel
+    $("btnHeat").classList.toggle("on", heatOn);
+    $("btnHeat").style.background = heatOn ? "var(--red)" : ""; $("btnHeat").style.color = heatOn ? "#fff" : "";
     $("wiPanel").innerHTML = whatIfOpen ? renderWhatIfHtml(state) : "";
-    // Entropy legend visibility
-    const hasEntropy = Object.keys(slotEntropyData).length > 0;
-    $("entLegend").style.display = hasEntropy ? "" : "none";
+    $("heatLegend").style.display = heatOn ? "" : "none";
+    $("entLegend") && ($("entLegend").style.display = "none");
     $("boardCount").textContent = `${state.madeCount} of ${state.picks.length} picks made`;
-    renderClientPanel(state);
+    renderBoardRail(state);
     renderPickExpand(state);
-    if (boardView === "grid") { renderBoardGrid(state); return; }
+    const hm = heatOn ? heatMap(state) : null;
+    if (boardView === "grid") { renderBoardGrid(state, hm); return; }
     const svOnly = $("bSv").checked;
     let html = "", lastRound = null;
     for (const p of state.picks) {
@@ -928,9 +943,12 @@
       const onclock = state.onClock && state.onClock.overall === p.overall;
       const comp = p.isDrafted ? DATA.compByName.get(normName(p.player||"")) : null;
       const isLock = !p.isDrafted && whatIfLocks.some(l => l.overall === p.overall);
-      const ent = !p.isDrafted ? slotEntropy(p.overall) : 0;
+      const ent = (!p.isDrafted && !heatOn) ? slotEntropy(p.overall) : 0;
       const entCls = ent >= 2 ? "ent-hot" : ent === 1 ? "ent-chalk" : "";
-      const cls = `brow ${p.isDrafted ? "" : "up"} ${ours ? "sv" : ""} ${onclock ? "oc" : ""} ${entCls} ${isLock?"wi-lock":""}`.trim().replace(/\s+/g," ");
+      // heat: probability the active lens lands at this (undrafted) pick
+      const hp = (hm && hm.max>0 && !p.isDrafted) ? (hm.prob[p.overall]||0) : null;
+      const heatStyle = hp!=null ? ` style="background:${heatColor(hp/hm.max)}"` : "";
+      const cls = `brow ${p.isDrafted ? "" : "up"} ${ours ? "sv" : ""} ${onclock ? "oc" : ""} ${entCls} ${isLock?"wi-lock":""} ${hp!=null?"heat":""}`.trim().replace(/\s+/g," ");
       if (p.isDrafted) {
         html += `<div class="${cls}"><span class="ov">#${p.overall}</span><span class="tm">${p.team||""}</span>
           <span class="who">${p.player||"—"}</span>${ours?'<span class="svtag">SV</span>':""}
@@ -940,15 +958,16 @@
       } else {
         const lockInfo = isLock ? (() => { const l=whatIfLocks.find(x=>x.overall===p.overall); return l?` · ✦ locked → ${DATA.compByName.get(l.playerKey)?.name||l.playerKey}`:""; })() : "";
         const expCls = expandedPick===p.overall ? " expanded" : "";
-        html += `<div class="${cls} clickrow${expCls}" ${onclock?'id="ocRow"':""} onclick="expandPick(${p.overall})"><span class="ov">#${p.overall}</span><span class="tm">${p.team||""}</span>
-          <span class="who">${onclock?"⏱ ON THE CLOCK":"in play ▸"}</span>
+        const who = onclock ? "⏱ ON THE CLOCK" : hp!=null ? `<span class="heat-pct">${Math.round(hp*100)}%</span> ${lensLabel()} ▸` : "in play ▸";
+        html += `<div class="${cls} clickrow${expCls}"${heatStyle} ${onclock?'id="ocRow"':""} onclick="expandPick(${p.overall})"><span class="ov">#${p.overall}</span><span class="tm">${p.team||""}</span>
+          <span class="who">${who}</span>
           <span class="meta">slot ${fmt$(p.slot)}${lockInfo}</span></div>`;
       }
     }
     $("boardList").innerHTML = html || `<div class="placeholder">No SV picks yet.</div>`;
   }
 
-  function renderBoardGrid(state) {
+  function renderBoardGrid(state, hm) {
     const svOnly = $("bSv").checked;
     // One continuous flex grid; full-width round headers force a wrap. Dedupe by
     // round so interleaved comp/PPI picks don't re-emit "Round 1" repeatedly.
@@ -959,13 +978,15 @@
       if (svOnly && !ours) continue;
       if (!seenRounds.has(p.round)) { seenRounds.add(p.round); html += `<div class="bc-rnd">${roundLabel(p.round)}</div>`; }
       const onclock = state.onClock && state.onClock.overall === p.overall;
-      const ent = !p.isDrafted ? slotEntropy(p.overall) : 0;
+      const ent = (!p.isDrafted && !heatOn) ? slotEntropy(p.overall) : 0;
       const entCls = ent >= 2 ? "ent-hot" : ent === 1 ? "ent-chalk" : "";
       const isLock = !p.isDrafted && whatIfLocks.some(l => l.overall === p.overall);
-      const cardCls = `bcard ${ours?"sv":""} ${onclock?"oc":""} ${entCls} ${isLock?"wi-lock":""}`.trim().replace(/\s+/g," ");
-      // SV clients whose sims land at/near this pick — show surname + fit grade
+      const hp = (hm && hm.max>0 && !p.isDrafted) ? (hm.prob[p.overall]||0) : null;
+      const heatStyle = hp!=null ? ` style="background:${heatColor(hp/hm.max)}"` : "";
+      const cardCls = `bcard ${ours?"sv":""} ${onclock?"oc":""} ${entCls} ${isLock?"wi-lock":""} ${hp!=null?"heat":""}`.trim().replace(/\s+/g," ");
+      // when NOT in heat mode, show the in-play client pills; heat mode shows the % instead
       let tiHtml = "";
-      if (!p.isDrafted) {
+      if (!p.isDrafted && !heatOn) {
         const svHere = DATA.clientList.filter(c => {
           const cache = projCache[c.key];
           return cache && !cache.computing && cache.lands && cache.lands.some(l => Math.abs(l-p.overall)<=2);
@@ -980,11 +1001,13 @@
       }
       const onclick = p.isDrafted ? `openPlayer('${normName(p.player||"").replace(/'/g,"\\'")}')` : `expandPick(${p.overall})`;
       const expSel = expandedPick===p.overall ? " expanded" : "";
-      html += `<div class="${cardCls}${expSel}" onclick="${onclick}">
+      const body = p.isDrafted ? (p.player||"—")+(ours?' <span class="svtag">SV</span>':"")
+                 : onclock ? "⏱ OTC" : hp!=null ? `<span class="heat-pct">${Math.round(hp*100)}%</span>` : "—";
+      html += `<div class="${cardCls}${expSel}"${heatStyle} onclick="${onclick}">
         <div class="bc-no">#${p.overall}</div>
         <div class="bc-team">${p.team||"—"}</div>
         <div class="bc-slot">${p.slot>0?fmtM(p.slot):"—"}</div>
-        <div class="bc-player">${p.isDrafted?(p.player||"—")+(ours?' <span class="svtag">SV</span>':""):onclock?"⏱ OTC":"—"}</div>
+        <div class="bc-player">${body}</div>
         ${tiHtml}</div>`;
     }
     html += `</div>`;
@@ -1301,77 +1324,92 @@
     } catch (e) { alert("Could not save intel: " + e.message); return false; }
   }
 
-  // ---------- VIEW: BOARD — client panel: landing distribution at scale + color fit ----------
-  function toggleClients() {
-    clientsOpen = !clientsOpen;
-    $("btnClients").classList.toggle("on", clientsOpen);
-    $("btnClients").style.background = clientsOpen ? "var(--red)" : "";
-    $("btnClients").style.color = clientsOpen ? "#fff" : "";
-    if (clientsOpen && !boardClient && currentState) {
-      const drafted = new Set(currentState.picks.filter(p=>p.isDrafted&&p.player).map(p=>normName(p.player)));
-      const first = DATA.clientList.find(c => c.comp && !drafted.has(c.key));
-      if (first) { boardClient = first.key; computeProjection(boardClient, 500); }
-    }
+  // ---------- VIEW: BOARD — red→green roster heat map + lens rail ----------
+  function toggleHeat() {
+    heatOn = !heatOn;
+    $("btnHeat").classList.toggle("on", heatOn);
+    $("btnHeat").style.background = heatOn ? "var(--red)" : "";
+    $("btnHeat").style.color = heatOn ? "#fff" : "";
     renderBoard(currentState);
   }
-  window.selectBoardClient = (key) => { boardClient = key; computeProjection(key, 500); renderBoard(currentState); };
-
-  function renderClientPanel(state) {
-    const el = $("clientPanel"); if (!el) return;
-    if (!clientsOpen) { el.innerHTML = ""; return; }
+  window.setLens = (type, value) => {
+    boardLens = { type, value: value||null };
+    if (type==="player" && value) computeProjection(value, 500);   // crisp distribution for the focused player
+    renderBoard(currentState);
+  };
+  const heatColor = (t) => { t=Math.max(0,Math.min(1,t||0)); return `hsl(${Math.round(t*120)},68%,${Math.round(86 - t*12)}%)`; };
+  const lensLabel = () => boardLens.type==="player" ? (DATA.compByName.get(boardLens.value)? surnameOf(DATA.compByName.get(boardLens.value).name):"client")
+                        : boardLens.type==="pos" ? boardLens.value : "roster";
+  // Probability the active lens lands at each pick (from projCache lands). For "all"/"pos" it's
+  // P(at least one matching client lands here); for "player" it's that client's per-pick distribution.
+  function heatMap(state) {
     const drafted = new Set(state.picks.filter(p=>p.isDrafted&&p.player).map(p=>normName(p.player)));
+    const L = boardLens;
+    const filt = L.type==="player" ? (c=>c.key===L.value) : L.type==="pos" ? (c=>c.comp&&c.comp.posGroup===L.value) : (()=>true);
+    const clients = DATA.clientList.filter(c=>c.comp && !drafted.has(c.key) && filt(c) && projCache[c.key] && !projCache[c.key].computing && projCache[c.key].lands && projCache[c.key].lands.length);
+    const comp = {};   // overall -> Π(1 - p_client_here)
+    for (const c of clients) {
+      const lands = projCache[c.key].lands, K = lands.length, cnt = {};
+      lands.forEach(o => cnt[o] = (cnt[o]||0)+1);
+      for (const ov in cnt) { const p = cnt[ov]/K; comp[ov] = (comp[ov]==null?1:comp[ov]) * (1-p); }
+    }
+    const prob = {}; let max = 0;
+    for (const ov in comp) { const v = 1 - comp[ov]; prob[ov] = v; if (v>max) max = v; }
+    return { prob, max, n: clients.length };
+  }
+
+  function renderBoardRail(state) {
+    const el = $("boardRail"); if (!el) return;
+    if (!heatOn) { el.innerHTML = ""; return; }
+    const drafted = new Set(state.picks.filter(p=>p.isDrafted&&p.player).map(p=>normName(p.player)));
+    const L = boardLens;
+    const allChip = `<span class="lens ${L.type==='all'?'on':''}" onclick="setLens('all')">All roster</span>`;
+    const posChips = ["P","C","IF","OF"].map(g=>`<span class="lens ${L.type==='pos'&&L.value===g?'on':''}" onclick="setLens('pos','${g}')">${g}</span>`).join("");
     const clients = DATA.clientList.filter(c=>c.comp).sort((a,b)=>a.comp.rank-b.comp.rank);
-    const pills = clients.map(c=>{
-      const dr = drafted.has(c.key);
-      return `<span class="cp-pill ${boardClient===c.key?'on':''} ${dr?'dr':''}" onclick="selectBoardClient('${c.key.replace(/'/g,"\\'")}')">${surnameOf(c.name)} <span class="pr">#${c.comp.rank}</span>${dr?' ✓':''}</span>`;
+    const players = clients.map(c=>{
+      const dr = drafted.has(c.key), on = L.type==='player'&&L.value===c.key;
+      return `<div class="rp ${on?'on':''} ${dr?'dr':''}" onclick="setLens('player','${c.key.replace(/'/g,"\\'")}')">
+        <span class="rp-nm">${c.name}</span><span class="rp-rk">#${c.comp.rank}</span>${dr?'✓':''}</div>`;
     }).join("");
 
-    let body = `<div class="placeholder" style="margin-top:12px">Select a client to see their landing distribution &amp; color fit.</div>`;
-    if (boardClient) {
-      const c = clients.find(x=>x.key===boardClient);
-      const pk = state.picks.find(p=>p.isDrafted && normName(p.player)===boardClient);
-      if (pk) {
-        body = `<div class="cp-head"><span class="rk">#${c.comp.rank}</span><span class="nm">${c.name}</span>
-          <span class="meta">DRAFTED #${pk.overall} · ${teamLink(pk.team)} · ${moneyCell(pk)}</span></div>`;
-      } else {
-        const cache = projCache[boardClient];
-        if (!cache || cache.computing) body = `<div class="placeholder" style="margin-top:12px">Running 500 simulations…</div>`;
-        else if (!cache.lands || !cache.lands.length) body = `<div class="placeholder" style="margin-top:12px">No projection. <span class="tlink" onclick="refreshProjection('${boardClient.replace(/'/g,"\\'")}')">retry</span></div>`;
-        else {
-          const lands = cache.lands, K = lands.length;
-          const med=pctOf(lands,0.5), p10=pctOf(lands,0.1), p90=pctOf(lands,0.9), mn=Math.min(...lands);
-          const spread=p90-p10, certainty = spread<=6?"very tight":spread<=20?"tight":spread<=60?"moderate":"wide open";
-          // pick-level distribution across his realistic range — reveals the true shape at scale
+    let summary = "";
+    if (L.type==='player' && L.value) {
+      const c = clients.find(x=>x.key===L.value);
+      const pk = state.picks.find(p=>p.isDrafted && normName(p.player)===L.value);
+      if (pk) summary = `<div class="rail-stat"><div class="v">Drafted #${pk.overall} · ${pk.team}</div></div>`;
+      else {
+        const cache = projCache[L.value];
+        if (!cache || cache.computing) summary = `<div class="rail-stat"><div class="k">Running 500 sims…</div></div>`;
+        else if (cache.lands && cache.lands.length) {
+          const lands=cache.lands, K=lands.length, med=pctOf(lands,0.5), p10=pctOf(lands,0.1), p90=pctOf(lands,0.9);
+          const spread=p90-p10, cert = spread<=6?"very tight":spread<=20?"tight":spread<=60?"moderate":"wide open";
           const lo=pctOf(lands,0.02), hi=pctOf(lands,0.98), span=Math.max(1,hi-lo);
-          const NB=Math.min(12, Math.max(4, span+1)), binW=Math.max(1, Math.ceil((span+1)/NB));
-          const bins=[]; for (let b=0; lo+b*binW<=hi; b++) bins.push({s:lo+b*binW, e:lo+b*binW+binW-1, c:0});
+          const NB=Math.min(8,Math.max(3,span+1)), binW=Math.max(1,Math.ceil((span+1)/NB));
+          const bins=[]; for (let b=0; lo+b*binW<=hi; b++) bins.push({s:lo+b*binW, c:0});
           lands.forEach(o=>{ let i=Math.floor((o-lo)/binW); if(i<0)i=0; if(i>=bins.length)i=bins.length-1; bins[i].c++; });
-          const maxc=Math.max(...bins.map(b=>b.c),1);
-          const bars=bins.map(b=>{ const pv=Math.round(b.c/K*100), lab=binW===1?`#${b.s}`:`${b.s}–${b.e}`;
-            return `<div class="cp-bar"><span class="pct">${pv?pv+'%':''}</span><div class="bar" style="height:${Math.round(b.c/maxc*100)}%"></div><span class="lab">${lab}</span></div>`; }).join("");
-          // color fit x landing probability per team
-          const teams=new Set([...DATA.intel.filter(r=>normName(r.player)===boardClient).map(r=>teamAlias(r.team)), ...Object.keys(cache.byTeam||{})]);
-          const chips=[...teams].map(t=>{ const f=fit(c.comp,t,boardClient,state); const p=(cache.byTeam?.[t]||0)/K; const nx=teamNextPick(state,t); return {t,f,p,nx}; })
-            .filter(x=>x.p>0 || x.f.score>=46).sort((a,b)=> (b.p-a.p) || (b.f.score-a.f.score)).slice(0,14)
-            .map(x=>`<div class="cp-fit" style="border-left-color:${x.f.color}"><span class="t">${teamLink(x.t)}</span>
-              <span class="p" style="color:${x.f.color}">${Math.round(x.p*100)}%</span>
-              <span class="d">fit ${x.f.grade}${x.nx?` · #${x.nx.overall}`:""}</span></div>`).join("");
-          body = `<div class="cp-head"><span class="rk">#${c.comp.rank}</span><span class="nm">${c.name}</span>
-              <span class="meta">${c.comp.pos} · ${levelClass(c.comp).replace('College-','Col ')}</span></div>
-            <div class="cp-stat">
-              <span><div class="k">Most likely</div><div class="v" style="color:var(--red)">#${med}</div></span>
-              <span><div class="k">Range P10–P90</div><div class="v">#${p10}–#${p90}</div></span>
-              <span><div class="k">Earliest</div><div class="v">#${mn}</div></span>
-              <span><div class="k">Certainty</div><div class="v">${certainty}</div></span>
-              <span><div class="k">Sims</div><div class="v">${K}</div></span></div>
-            <div class="cp-sec">Landing distribution by round <span style="font-weight:600;text-transform:none;letter-spacing:0;color:#9aa0a6">— where ${surnameOf(c.name)} comes off, across ${K} sims</span></div>
-            <div class="cp-hist">${bars}</div>
-            <div class="cp-sec">Color fit × landing probability <span style="font-weight:600;text-transform:none;letter-spacing:0;color:#9aa0a6">— team fit grade (bar color) vs how often he lands there</span></div>
-            <div class="cp-fitgrid">${chips||'<div class="placeholder">No team fits in range.</div>'}</div>`;
-        }
+          const mx=Math.max(...bins.map(b=>b.c),1);
+          const hist=bins.map(b=>`<div class="b"><div class="bar" style="height:${Math.round(b.c/mx*100)}%"></div><div class="lab">${binW===1?'#'+b.s:b.s+'+'}</div></div>`).join("");
+          summary = `<div class="rail-stat">
+            <div><span class="k">Most likely</span> <span class="v" style="color:var(--red)">#${med}</span> · <span class="k">range</span> <span class="v">#${p10}–#${p90}</span></div>
+            <div style="margin-top:2px"><span class="k">${cert} · ${K} sims</span></div>
+            <div class="rail-hist">${hist}</div></div>`;
+        } else summary = `<div class="rail-stat"><div class="k">No projection.</div></div>`;
       }
+    } else {
+      const hm = heatMap(state); const r1 = roundSpan('1');
+      let r1exp = 0; if (r1) for (let ov=r1.first; ov<=r1.last; ov++) r1exp += hm.prob[ov]||0;
+      summary = `<div class="rail-stat">
+        <div><span class="k">${L.type==='pos'?L.value+' clients':'Clients'} in play</span> <span class="v">${hm.n}</span></div>
+        <div style="margin-top:2px"><span class="k">Expected in R1</span> <span class="v">${r1exp.toFixed(1)}</span></div></div>`;
     }
-    el.innerHTML = `<div class="cp-wrap"><div class="cp-pills">${pills}</div>${body}</div>`;
+
+    el.innerHTML = `<div class="rail">
+      <div class="rail-sec">Heat lens</div>
+      <div class="lens-row">${allChip}${posChips}</div>
+      <div class="rail-sec">Focus a client</div>
+      <div class="rail-players">${players}</div>
+      <div class="rail-sec">${L.type==='player'?'Distribution (500 sims)':'Summary'}</div>
+      ${summary}</div>`;
   }
 
   // ---------- VIEW: BOARD — expand a pick to its in-play client table ----------
