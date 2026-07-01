@@ -1780,11 +1780,30 @@
     });
   }
 
+  // One-time backfill: ranges/medicals set before the shared-sync feature existed live only in
+  // this browser. Push any the shared store lacks (gap-fill only — never overwrite a shared value)
+  // so teammates see the same landing windows. No-op on browsers with nothing local to migrate.
+  let _backfilled = false;
+  function backfillLocalSettings() {
+    if (_backfilled) return; _backfilled = true;
+    for (const key of Object.keys(RANGES)) {
+      const s = INTEL.byKey.get(key);
+      if (s && s.range !== undefined) continue;                 // already shared — leave it
+      const rg = RANGES[key];
+      postIntel({ kind:"range", player_name:clientName(key), window_lo:rg.lo||null, window_hi:rg.hi||null });
+    }
+    for (const key of Object.keys(MEDICALS)) {
+      const s = INTEL.byKey.get(key);
+      if (s && s.medical !== undefined) continue;
+      postIntel({ kind:"medical", player_name:clientName(key), note:MEDICALS[key] });
+    }
+  }
+
   (async () => {
     initOrgTooltip();
     await loadStatic();
     try { await loadOrder(); } catch (e) {}   // slot table for demandFor() in all views
-    loadIntel();                              // captured intel from Supabase (best-effort)
+    await loadIntel().then(backfillLocalSettings);   // load shared intel, then migrate browser-only ranges/medicals
     pollLive();
     setInterval(pollLive, 3000);
     setInterval(loadIntel, 12000);            // refresh shared intel so the war room stays in sync
