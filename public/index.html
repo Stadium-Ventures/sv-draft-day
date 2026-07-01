@@ -688,7 +688,7 @@
     const src = msgRec.is_manual ? "manual override" : (msgRec.channel ? "#"+msgRec.channel : "Slack");
     let h = `<div class="ot-h">${team} · latest intel</div>`;
     h += `<div class="ot-row"><span>Date</span><b>${latest.date||"—"}</b></div>`;
-    h += `<div class="ot-row"><span>Interest</span><b>${latest.score!=null?(latest.score>0?"+":"")+latest.score:"—"}${colorRec?" · "+colorRec.color:""}</b></div>`;
+    h += `<div class="ot-row"><span>Interest</span><b>${colorRec?colorRec.color:"—"}</b></div>`;
     h += `<div class="ot-row"><span>Source</span><b>${msgRec.tier_label?msgRec.tier_label+" · ":""}${src}</b></div>`;
     if (msg) h += `<div class="ot-sec">Latest message${msgRec!==latest&&msgRec.date?` · ${msgRec.date}`:""}</div><div style="color:#ddd;white-space:pre-wrap">${_esc(msg)}</div>`;
     return h;
