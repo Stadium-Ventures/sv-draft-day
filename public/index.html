@@ -340,6 +340,7 @@
       <div class="panel"><h3 id="tendHdr">Org tendencies</h3><div class="chips" id="tendChips"></div><div class="r1" id="recentR1"></div></div>
       <div class="panel"><h3 id="intelHdr">Interest in our guys</h3><div class="intel" id="intelList"></div><div id="pickProb"></div></div>
     </div>
+    <div id="teamRecentWrap" style="display:none"><h2 id="teamRecentHdr">Their picks so far</h2><div class="recent" id="teamRecent"></div></div>
     <h2>Recent picks</h2>
     <div class="recent" id="recent"></div>
   </section>
@@ -558,7 +559,8 @@
         fetch("/data/leverage.json").then(r=>r.json()).catch(()=>null),
       ]);
       DATA.composite = c; DATA.orgs = o; DATA.leverage = lev;
-      DATA.compByName = new Map(c.map(p => [normName(p.name), p]));
+      c.forEach(p => { p._key = normName(p.name); });   // cache normalized key (hot in sims)
+      DATA.compByName = new Map(c.map(p => [p._key, p]));
     } catch (e) {}
     try {
       const ti = await fetch(TEAMINTEL_URL, { cache:"no-store" }).then(r=>r.json());
@@ -815,10 +817,12 @@
       ].map(([k,v]) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("") : "";
       renderTendencies(oc.team); renderIntel(oc.team, drafted);
       renderPickProb(oc.team, drafted);
+      renderTeamRecent(state, oc.team);
     } else {
       $("pickNo").textContent = MODE==="mock" ? "MOCK · Draft complete" : "Draft complete";
       $("teamAbbr").textContent="✓"; $("teamName").textContent=""; $("ocAlert").innerHTML=""; $("poolRow").innerHTML="";
       renderTendencies(null); renderIntel(null, new Set()); $("pickProb").innerHTML="";
+      $("teamRecentWrap").style.display="none";
     }
     const made = state.picks.filter(p=>p.isDrafted).slice(-12).reverse();
     $("recent").innerHTML = made.length ? made.map(p => {
@@ -829,6 +833,22 @@
         ${comp?`<span class="rkbadge">composite #${comp.rank}</span>`:""}
         <span class="meta">${p.team||""}${p.school?" · "+p.school:""} · ${moneyCell(p)}</span></div>`;
     }).join("") : `<div class="placeholder">No picks yet${MODE==="mock"?" — press Start.":"."}</div>`;
+  }
+  // On-the-clock team's own picks already made in THIS draft (shows from their 2nd pick on).
+  function renderTeamRecent(state, team) {
+    const wrap = $("teamRecentWrap");
+    const own = team ? state.picks.filter(p => p.isDrafted && p.player && p.team === team) : [];
+    if (!own.length) { wrap.style.display = "none"; $("teamRecent").innerHTML = ""; return; }
+    wrap.style.display = "";
+    $("teamRecentHdr").textContent = `${team} picks so far · ${own.length} this draft`;
+    $("teamRecent").innerHTML = own.slice().reverse().map(p => {
+      const comp = DATA.compByName.get(normName(p.player||""));
+      const ours = DATA.clients.has(normName(p.player||""));
+      return `<div class="pick"><span class="ov">#${p.overall}</span><span class="who">${p.player||"—"}</span>
+        ${ours?'<span class="svtag">SV</span>':""}${p.bucket&&p.bucket!=="UNK"?`<span class="clab">${p.bucket}</span>`:""}
+        ${comp?`<span class="rkbadge">composite #${comp.rank}</span>`:""}
+        <span class="meta">R${p.round}${p.school?" · "+p.school:""} · ${moneyCell(p)}</span></div>`;
+    }).join("");
   }
   function renderTendencies(team) {
     const o = DATA.orgs[team];
@@ -1181,14 +1201,19 @@
     for (let k=0;k<K;k++) {
       mock.picks = base.map(p => ({...p}));
       applyLocksTo(mock.picks);
+      const draftedKeys = new Set();
+      for (const p of mock.picks) if (p.isDrafted && p.player) draftedKeys.add(normName(p.player));
       for (let i=0;i<mock.picks.length;i++) {
         const pk = mock.picks[i];
         if (pk.isDrafted) {
           if (normName(pk.player||"")===key) { lands.push(pk.overall); byTeam[pk.team]=(byTeam[pk.team]||0)+1; break; }
           continue;
         }
-        applyPick(i, choosePick(pk));
-        if (normName(mock.picks[i].player||"")===key) { lands.push(mock.picks[i].overall); byTeam[mock.picks[i].team]=(byTeam[mock.picks[i].team]||0)+1; break; }
+        const choice = choosePick(pk, draftedKeys);
+        applyPick(i, choice);
+        const nk = choice && choice.comp ? choice.comp._key : normName(mock.picks[i].player||"");
+        if (nk) draftedKeys.add(nk);
+        if (nk===key) { lands.push(mock.picks[i].overall); byTeam[mock.picks[i].team]=(byTeam[mock.picks[i].team]||0)+1; break; }
       }
     }
     mock.picks = saved;
@@ -1228,12 +1253,16 @@
       for (; k < end; k++) {
         mock.picks = base.map(p => ({...p}));           // borrow (synchronous within chunk)
         applyLocksTo(mock.picks);
+        const draftedKeys = new Set();
+        for (const p of mock.picks) if (p.isDrafted && p.player) draftedKeys.add(normName(p.player));
         for (let i=0;i<mock.picks.length;i++) {
           const pk = mock.picks[i];
           if (pk.isDrafted) continue;                   // settled / locked — not "in play"
-          applyPick(i, choosePick(pk));
-          const key = normName(mock.picks[i].player||"");
+          const choice = choosePick(pk, draftedKeys);
+          applyPick(i, choice);
+          const key = choice && choice.comp ? choice.comp._key : normName(mock.picks[i].player||"");
           if (!key) continue;
+          draftedKeys.add(key);
           const ov = mock.picks[i].overall;
           (landing[key] = landing[key] || []).push(ov);
           (inPlay[ov] = inPlay[ov] || {})[key] = (inPlay[ov][key] || 0) + 1;
@@ -1780,9 +1809,14 @@
     } catch (e) { $("pickNo").textContent = "Couldn't load board — serve via a web server (vercel dev / python3 -m http.server)"; }
     mock.seeding = false;
   }
+  function draftedKeySet() {
+    const s = new Set();
+    for (const p of mock.picks) if (p.isDrafted && p.player) s.add(normName(p.player));
+    return s;
+  }
   function availableComposite() {
-    const drafted = new Set(mock.picks.filter(p=>p.isDrafted&&p.player).map(p=>normName(p.player)));
-    return DATA.composite.filter(p => !drafted.has(normName(p.name)));
+    const drafted = draftedKeySet();
+    return DATA.composite.filter(p => !drafted.has(p._key));
   }
   const jitterFor = (round) => { const r = parseInt(round,10)||1; return r<=1?3 : r<=4?6 : 10; };
   // Realistic board-disagreement variance (Gaussian), scaled by round — a #9 talent should have
@@ -1803,9 +1837,12 @@
   }
   // Budget-constrained pick: best affordable talent; unaffordable demand -> slides;
   // teams with spare money overpay (banking earlier funds over-slot later).
-  function choosePick(pk) {
+  // draftedKeys: optional pre-maintained Set of taken _keys (sims pass it so we skip
+  // re-scanning + re-normalizing the whole board on every pick). Falls back to a fresh scan.
+  function choosePick(pk, draftedKeys) {
     const team = pk.team;
-    const all = availableComposite();
+    const drafted = draftedKeys || draftedKeySet();
+    const all = DATA.composite.filter(c => !drafted.has(c._key));
     if (!all.length) return null;
     // hard manual ranges: anyone past their latest must be taken now (forced off the board)
     const overdue = all.filter(c => { const r=rangeOf(c); return r && r.hi && pk.overall >= r.hi; });
