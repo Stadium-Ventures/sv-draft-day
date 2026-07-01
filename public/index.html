@@ -519,7 +519,7 @@
   // teams will grab a faller under slot to bank for an over-slot pick later.
   const SPREAD = {"TEX":1,"SD":0.91,"SF":0.83,"BAL":0.64,"LAA":0.63,"CLE":0.58,"ATL":0.54,"BOS":0.53,"LAD":0.53,"NYY":0.48,"ATH":0.46,"CHC":0.42,"MIA":0.41,"DET":0.38,"ARI":0.36,"NYM":0.35,"CHW":0.31,"CIN":0.31,"HOU":0.3,"KC":0.3,"STL":0.29,"MIN":0.28,"TOR":0.26,"PHI":0.21,"MIL":0.2,"PIT":0.14,"WSH":0.05,"TB":0.04,"COL":0,"SEA":0};
   const spreadOf = (t) => SPREAD[t] != null ? SPREAD[t] : 0.3;
-  const fmtOU = (n) => !n ? "at slot" : (n>0 ? "+"+fmtM(n)+" over" : fmtM(-n)+" banked");
+  const fmtOU = (n) => !n ? "at slot" : (n>0 ? "+"+fmt$(n)+" over" : fmt$(-n)+" banked");
   const fmtVsSlot = (n) => n==null ? "" : (!n ? "at slot" : (n>0 ? "+"+fmtM(n)+" over slot" : fmtM(-n)+" under slot"));
   const MEDICAL_FLOOR = 0.75;   // combine-medical consent guarantees >=75% of slot
   let MEDICALS = {};            // normName -> "yes" | "no"  (absent = unknown)
@@ -734,6 +734,7 @@
       t.ceiling = t.pool * CUSHION;                      // hard spend wall
       t.room = t.ceiling - t.poolCharge;                 // AMMO: $ still spendable within the rules
       t.overUnder = t.poolBonusPaid - t.committedSlot;   // picks over (+) / banked (−) vs slot to date
+      t.overage = t.poolCharge - t.pool;                 // $ spent over (+) / under (−) the full pool
       t.pctNum = t.pool ? (t.poolCharge - t.pool)/t.pool*100 : 0;
     }
     return { year, picks, onClockIndex, onClock, madeCount:picks.filter(p=>p.isDrafted).length, poolsMap:pools,
@@ -968,7 +969,8 @@
       $("poolRow").innerHTML = pool ? [
         ["Pick slot", fmt$(oc.slot)],
         ["Room left (incl. 5%)", fmt$(pool.room)],
-        ["Spent / pool", `${fmtM(pool.poolCharge)} / ${fmtM(pool.pool)}`],
+        ["Spent / pool", `${fmt$(pool.poolCharge)} / ${fmt$(pool.pool)}`],
+        ["Overage", (pool.overage>0?"+":pool.overage<0?"−":"") + fmt$(Math.abs(pool.overage))],
         ["Over/under to date", fmtOU(pool.overUnder)],
         ["Picks", `${pool.picksMade}/${pool.picksTotal}`],
       ].map(([k,v]) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("") : "";
@@ -1244,7 +1246,7 @@
   function jumpCurrent() { document.getElementById("ocRow")?.scrollIntoView({ block:"center", behavior:"smooth" }); }
   // ---------- VIEW: BONUS POOLS ----------
   const POOL_COLS = [["team","Team"],["pool","Pool"],["picksMade","Picks"],["committedSlot","Committed slot"],
-                     ["poolCharge","Spent"],["overUnder","Over/Under"],["room","Room"],["pctNum","%"]];
+                     ["poolCharge","Spent"],["overUnder","Over/Under"],["room","Room"],["overage","Overage"],["pctNum","%"]];
   let poolSort = { key:"pctNum", dir:-1 };   // dir: -1 desc, 1 asc
   window.sortPools = (key) => {
     if (poolSort.key === key) poolSort.dir *= -1;
@@ -1267,14 +1269,17 @@
     $("poolBody").innerHTML = pools.map(t => {
       const ouCls = t.overUnder>50000 ? "over" : t.overUnder<-50000 ? "under" : "atslot";
       const pctCls = t.pctNum>=4.8 ? "over" : t.pctNum<0 ? "under" : "atslot";
+      const ovCls = t.overage>50000 ? "over" : t.overage<-50000 ? "under" : "atslot";
+      const ovTxt = (t.overage>0?"+":t.overage<0?"−":"") + fmt$(Math.abs(t.overage));
       return `<tr class="clickable" onclick="openTeam('${t.team}')">
         <td><b>${t.team}</b></td>
-        <td>${fmtM(t.pool)}</td>
+        <td>${fmt$(t.pool)}</td>
         <td class="hide-sm">${t.picksMade}/${t.picksTotal}</td>
-        <td class="hide-sm">${fmtM(t.committedSlot)}</td>
-        <td>${fmtM(t.poolCharge)}${t.hasEst?' <span class="outag est atslot">est</span>':""}</td>
+        <td class="hide-sm">${fmt$(t.committedSlot)}</td>
+        <td>${fmt$(t.poolCharge)}${t.hasEst?' <span class="outag est atslot">est</span>':""}</td>
         <td><span class="outag ${ouCls}">${fmtOU(t.overUnder)}</span></td>
-        <td>${fmtM(t.room)}</td>
+        <td>${fmt$(t.room)}</td>
+        <td><span class="outag ${ovCls}">${ovTxt}</span></td>
         <td><span class="outag ${pctCls}">${t.pctNum>=0?"+":""}${t.pctNum.toFixed(1)}%</span></td>
       </tr>`;
     }).join("");
@@ -1517,8 +1522,9 @@
     const teamName = (state.pools.find(p=>p.team===t)||{}).teamName || "";
     let h = `<div class="cc"><div class="detail-head"><span class="big">${t}</span><span class="pl">${teamName}</span></div>`;
     if (pool) h += `<div class="pool-row">${[
-      ["Pool", fmtM(pool.pool)], ["Spent", fmtM(pool.poolCharge)+(pool.hasEst?" est":"")],
-      ["Room (ammo)", fmtM(pool.room)], ["Over/under", fmtOU(pool.overUnder)], ["Picks", `${pool.picksMade}/${pool.picksTotal}`],
+      ["Pool", fmt$(pool.pool)], ["Spent", fmt$(pool.poolCharge)+(pool.hasEst?" est":"")],
+      ["Room (ammo)", fmt$(pool.room)], ["Overage", (pool.overage>0?"+":pool.overage<0?"−":"") + fmt$(Math.abs(pool.overage))],
+      ["Over/under", fmtOU(pool.overUnder)], ["Picks", `${pool.picksMade}/${pool.picksTotal}`],
     ].map(([k,v])=>`<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("")}</div>`;
     h += `</div>`;
 
