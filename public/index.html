@@ -48,6 +48,9 @@
   td.sr-col, th.sr-col { text-align:center; font-variant-numeric:tabular-nums; }
   td.sr-col { font-weight:700; color:#374151; }
   .ct .nx .mlab { font-size:10px; text-transform:uppercase; letter-spacing:.3px; opacity:.6; font-weight:800; }
+  .bcard.bc-dim { opacity:.38; }
+  .bcard .bc-lens { display:flex; align-items:center; gap:4px; margin-top:5px; flex-wrap:wrap; }
+  .brow .idot { margin:0 2px; }
   /* ESPN-style pick ticker — bottom, slides up on each new pick (live + mock), any page */
   #ticker { position:fixed; left:0; right:0; bottom:0; z-index:80; transform:translateY(115%); transition:transform .38s cubic-bezier(.2,.7,.3,1); pointer-events:none; }
   #ticker.show { transform:translateY(0); }
@@ -383,6 +386,7 @@
       <span class="count" id="boardCount"></span>
     </div>
     <div class="board-layout">
+      <div id="boardRail"></div>
       <div class="board-main">
         <div id="pickExpand"></div>
         <div id="boardList" class="board"></div>
@@ -507,6 +511,7 @@
 
   let DATA = { composite:[], compByName:new Map(), orgs:{}, intel:[], clients:new Set(), clientList:[], leverage:null };
   let boardView = "grid";      // "list" | "grid"
+  let boardLensClient = null;  // null = big board; else a client key to recolor the board around
   let expandedPick = null;     // overall # whose in-play list is expanded, or null
 
   // ----- bonus / leverage model: expected bonus = slot-at-rank × leverage multiplier -----
@@ -1000,11 +1005,29 @@
   // ---------- VIEW: BOARD (running log + card grid) ----------
   const roundLabel = (r) => /^\d+$/.test(String(r)) ? `Round ${r}` : String(r); // "1"->Round 1, "CB-A"->CB-A
   const surnameOf = (name) => { const last = (name||"").trim().split(/\s+/).pop()||""; return last.length>9 ? last.slice(0,9)+"…" : last; };
+  // The active board lens: null (big board) or a client to recolor picks around.
+  function lensFor() {
+    if (!boardLensClient) return null;
+    const c = DATA.clientList.find(x=>x.key===boardLensClient) || { key:boardLensClient, name:boardLensClient, comp:DATA.compByName.get(boardLensClient) };
+    return { c, comp:c.comp, rg:rangeOf(c.comp) };
+  }
+  // For an undrafted pick under a client lens: how that team views the client (color, fit, PDW/CMB)
+  // and whether the pick sits inside his known range. Drives tinting + dimming.
+  function lensPick(lens, p, state) {
+    const key=lens.c.key, team=p.team;
+    const rg=lens.rg, hasRange=!!(rg&&(rg.lo||rg.hi));
+    const inRange = !hasRange || (p.overall>=(rg.lo||1) && p.overall<=(rg.hi||9999));
+    const cr = intelColorRank(key,team);
+    return { inRange, colored: cr<5, colorHex: intelColorHex(key,team),
+             f: lens.comp ? fit(lens.comp,team,key,state) : null, key, team };
+  }
   function renderBoard(state) {
     if (!state) return;
     $("boardCount").textContent = `${state.madeCount} of ${state.picks.length} picks made`;
+    renderBoardRail(state);
+    const lens = lensFor();
     renderPickExpand(state);
-    if (boardView === "grid") { renderBoardGrid(state); return; }
+    if (boardView === "grid") { renderBoardGrid(state, lens); return; }
     const svOnly = $("bSv").checked;
     let html = "", lastRound = null;
     for (const p of state.picks) {
@@ -1022,16 +1045,39 @@
           <span class="meta">${p.pos||""} · ${moneyCell(p)}</span></div>`;
       } else {
         const expCls = expandedPick===p.overall ? " expanded" : "";
-        const who = onclock ? "⏱ ON THE CLOCK" : "in play ▸";
-        html += `<div class="${cls} clickrow${expCls}" ${onclock?'id="ocRow"':""} onclick="expandPick(${p.overall})"><span class="ov">#${p.overall}</span><span class="tm">${p.team||""}</span>
-          <span class="who">${who}</span>
+        let accent="", lensBits="";
+        if (lens) {
+          const L = lensPick(lens, p, state);
+          if (!L.inRange) accent=' style="opacity:.4"';
+          else if (L.colored) {
+            accent=` style="box-shadow:inset 4px 0 0 ${L.colorHex}"`;
+            lensBits=`${intelDot(L.key,L.team)}${L.f?`<span class="grade" data-org="${L.team}" style="background:${L.f.color}">${L.f.grade}</span>`:""}${contactBadges(L.key,L.team)}`;
+          }
+        }
+        const who = onclock ? "⏱ ON THE CLOCK" : (lens ? "" : "in play ▸");
+        html += `<div class="${cls} clickrow${expCls}"${accent} ${onclock?'id="ocRow"':""} onclick="expandPick(${p.overall})"><span class="ov">#${p.overall}</span><span class="tm">${p.team||""}</span>
+          ${lensBits}<span class="who">${who}</span>
           <span class="meta">slot ${fmt$(p.slot)}</span></div>`;
       }
     }
     $("boardList").innerHTML = html || `<div class="placeholder">No SV picks yet.</div>`;
   }
 
-  function renderBoardGrid(state) {
+  function renderBoardRail(state) {
+    const el = $("boardRail"); if (!el) return;
+    const drafted = new Set(state.picks.filter(p=>p.isDrafted&&p.player).map(p=>normName(p.player)));
+    const clients = DATA.clientList.filter(c=>c.comp).sort((a,b)=>a.comp.rank-b.comp.rank);
+    const big = `<div class="rp ${!boardLensClient?'on':''}" onclick="setBoardClient(null)"><span class="rp-nm">▦ Big Board</span></div>`;
+    const list = clients.map(c=>{
+      const dr=drafted.has(c.key), on=boardLensClient===c.key;
+      return `<div class="rp ${on?'on':''} ${dr?'dr':''}" onclick="setBoardClient('${c.key.replace(/'/g,"\\'")}')">
+        <span class="rp-nm">${c.name}</span><span class="rp-rk">#${c.comp.rank}</span>${dr?'✓':''}</div>`;
+    }).join("");
+    el.innerHTML = `<div class="rail"><div class="rail-sec">Lens</div><div class="rail-players">${big}${list}</div></div>`;
+  }
+  window.setBoardClient = (key) => { boardLensClient = key; renderBoard(currentState); };
+
+  function renderBoardGrid(state, lens) {
     const svOnly = $("bSv").checked;
     // One continuous flex grid; full-width round headers force a wrap. Dedupe by
     // round so interleaved comp/PPI picks don't re-emit "Round 1" repeatedly.
@@ -1042,16 +1088,24 @@
       if (svOnly && !ours) continue;
       if (!seenRounds.has(p.round)) { seenRounds.add(p.round); html += `<div class="bc-rnd">${roundLabel(p.round)}</div>`; }
       const onclock = state.onClock && state.onClock.overall === p.overall;
-      const cardCls = `bcard ${ours?"sv":""} ${onclock?"oc":""}`.trim().replace(/\s+/g," ");
+      let cardCls = `bcard ${ours?"sv":""} ${onclock?"oc":""}`, accent="", lensHtml="";
+      if (lens && !p.isDrafted) {
+        const L = lensPick(lens, p, state);
+        if (!L.inRange) cardCls += " bc-dim";
+        else if (L.colored) {
+          accent = ` style="box-shadow:inset 4px 0 0 ${L.colorHex};background:${L.colorHex}14"`;
+          lensHtml = `<div class="bc-lens">${intelDot(L.key,L.team)}${L.f?`<span class="grade" data-org="${L.team}" style="background:${L.f.color}">${L.f.grade}</span>`:""}${contactBadges(L.key,L.team)}</div>`;
+        }
+      }
       const onclick = p.isDrafted ? `openPlayer('${normName(p.player||"").replace(/'/g,"\\'")}')` : `expandPick(${p.overall})`;
       const expSel = expandedPick===p.overall ? " expanded" : "";
       const body = p.isDrafted ? (p.player||"—")+(ours?' <span class="svtag">SV</span>':"")
                  : onclock ? "⏱ OTC" : "—";
-      html += `<div class="${cardCls}${expSel}" onclick="${onclick}">
+      html += `<div class="${cardCls.trim().replace(/\s+/g," ")}${expSel}"${accent} onclick="${onclick}">
         <div class="bc-no">#${p.overall}</div>
         <div class="bc-team">${p.team||"—"}</div>
         <div class="bc-slot">${p.slot>0?fmtM(p.slot):"—"}</div>
-        <div class="bc-player">${body}</div></div>`;
+        <div class="bc-player">${body}</div>${lensHtml}</div>`;
     }
     html += `</div>`;
     $("boardList").innerHTML = html === `<div class="board-grid"></div>` ? `<div class="placeholder">No picks.</div>` : html;
