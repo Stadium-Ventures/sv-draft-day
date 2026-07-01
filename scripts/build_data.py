@@ -124,6 +124,7 @@ def build_composite():
             pos = (r.get("Pos") or "").strip()
             school = (r.get("School") or "").strip()
             age = (r.get("Age") or "").strip()
+            agent = (r.get("Agent") or "").strip()
             rows.append({
                 "rank": rank,
                 "name": (r.get("Name") or "").strip(),
@@ -132,6 +133,8 @@ def build_composite():
                 "level": classify_level(school, age),
                 "school": school,
                 "age": age,
+                # advising agency (null when unknown/unlisted)
+                "agent": agent if agent and agent.lower() != "unknown" else None,
                 "sources": int(float(r.get("Num_Sources") or 0)),
                 # per-source board ranks (null = not ranked by that source)
                 "ba": _src_rank(r.get("BA_Rank")),

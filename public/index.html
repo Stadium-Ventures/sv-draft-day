@@ -63,6 +63,7 @@
   #ticker .tk-sel { color:#9aa0a6; font-size:12px; text-transform:uppercase; letter-spacing:.6px; }
   #ticker .tk-player { font-weight:800; }
   #ticker .tk-meta { color:#aaa; font-size:13px; }
+  #ticker .tk-agency { color:#e8c46a; font-size:12px; font-weight:800; letter-spacing:.3px; }
   #ticker .tk-sv { margin-left:auto; background:#1a7f37; color:#fff; font-weight:900; font-size:11px; letter-spacing:.5px; padding:3px 8px; border-radius:5px; }
   .grade { font-size:12px; font-weight:800; color:#fff; border-radius:6px; padding:2px 7px; }
   .grade[data-org] { cursor:help; }
@@ -467,7 +468,7 @@
       <span class="count" id="baCount"></span>
     </div>
     <table class="ba">
-      <thead><tr><th>#</th><th>Player</th><th>Pos</th><th>Lvl</th><th class="hide-sm">School</th><th class="hide-sm">Age</th><th class="sr-col">BA</th><th class="sr-col">MLB</th><th class="sr-col">OS</th><th class="sr-col">ESPN</th></tr></thead>
+      <thead><tr><th>#</th><th>Player</th><th>Pos</th><th>Lvl</th><th class="hide-sm">School</th><th class="hide-sm">Agency</th><th class="hide-sm">Age</th><th class="sr-col">BA</th><th class="sr-col">MLB</th><th class="sr-col">OS</th><th class="sr-col">ESPN</th></tr></thead>
       <tbody id="baBody"></tbody>
     </table>
   </section>
@@ -1053,12 +1054,12 @@
       return `<tr class="${ours?"sv":""} ${clickable?"draftable":""}" ${clickable?`onclick="draftManual('${p.name.replace(/'/g,"\\'")}')"`:""}>
         <td class="rk">#${p.rank}</td><td>${p.name} ${ours?'<span class="svtag">SV</span>':""}</td>
         <td>${p.pos}</td><td><span class="lvl ${p.level}">${p.level}</span></td>
-        <td class="hide-sm">${p.school||""}</td><td class="hide-sm">${fmtAge(p.age)}</td>
+        <td class="hide-sm">${p.school||""}</td><td class="hide-sm">${p.agent||"—"}</td><td class="hide-sm">${fmtAge(p.age)}</td>
         <td class="sr-col">${p.ba!=null?"#"+p.ba:"—"}</td>
         <td class="sr-col">${p.mlb!=null?"#"+p.mlb:"—"}</td>
         <td class="sr-col">${p.overslot!=null?"#"+p.overslot:"—"}</td>
         <td class="sr-col">${p.espn!=null?"#"+p.espn:"—"}</td></tr>`;
-    }).join("") || `<tr><td colspan="10" style="color:#9aa0a6;padding:14px">No players match these filters.</td></tr>`;
+    }).join("") || `<tr><td colspan="11" style="color:#9aa0a6;padding:14px">No players match these filters.</td></tr>`;
   }
 
   // ---------- VIEW: BOARD (running log + card grid) ----------
@@ -1227,7 +1228,7 @@
       let cls = "feed-row", who, sub;
       if (p.isDrafted) {
         who = p.player || "—";
-        sub = [p.pos, comp?.school || p.school].filter(Boolean).join(" · ");
+        sub = [p.pos, comp?.agent, comp?.school || p.school].filter(Boolean).join(" · ");
         if (ours) cls += " sv";
       } else if (onclock) { cls += " oc"; who = "On the clock"; sub = "● NOW"; }
       else { cls += " up"; who = "Upcoming"; sub = ""; }
@@ -1611,12 +1612,14 @@
     const p = tickerQueue.shift();
     const key = normName(p.player||""), ours = DATA.clients.has(key), comp = DATA.compByName.get(key);
     const meta = comp ? `${comp.pos} · ${levelClass(comp).replace("College-","Col ")}` : (p.pos||"");
+    const agency = comp && comp.agent ? comp.agent : "";
     el.innerHTML = `<div class="tk-inner ${ours?"sv":""}">
       <span class="tk-badge">PICK #${p.overall}</span>
       <span class="tk-team">${p.team||""}</span>
       <span class="tk-sel">selects</span>
       <span class="tk-player">${p.player||"—"}</span>
       ${meta?`<span class="tk-meta">${meta}</span>`:""}
+      ${agency?`<span class="tk-agency">${agency}</span>`:""}
       ${ours?'<span class="tk-sv">SV CLIENT</span>':""}</div>`;
     el.classList.add("show");
     const hold = tickerQueue.length > 4 ? 800 : 4500;   // drain bursts (mock turbo) fast
