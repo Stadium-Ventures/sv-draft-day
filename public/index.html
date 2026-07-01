@@ -299,9 +299,9 @@
 
 <nav class="tabs">
   <button id="tabClients" class="on" onclick="setView('clients')">Our Clients</button>
+  <button id="tabBoard" onclick="setView('board')">Board</button>
   <button id="tabClock" onclick="setView('clock')">On The Clock</button>
   <button id="tabPools" onclick="setView('pools')">Bonus Pools</button>
-  <button id="tabBoard" onclick="setView('board')">Board</button>
   <button id="tabBest" onclick="setView('best')">Best Available</button>
 </nav>
 
@@ -364,7 +364,7 @@
     <div class="ba-filters">
       <label><input type="checkbox" id="bSv" onchange="renderBoard(currentState)"> SV picks only</label>
       <button class="ctl" onclick="jumpCurrent()">↧ Jump to current pick</button>
-      <span class="seg"><button id="btnBList" class="on" onclick="setBoardView('list')">≡ List</button><button id="btnBGrid" onclick="setBoardView('grid')">⊞ Grid</button></span>
+      <span class="seg"><button id="btnBList" onclick="setBoardView('list')">≡ List</button><button id="btnBGrid" class="on" onclick="setBoardView('grid')">⊞ Grid</button></span>
       <span class="count" id="boardCount"></span>
     </div>
     <div class="board-layout">
@@ -490,7 +490,7 @@
   const COLOR_HEX = { green:"#1a7f37","light green":"#86c98b", yellow:"#e3b505", orange:"#e8820e", red:"#C8102E" };
 
   let DATA = { composite:[], compByName:new Map(), orgs:{}, intel:[], clients:new Set(), clientList:[], leverage:null };
-  let boardView = "list";      // "list" | "grid"
+  let boardView = "grid";      // "list" | "grid"
   let expandedPick = null;     // overall # whose in-play list is expanded, or null
 
   // ----- bonus / leverage model: expected bonus = slot-at-rank × leverage multiplier -----
@@ -1417,8 +1417,8 @@
     else timer.pick = null;
     renderActive();
   }
-  const VIEWS = [["tabClients","viewClients","clients"],["tabClock","viewClock","clock"],
-                 ["tabPools","viewPools","pools"],["tabBoard","viewBoard","board"],["tabBest","viewBest","best"]];
+  const VIEWS = [["tabClients","viewClients","clients"],["tabBoard","viewBoard","board"],["tabClock","viewClock","clock"],
+                 ["tabPools","viewPools","pools"],["tabBest","viewBest","best"]];
   function renderActive() {
     if (!currentState) return;
     if (selected) {
