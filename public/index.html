@@ -43,6 +43,7 @@
   .placeholder { color:var(--muted); font-size:13px; border:1px dashed var(--line); border-radius:10px; padding:12px; background:#fff; }
   .idot { width:12px; height:12px; border-radius:50%; border:1px solid rgba(0,0,0,.15); display:inline-block; }
   .pdw { font-size:10px; font-weight:800; color:var(--red); border:1px solid var(--red); border-radius:4px; padding:1px 5px; }
+  .pdw.cmb { color:#3949ab; border-color:#3949ab; margin-left:4px; }
   .grade { font-size:12px; font-weight:800; color:#fff; border-radius:6px; padding:2px 7px; }
   .grade[data-org] { cursor:help; }
   #orgTip { position:fixed; z-index:60; max-width:270px; background:#141414; color:#fff; border-radius:10px;
@@ -647,6 +648,18 @@
     return DATA.intel.filter(r => teamAlias(r.team)===team && normName(r.player)===clientKey)
                      .sort((a,b)=>(b.date||"").localeCompare(a.date||""))[0] || null;
   }
+  // A pre-draft workout / combine meeting is a cumulative fact: it's true if ANY record in the
+  // player's full history with this team flags it. latestIntel only sees the newest record, so it
+  // silently drops workouts/combines logged on earlier records — aggregate across all of them.
+  function contactFlags(clientKey, team) {
+    const recs = DATA.intel.filter(r => teamAlias(r.team)===team && normName(r.player)===clientKey);
+    return { workout: recs.some(r => r.workout===true), combine: recs.some(r => r.combine===true) };
+  }
+  function contactBadges(clientKey, team) {
+    const f = contactFlags(clientKey, team);
+    return (f.workout?'<span class="pdw" title="pre-draft workout">PDW</span>':"")
+         + (f.combine?'<span class="pdw cmb" title="combine meeting">CMB</span>':"");
+  }
   // Aggregate a team's interest in a client across the FULL intel history — recency- and
   // source-tier-weighted, with a small boost for sustained volume. Returns strength 0..1.
   // (Months of repeated, recent, director-level interest should outweigh one stale score.)
@@ -742,7 +755,7 @@
             <span class="tm">${x.t}</span>
             <span class="idot" style="background:${COLOR_HEX[(x.rec?.color||"").toLowerCase()]||"#ccc"}"></span>
             <span class="grade" data-org="${x.t}" style="background:${x.f.color}">${x.f.grade}</span>
-            ${x.rec?.workout?'<span class="pdw">PDW</span>':""}</div>`).join("")
+            ${contactBadges(c.key, x.t)}</div>`).join("")
           || `<div class="ct" style="color:#9aa0a6">No logged team interest yet.</div>`;
       } else {
         // Ranked & on the board — deterministic draft card: each interested team's next pick +
@@ -766,7 +779,7 @@
                 <span class="tm">${x.t}</span>
                 <span class="idot" style="background:${COLOR_HEX[(x.rec?.color||"").toLowerCase()]||"#ccc"}"></span>
                 <span class="grade" data-org="${x.t}" style="background:${x.f.color}">${x.f.grade}</span>
-                ${x.rec?.workout?'<span class="pdw">PDW</span>':""}
+                ${contactBadges(c.key, x.t)}
                 <span class="nx">${money}</span></div>`;
             }).join("")
           : `<div class="ct" style="color:#9aa0a6">No logged team interest yet.</div>`;
@@ -862,7 +875,7 @@
       const gone = drafted.has(normName(r.player));
       return `<div class="row"><span class="idot" style="background:${COLOR_HEX[(r.color||"").toLowerCase()]||"#ccc"}"></span>
         <span class="nm" style="${gone?"text-decoration:line-through;color:#9aa0a6":""}">${r.player}</span>
-        ${r.workout?'<span class="pdw">PDW</span>':""}${gone?'<span style="font-size:11px;color:#9aa0a6">drafted</span>':""}
+        ${contactBadges(normName(r.player), team)}${gone?'<span style="font-size:11px;color:#9aa0a6">drafted</span>':""}
         <span class="sc">${r.score>0?"+":""}${r.score??""}</span></div>`;
     }).join("") : `<div class="placeholder">No logged interest from ${team} on our clients.</div>`;
   }
@@ -1128,11 +1141,12 @@
 
   function renderClientRow(x, team, pk) {
     const c = x.c, key = c.key;
+    const cf = contactFlags(key, team);
     const bits = [];
     if (x.cap && x.cap.interest.size) for (const v of x.cap.interest.values())
       bits.push(`<span class="ib ${v.dir}">${v.dir==="sought"?"▲ sought":"▼ rec'd"}${v.strength!=null?` ${v.strength>0?"+":""}${v.strength}`:""}</span>`);
     if (x.rec && x.rec.score!=null)
-      bits.push(`<span class="ib feed"><span class="idot" style="background:${COLOR_HEX[(x.rec.color||"").toLowerCase()]||"#ccc"}"></span>feed ${x.rec.score>0?"+":""}${x.rec.score}${x.rec.workout?" · PDW":""}</span>`);
+      bits.push(`<span class="ib feed"><span class="idot" style="background:${COLOR_HEX[(x.rec.color||"").toLowerCase()]||"#ccc"}"></span>feed ${x.rec.score>0?"+":""}${x.rec.score}${cf.workout?" · PDW":""}${cf.combine?" · CMB":""}</span>`);
     if (x.cap && x.cap.window) bits.push(`<span class="ib win">◎ #${x.cap.window.lo||"?"}–#${x.cap.window.hi||"?"}</span>`);
     if (x.cap && x.cap.offers) for (const o of x.cap.offers.filter(o=>o.team===team))
       bits.push(`<span class="ib offer">$ ${o.type}${o.amount?" "+fmtM(o.amount):(o.lo||o.hi)?` ${fmtM(o.lo)}–${fmtM(o.hi)}`:""}</span>`);
@@ -1194,7 +1208,7 @@
       return `<div class="ct">
         <span class="ov" style="min-width:46px;color:var(--red);font-weight:800">${x.nx?`#${x.nx.overall}`:"—"}</span>
         <span class="idot" style="background:${COLOR_HEX[(x.rec?.color||"").toLowerCase()]||"#ccc"}"></span>
-        <span class="tm">${teamLink(x.t)}</span>${x.rec?.workout?'<span class="pdw">PDW</span>':""}
+        <span class="tm">${teamLink(x.t)}</span>${contactBadges(c.key, x.t)}
         <span class="grade" data-org="${x.t}" style="background:${x.f.color}">${x.f.grade}</span>
         <span class="nx">${x.nx?`slot ${fmtM(x.nx.slot)}${ou!=null?` · ${ouTag(ou,true)}`:""}`:"no picks left"}</span></div>`;
     }).join("");
@@ -1247,7 +1261,7 @@
       const pool = state.poolsMap[x.t];
       const ou = (comp && x.nx) ? negBonus(comp, x.nx.slot, x.nx.overall) - x.nx.slot : null;
       return `<div class="ct"><span class="idot" style="background:${COLOR_HEX[(x.rec?.color||"").toLowerCase()]||"#ccc"}"></span>
-        <span class="tm">${teamLink(x.t)}</span>${x.rec?.workout?'<span class="pdw">PDW</span>':""}
+        <span class="tm">${teamLink(x.t)}</span>${contactBadges(c.key, x.t)}
         <span class="grade" data-org="${x.t}" style="background:${x.f.color}">${x.f.grade}</span>
         <span class="nx">${x.nx?`next #${x.nx.overall} ${fmtM(x.nx.slot)}`:"no picks left"}${ou!=null?" · "+ouTag(ou,true):""}${pool?` · ammo ${fmtM(pool.room)}`:""}</span></div>`;
     }).join("") : `<div class="placeholder">No logged team interest.</div>`;
@@ -1293,7 +1307,7 @@
     h += clients.length ? clients.map(x => {
       const nx=teamNextPick(state,t); const ou=(x.c.comp&&nx)?negBonus(x.c.comp,nx.slot,nx.overall)-nx.slot:null;
       return `<div class="ct"><span class="idot" style="background:${COLOR_HEX[(x.rec?.color||"").toLowerCase()]||"#ccc"}"></span>
-        <span class="nm">${playerLink(x.c.name)}</span>${x.rec?.workout?'<span class="pdw">PDW</span>':""}
+        <span class="nm">${playerLink(x.c.name)}</span>${contactBadges(x.c.key, t)}
         <span class="grade" data-org="${t}" style="background:${x.f.color}">${x.f.grade}</span>
         <span class="nx">${x.dr?`drafted #${x.dr.overall}`:(ou!=null?ouTag(ou,true):"")}</span></div>`;
     }).join("") : `<div class="placeholder">None on file.</div>`;
