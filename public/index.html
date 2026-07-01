@@ -660,6 +660,14 @@
     return (f.workout?'<span class="pdw" title="pre-draft workout">PDW</span>':"")
          + (f.combine?'<span class="pdw cmb" title="combine meeting">CMB</span>':"");
   }
+  // Interest color dot: use the most recent record that actually has a color. Recent note-only
+  // records often log color=null, which would otherwise blank out a known signal (latestIntel
+  // would return that null-color record even though the player has a logged green/red history).
+  function intelColorHex(clientKey, team) {
+    const rec = DATA.intel.filter(r => teamAlias(r.team)===team && normName(r.player)===clientKey && r.color)
+                          .sort((a,b)=>(b.date||"").localeCompare(a.date||""))[0];
+    return COLOR_HEX[(rec?.color||"").toLowerCase()] || "#ccc";
+  }
   // Aggregate a team's interest in a client across the FULL intel history — recency- and
   // source-tier-weighted, with a small boost for sustained volume. Returns strength 0..1.
   // (Months of repeated, recent, director-level interest should outweigh one stale score.)
@@ -753,7 +761,7 @@
         status = `<span class="status av">On the board · unranked</span>`;
         body = teams.map(x => `<div class="ct"><span class="ov"></span>
             <span class="tm">${x.t}</span>
-            <span class="idot" style="background:${COLOR_HEX[(x.rec?.color||"").toLowerCase()]||"#ccc"}"></span>
+            <span class="idot" style="background:${intelColorHex(c.key, x.t)}"></span>
             <span class="grade" data-org="${x.t}" style="background:${x.f.color}">${x.f.grade}</span>
             ${contactBadges(c.key, x.t)}</div>`).join("")
           || `<div class="ct" style="color:#9aa0a6">No logged team interest yet.</div>`;
@@ -777,7 +785,7 @@
               return `<div class="ct">
                 <span class="ov">${x.nx?`#${x.nx.overall}`:"—"}</span>
                 <span class="tm">${x.t}</span>
-                <span class="idot" style="background:${COLOR_HEX[(x.rec?.color||"").toLowerCase()]||"#ccc"}"></span>
+                <span class="idot" style="background:${intelColorHex(c.key, x.t)}"></span>
                 <span class="grade" data-org="${x.t}" style="background:${x.f.color}">${x.f.grade}</span>
                 ${contactBadges(c.key, x.t)}
                 <span class="nx">${money}</span></div>`;
@@ -873,7 +881,7 @@
     const list = [...byPlayer.values()].sort((a,b)=>(b.score||0)-(a.score||0));
     $("intelList").innerHTML = list.length ? list.map(r => {
       const gone = drafted.has(normName(r.player));
-      return `<div class="row"><span class="idot" style="background:${COLOR_HEX[(r.color||"").toLowerCase()]||"#ccc"}"></span>
+      return `<div class="row"><span class="idot" style="background:${intelColorHex(normName(r.player), team)}"></span>
         <span class="nm" style="${gone?"text-decoration:line-through;color:#9aa0a6":""}">${r.player}</span>
         ${contactBadges(normName(r.player), team)}${gone?'<span style="font-size:11px;color:#9aa0a6">drafted</span>':""}
         <span class="sc">${r.score>0?"+":""}${r.score??""}</span></div>`;
@@ -1146,7 +1154,7 @@
     if (x.cap && x.cap.interest.size) for (const v of x.cap.interest.values())
       bits.push(`<span class="ib ${v.dir}">${v.dir==="sought"?"▲ sought":"▼ rec'd"}${v.strength!=null?` ${v.strength>0?"+":""}${v.strength}`:""}</span>`);
     if (x.rec && x.rec.score!=null)
-      bits.push(`<span class="ib feed"><span class="idot" style="background:${COLOR_HEX[(x.rec.color||"").toLowerCase()]||"#ccc"}"></span>feed ${x.rec.score>0?"+":""}${x.rec.score}${cf.workout?" · PDW":""}${cf.combine?" · CMB":""}</span>`);
+      bits.push(`<span class="ib feed"><span class="idot" style="background:${intelColorHex(key, team)}"></span>feed ${x.rec.score>0?"+":""}${x.rec.score}${cf.workout?" · PDW":""}${cf.combine?" · CMB":""}</span>`);
     if (x.cap && x.cap.window) bits.push(`<span class="ib win">◎ #${x.cap.window.lo||"?"}–#${x.cap.window.hi||"?"}</span>`);
     if (x.cap && x.cap.offers) for (const o of x.cap.offers.filter(o=>o.team===team))
       bits.push(`<span class="ib offer">$ ${o.type}${o.amount?" "+fmtM(o.amount):(o.lo||o.hi)?` ${fmtM(o.lo)}–${fmtM(o.hi)}`:""}</span>`);
@@ -1207,9 +1215,9 @@
       const ou = x.nx ? negBonus(comp,x.nx.slot,x.nx.overall)-x.nx.slot : null;
       return `<div class="ct">
         <span class="ov" style="min-width:46px;color:var(--red);font-weight:800">${x.nx?`#${x.nx.overall}`:"—"}</span>
-        <span class="idot" style="background:${COLOR_HEX[(x.rec?.color||"").toLowerCase()]||"#ccc"}"></span>
-        <span class="tm">${teamLink(x.t)}</span>${contactBadges(c.key, x.t)}
-        <span class="grade" data-org="${x.t}" style="background:${x.f.color}">${x.f.grade}</span>
+        <span class="idot" style="background:${intelColorHex(c.key, x.t)}"></span>
+        <span class="tm">${teamLink(x.t)}</span>
+        <span class="grade" data-org="${x.t}" style="background:${x.f.color}">${x.f.grade}</span>${contactBadges(c.key, x.t)}
         <span class="nx">${x.nx?`slot ${fmtM(x.nx.slot)}${ou!=null?` · ${ouTag(ou,true)}`:""}`:"no picks left"}</span></div>`;
     }).join("");
   }
@@ -1260,9 +1268,9 @@
     h += teams.length ? teams.map(x => {
       const pool = state.poolsMap[x.t];
       const ou = (comp && x.nx) ? negBonus(comp, x.nx.slot, x.nx.overall) - x.nx.slot : null;
-      return `<div class="ct"><span class="idot" style="background:${COLOR_HEX[(x.rec?.color||"").toLowerCase()]||"#ccc"}"></span>
-        <span class="tm">${teamLink(x.t)}</span>${contactBadges(c.key, x.t)}
-        <span class="grade" data-org="${x.t}" style="background:${x.f.color}">${x.f.grade}</span>
+      return `<div class="ct"><span class="idot" style="background:${intelColorHex(c.key, x.t)}"></span>
+        <span class="tm">${teamLink(x.t)}</span>
+        <span class="grade" data-org="${x.t}" style="background:${x.f.color}">${x.f.grade}</span>${contactBadges(c.key, x.t)}
         <span class="nx">${x.nx?`next #${x.nx.overall} ${fmtM(x.nx.slot)}`:"no picks left"}${ou!=null?" · "+ouTag(ou,true):""}${pool?` · ammo ${fmtM(pool.room)}`:""}</span></div>`;
     }).join("") : `<div class="placeholder">No logged team interest.</div>`;
     h += `</div>`;
@@ -1306,9 +1314,9 @@
     h += `<div class="panel"><h3>Our clients they like (${clients.length})</h3>`;
     h += clients.length ? clients.map(x => {
       const nx=teamNextPick(state,t); const ou=(x.c.comp&&nx)?negBonus(x.c.comp,nx.slot,nx.overall)-nx.slot:null;
-      return `<div class="ct"><span class="idot" style="background:${COLOR_HEX[(x.rec?.color||"").toLowerCase()]||"#ccc"}"></span>
-        <span class="nm">${playerLink(x.c.name)}</span>${contactBadges(x.c.key, t)}
-        <span class="grade" data-org="${t}" style="background:${x.f.color}">${x.f.grade}</span>
+      return `<div class="ct"><span class="idot" style="background:${intelColorHex(x.c.key, t)}"></span>
+        <span class="nm">${playerLink(x.c.name)}</span>
+        <span class="grade" data-org="${t}" style="background:${x.f.color}">${x.f.grade}</span>${contactBadges(x.c.key, t)}
         <span class="nx">${x.dr?`drafted #${x.dr.overall}`:(ou!=null?ouTag(ou,true):"")}</span></div>`;
     }).join("") : `<div class="placeholder">None on file.</div>`;
     h += `</div></div>`;
