@@ -200,7 +200,7 @@
   /* ── Card grid view ── */
   .board-grid { display:flex; flex-wrap:wrap; gap:5px; }
   .bc-rnd { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); margin:10px 0 4px; width:100%; }
-  .bcard { background:#fff; border:1px solid var(--line); border-radius:9px; padding:7px 8px; width:88px; min-height:86px; font-size:12px; display:flex; flex-direction:column; cursor:pointer; }
+  .bcard { background:#fff; border:1px solid var(--line); border-radius:9px; padding:7px 8px; width:104px; min-height:104px; font-size:12px; display:flex; flex-direction:column; cursor:pointer; }
   .bcard:hover { border-color:var(--red); }
   .bcard.sv { background:#fff5f6; border-color:#f1b8c1; }
   .bcard.oc { border-color:var(--red); box-shadow:0 0 0 2px #fdeef0; }
@@ -215,6 +215,21 @@
   .bcard .ti-Ap { background:#d4edda; color:#155724; }
   .bcard .ti-A { background:#d4edda; color:#155724; }
   .bcard .ti-Bp { background:#dbeafe; color:#1e3a8a; }
+  /* in-play player cluster: initials + teamintel-color dot, two columns like the mockup */
+  .bc-dots { display:grid; grid-template-columns:1fr 1fr; gap:3px 8px; margin-top:auto; padding-top:5px; }
+  .bc-pd { display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:800; color:#374151; cursor:help; white-space:nowrap; overflow:hidden; }
+  .bc-pd .idot { width:9px; height:9px; flex-shrink:0; }
+  .bc-pd .bc-in { overflow:hidden; text-overflow:ellipsis; }
+  .bc-more { grid-column:1/-1; font-size:9px; font-weight:700; color:var(--muted); }
+  /* single-player focus = full intel-color heat card */
+  .bcard.bc-heat { border:none; }
+  .bcard.bc-heat .bc-no, .bcard.bc-heat .bc-team, .bcard.bc-heat .bc-slot, .bcard.bc-heat .bc-player { color:inherit; }
+  .bcard.bc-heat .bc-no, .bcard.bc-heat .bc-slot { opacity:.8; }
+  .bc-heatlab { display:flex; align-items:center; gap:4px; flex-wrap:wrap; margin-top:auto; padding-top:5px; }
+  .bc-heatlab .grade { font-size:11px; padding:1px 6px; }
+  /* keep PDW/CMB legible on any heat-fill color */
+  .bc-heatlab .pdw { background:rgba(255,255,255,.92); color:#b3122b; border-color:transparent; }
+  .bc-heatlab .pdw.cmb { color:#2a3aa0; }
 
   /* ── What If panel ── */
   .wi-wrap { background:#fff; border:1px solid #c7c3f4; border-radius:12px; padding:14px 16px; margin-bottom:14px; }
@@ -275,11 +290,48 @@
   .pub-chip .pub-rk { color:var(--muted); font-weight:700; }
 
   /* ── Board: heat layout (left rail + heat-colored master grid) ── */
-  .board-layout { display:flex; gap:14px; align-items:flex-start; }
-  .board-main { flex:1; min-width:0; }
-  #boardRail { width:212px; flex-shrink:0; }
-  #boardRail:empty { display:none; }
-  @media (max-width:760px){ .board-layout { flex-direction:column; } #boardRail { width:100%; } }
+  /* player toggle as a dropdown multi-select (lives in the board toolbar) */
+  .board-players { display:inline-flex; align-items:center; }
+  .pdrop { position:relative; display:inline-block; }
+  .pdrop-btn { font:inherit; border:1px solid var(--line); border-radius:8px; background:#fff; padding:4px 11px; cursor:pointer; display:inline-flex; align-items:center; gap:10px; }
+  .pdrop-btn:hover { border-color:var(--red); }
+  .pdrop-txt { display:flex; flex-direction:column; align-items:flex-start; line-height:1.15; }
+  .pdrop-t { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); }
+  .pdrop-v { font-size:13px; font-weight:800; color:var(--ink); }
+  .pdrop-v.sel { color:var(--red); }
+  .pdrop-btn .caret { color:var(--muted); font-size:11px; }
+  .pdrop-menu { position:absolute; top:calc(100% + 5px); left:0; z-index:40; background:#fff; border:1px solid var(--line); border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,.14); padding:6px; min-width:250px; max-height:360px; overflow-y:auto; }
+  .pdrop-item { display:flex; align-items:center; gap:8px; padding:6px 9px; border-radius:7px; cursor:pointer; font-size:13px; font-weight:600; }
+  .pdrop-item:hover { background:#f6f6f6; }
+  .pdrop-item.on { background:#fff0f1; }
+  .pdrop-item .pi-ck { font-size:13px; color:var(--muted); line-height:1; }
+  .pdrop-item.on .pi-ck { color:var(--red); }
+  .pdrop-item .pi-rk { margin-left:auto; font-size:11px; color:var(--muted); font-weight:600; }
+  .pdrop-item.dr .pi-nm { opacity:.5; } .pdrop-item.dr .pi-nm::after { content:" ✓"; }
+  .pdrop-sep { height:1px; background:var(--line); margin:5px 2px; }
+  /* board grid on the left, running pick feed on the right (~22%) */
+  .board-split { display:flex; gap:16px; align-items:flex-start; }
+  .board-left { flex:1 1 auto; min-width:0; }
+  .board-feed { flex:0 0 22%; min-width:260px; background:#fff; border:1px solid var(--line); border-radius:12px;
+    position:sticky; top:140px; max-height:calc(100vh - 160px); display:flex; flex-direction:column; overflow:hidden; }
+  .feed-hd { display:flex; align-items:center; gap:7px; padding:11px 13px; border-bottom:1px solid var(--line); font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); }
+  .feed-hd .live { width:8px; height:8px; border-radius:50%; background:var(--red); }
+  .feed-scroll { overflow-y:auto; padding:6px; }
+  .feed-rnd { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); padding:8px 6px 3px; }
+  .feed-row { display:flex; align-items:center; gap:8px; padding:6px 7px; border-radius:8px; cursor:pointer; }
+  .feed-row:hover { background:#f6f6f6; }
+  .feed-row.oc { background:#fff0f1; }
+  .feed-row.sv { background:#fff5f6; }
+  .feed-row .fr-no { font-size:11px; font-weight:800; color:var(--muted); min-width:26px; font-variant-numeric:tabular-nums; }
+  .feed-row .fr-tm { font-size:12px; font-weight:900; min-width:34px; }
+  .feed-row .fr-body { flex:1; min-width:0; }
+  .feed-row .fr-who { font-size:12px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .feed-row.up .fr-who { color:#9aa0a6; font-weight:600; }
+  .feed-row.oc .fr-who { color:var(--red); font-weight:800; }
+  .feed-row .fr-sub { font-size:10px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .feed-row .fr-val { font-size:11px; font-weight:700; color:#374151; font-variant-numeric:tabular-nums; text-align:right; white-space:nowrap; }
+  .feed-row.oc .fr-val { color:var(--red); }
+  @media (max-width:980px){ .board-split { flex-direction:column; } .board-feed { flex-basis:auto; width:100%; position:static; max-height:none; } }
   .rail { background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px 13px; position:sticky; top:140px; }
   .rail-sec { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); margin:12px 0 6px; }
   .rail-sec:first-child { margin-top:0; }
@@ -288,7 +340,9 @@
   .lens:hover { border-color:var(--red); } .lens.on { background:var(--red); color:#fff; border-color:var(--red); }
   .rail-players { max-height:230px; overflow-y:auto; display:flex; flex-direction:column; gap:2px; margin-top:2px; }
   .rp { display:flex; align-items:center; gap:6px; padding:4px 7px; border-radius:7px; cursor:pointer; font-size:12px; }
-  .rp:hover { background:#f6f6f6; } .rp.on { background:var(--red); color:#fff; }
+  .rp:hover { background:#f6f6f6; } .rp.on { background:#fff0f1; }
+  .rp .rp-ck { font-size:13px; color:var(--muted); flex-shrink:0; line-height:1; }
+  .rp.on .rp-ck { color:var(--red); }
   .rp .rp-nm { font-weight:700; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .rp .rp-rk { font-size:11px; opacity:.65; font-weight:600; } .rp.dr { opacity:.45; }
   .rp .rp-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
@@ -381,16 +435,16 @@
   <section id="viewBoard" class="view">
     <div class="ba-filters">
       <label><input type="checkbox" id="bSv" onchange="renderBoard(currentState)"> SV picks only</label>
+      <span id="boardPlayers" class="board-players"></span>
       <button class="ctl" onclick="jumpCurrent()">↧ Jump to current pick</button>
-      <span class="seg"><button id="btnBGrid" class="on" onclick="setBoardView('grid')">⊞ Grid</button><button id="btnBList" onclick="setBoardView('list')">≡ List</button></span>
       <span class="count" id="boardCount"></span>
     </div>
-    <div class="board-layout">
-      <div id="boardRail"></div>
-      <div class="board-main">
+    <div class="board-split">
+      <div class="board-left">
         <div id="pickExpand"></div>
         <div id="boardList" class="board"></div>
       </div>
+      <aside id="boardFeed" class="board-feed"></aside>
     </div>
   </section>
 
@@ -511,8 +565,9 @@
   const COLOR_HEX = { green:"#1a7f37","light green":"#86c98b", yellow:"#e3b505", orange:"#e8820e", red:"#C8102E" };
 
   let DATA = { composite:[], compByName:new Map(), orgs:{}, intel:[], clients:new Set(), clientList:[], leverage:null };
-  let boardView = "grid";      // "list" | "grid"
-  let boardLensClient = null;  // null = big board; else a client key to recolor the board around
+  let boardSelClients = new Set(); // empty = Big Board (show every pick's in-play cluster);
+                                   // non-empty = focus these clients' intel across the board
+  let playerMenuOpen = false;      // Players dropdown open state (survives board re-renders)
   let expandedPick = null;     // overall # whose in-play list is expanded, or null
 
   // ----- bonus / leverage model: expected bonus = slot-at-rank × leverage multiplier -----
@@ -1006,80 +1061,110 @@
   // ---------- VIEW: BOARD (running log + card grid) ----------
   const roundLabel = (r) => /^\d+$/.test(String(r)) ? `Round ${r}` : String(r); // "1"->Round 1, "CB-A"->CB-A
   const surnameOf = (name) => { const last = (name||"").trim().split(/\s+/).pop()||""; return last.length>9 ? last.slice(0,9)+"…" : last; };
-  // The active board lens: null (big board) or a client to recolor picks around.
-  function lensFor() {
-    if (!boardLensClient) return null;
-    const c = DATA.clientList.find(x=>x.key===boardLensClient) || { key:boardLensClient, name:boardLensClient, comp:DATA.compByName.get(boardLensClient) };
-    return { c, comp:c.comp, rg:rangeOf(c.comp) };
+  // Initials for a card dot, e.g. "M. Williams" -> "MW", "Kade Higgins" -> "KH".
+  function initials(name) {
+    const parts = (name||"").trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return "?";
+    const f = parts[0][0]||"", l = parts.length>1 ? (parts[parts.length-1][0]||"") : "";
+    return (f+l).toUpperCase();
   }
-  // For an undrafted pick under a client lens: how that team views the client (color, fit, PDW/CMB)
-  // and whether the pick sits inside his known range. Drives tinting + dimming.
-  function lensPick(lens, p, state) {
-    const key=lens.c.key, team=p.team;
-    const rg=lens.rg, hasRange=!!(rg&&(rg.lo||rg.hi));
-    const inRange = !hasRange || (p.overall>=(rg.lo||1) && p.overall<=(rg.hi||9999));
-    const cr = intelColorRank(key,team);
-    return { inRange, colored: cr<5, colorHex: intelColorHex(key,team),
-             f: lens.comp ? fit(lens.comp,team,key,state) : null, key, team };
+  // Which of our clients are "in play" for a given (undrafted) pick — the set the pick card's
+  // dot cluster and the expand panel both draw from. In play = we've captured team-specific intel
+  // (interest/offer/rule-out), OR he's a genuine org fit within a plausible reach of this slot.
+  function clientsInPlay(pk, state) {
+    const team = pk.team, pool = state.poolsMap[team];
+    const drafted = new Set(state.picks.filter(p=>p.isDrafted&&p.player).map(p=>normName(p.player)));
+    return DATA.clientList.filter(c=>c.comp && !drafted.has(c.key)).map(c=>{
+      const rec = latestIntel(c.key, team);
+      const cap = intelFor(c.key);
+      const f = fit(c.comp, team, c.key, state);
+      const bonus = negBonus(c.comp, pk.slot, pk.overall);
+      const ou = bonus - pk.slot;
+      const moneyFits = pool ? pool.room >= bonus : true;     // does the team's pool actually accommodate him
+      // talent reach: don't surface a player far outside a plausible window for this slot
+      // (rank-7 floor keeps a top guy off picks that would be an implausibly early reach).
+      const reachOk = pk.overall >= c.comp.rank - 7 && pk.overall <= c.comp.rank + 45;
+      const ruledHere = !!(cap && cap.ruleOuts && cap.ruleOuts.some(r => r.team===team || r.pick===pk.overall));
+      return { c, rec, cap, f, ou, bonus, moneyFits, reachOk, ruledHere };
+    }).filter(x => {
+      const teamCap = x.cap && (
+        [...x.cap.interest.values()].some(v => v.team===team) ||
+        (x.cap.offers||[]).some(o => o.team===team) ||
+        (x.cap.ruleOuts||[]).some(r => r.team===team)
+      );
+      // orgScore is interest-dominant (full intel history), so a bare feed record doesn't count.
+      return teamCap || (x.reachOk && x.f.orgScore>=52);
+    }).sort((a,b)=> b.f.orgScore-a.f.orgScore);
   }
   function renderBoard(state) {
     if (!state) return;
     $("boardCount").textContent = `${state.madeCount} of ${state.picks.length} picks made`;
-    renderBoardRail(state);
-    const lens = lensFor();
+    renderBoardPlayers(state);
     renderPickExpand(state);
-    if (boardView === "grid") { renderBoardGrid(state, lens); return; }
-    const svOnly = $("bSv").checked;
-    let html = "", lastRound = null;
-    for (const p of state.picks) {
-      const ours = p.isDrafted && DATA.clients.has(normName(p.player||""));
-      if (svOnly && !ours) continue;
-      if (!svOnly && p.round !== lastRound) { lastRound = p.round; html += `<div class="rnd">Round ${p.round}</div>`; }
-      const onclock = state.onClock && state.onClock.overall === p.overall;
-      const comp = p.isDrafted ? DATA.compByName.get(normName(p.player||"")) : null;
-      const cls = `brow ${p.isDrafted ? "" : "up"} ${ours ? "sv" : ""} ${onclock ? "oc" : ""}`.trim().replace(/\s+/g," ");
-      if (p.isDrafted) {
-        html += `<div class="${cls}"><span class="ov">#${p.overall}</span><span class="tm">${p.team||""}</span>
-          <span class="who">${p.player||"—"}</span>${ours?'<span class="svtag">SV</span>':""}
-          ${p.bucket&&p.bucket!=="UNK"?`<span class="clab">${p.bucket}</span>`:""}
-          ${comp?`<span class="rkbadge">#${comp.rank}</span>`:""}
-          <span class="meta">${p.pos||""} · ${moneyCell(p)}</span></div>`;
-      } else {
-        const expCls = expandedPick===p.overall ? " expanded" : "";
-        let accent="", lensBits="";
-        if (lens) {
-          const L = lensPick(lens, p, state);
-          if (!L.inRange) accent=' style="opacity:.4"';
-          else if (L.colored) {
-            accent=` style="box-shadow:inset 4px 0 0 ${L.colorHex}"`;
-            lensBits=`${intelDot(L.key,L.team)}${L.f?`<span class="grade" data-org="${L.team}" style="background:${L.f.color}">${L.f.grade}</span>`:""}${contactBadges(L.key,L.team)}`;
-          }
-        }
-        const who = onclock ? "⏱ ON THE CLOCK" : (lens ? "" : "in play ▸");
-        html += `<div class="${cls} clickrow${expCls}"${accent} ${onclock?'id="ocRow"':""} onclick="expandPick(${p.overall})"><span class="ov">#${p.overall}</span><span class="tm">${p.team||""}</span>
-          ${lensBits}<span class="who">${who}</span>
-          <span class="meta">slot ${fmt$(p.slot)}</span></div>`;
-      }
-    }
-    $("boardList").innerHTML = html || `<div class="placeholder">No SV picks yet.</div>`;
+    renderBoardGrid(state);
+    renderBoardFeed(state);
+  }
+  // Readable text color for a filled intel-color card.
+  function textOn(hex) {
+    const h=(hex||"").replace("#",""); if (h.length<6) return "#111";
+    const r=parseInt(h.slice(0,2),16), g=parseInt(h.slice(2,4),16), b=parseInt(h.slice(4,6),16);
+    return (0.299*r+0.587*g+0.114*b)/255 > 0.62 ? "#111" : "#fff";
   }
 
-  function renderBoardRail(state) {
-    const el = $("boardRail"); if (!el) return;
+  // Dropdown multi-select. Empty selection = "Big Board" (every pick shows its full in-play
+  // cluster). One selected → full-color heat board; 2+ → filtered dots. Clicking items keeps
+  // the menu open (multi-select); it closes on outside-click.
+  function renderBoardPlayers(state) {
+    const el = $("boardPlayers"); if (!el) return;
+    const sel = boardSelClients, bigOn = sel.size===0;
     const drafted = new Set(state.picks.filter(p=>p.isDrafted&&p.player).map(p=>normName(p.player)));
     const clients = DATA.clientList.filter(c=>c.comp).sort((a,b)=>a.comp.rank-b.comp.rank);
-    const big = `<div class="rp ${!boardLensClient?'on':''}" onclick="setBoardClient(null)"><span class="rp-nm">▦ Big Board</span></div>`;
+    const value = bigOn ? "All" : `${sel.size} player${sel.size>1?"s":""}`;
+    const big = `<div class="pdrop-item ${bigOn?'on':''}" onclick="clearBoardClients(event)">
+      <span class="pi-ck">${bigOn?'☑':'☐'}</span><span class="pi-nm">▦ Big Board (all)</span></div><div class="pdrop-sep"></div>`;
     const list = clients.map(c=>{
-      const dr=drafted.has(c.key), on=boardLensClient===c.key;
-      return `<div class="rp ${on?'on':''} ${dr?'dr':''}" onclick="setBoardClient('${c.key.replace(/'/g,"\\'")}')">
-        <span class="rp-nm">${c.name}</span><span class="rp-rk">#${c.comp.rank}</span>${dr?'✓':''}</div>`;
+      const dr=drafted.has(c.key), on=sel.has(c.key);
+      return `<div class="pdrop-item ${on?'on':''} ${dr?'dr':''}" onclick="toggleBoardClient('${c.key.replace(/'/g,"\\'")}',event)">
+        <span class="pi-ck">${on?'☑':'☐'}</span><span class="pi-nm">${c.name}</span><span class="pi-rk">#${c.comp.rank}</span></div>`;
     }).join("");
-    el.innerHTML = `<div class="rail"><div class="rail-sec">Lens</div><div class="rail-players">${big}${list}</div></div>`;
+    el.innerHTML = `<div class="pdrop">
+        <button class="pdrop-btn" onclick="togglePlayerMenu(event)">
+          <span class="pdrop-txt"><span class="pdrop-t">Players</span><span class="pdrop-v ${bigOn?'':'sel'}">${value}</span></span>
+          <span class="caret">▾</span></button>
+        <div class="pdrop-menu" style="display:${playerMenuOpen?'block':'none'}">${big}${list}</div>
+      </div>`;
   }
-  window.setBoardClient = (key) => { boardLensClient = key; renderBoard(currentState); };
+  window.togglePlayerMenu = (e) => { if(e) e.stopPropagation(); playerMenuOpen = !playerMenuOpen; renderBoardPlayers(currentState); };
+  document.addEventListener("click", (e) => {
+    if (playerMenuOpen && !(e.target.closest && e.target.closest(".pdrop"))) { playerMenuOpen = false; renderBoardPlayers(currentState); }
+  });
+  window.toggleBoardClient = (key, e) => {
+    if (e) e.stopPropagation();
+    if (boardSelClients.has(key)) boardSelClients.delete(key); else boardSelClients.add(key);
+    renderBoard(currentState);
+  };
+  window.clearBoardClients = (e) => { if (e) e.stopPropagation(); boardSelClients.clear(); renderBoard(currentState); };
 
-  function renderBoardGrid(state, lens) {
-    const svOnly = $("bSv").checked;
+  // The dot cluster for one undrafted pick: {key,name,rank,hex} per player to show.
+  // Big Board mode → the pick's whole in-play cluster. Focus mode → only the selected
+  // clients, shown wherever they're in play OR have a logged interest color at this team.
+  function pickDots(pk, state) {
+    const team = pk.team, sel = boardSelClients;
+    const inPlay = clientsInPlay(pk, state);
+    const mk = (c) => ({ key:c.key, name:c.name, rank:intelColorRank(c.key,team), hex:intelColorHex(c.key,team) });
+    let entries;
+    if (sel.size===0) entries = inPlay.map(x=>mk(x.c));
+    else entries = [...sel].map(k=>DATA.clientList.find(c=>c.key===k)).filter(c=>c&&c.comp)
+      .filter(c => intelColorRank(c.key,team)<5 || inPlay.some(x=>x.c.key===c.key))
+      .map(mk);
+    return entries.sort((a,b)=> a.rank-b.rank || a.name.localeCompare(b.name));
+  }
+
+  function renderBoardGrid(state) {
+    const svOnly = $("bSv").checked, focus = boardSelClients.size>0, CAP = 6;
+    // Exactly one player selected → full intel-color "heat" board around that player.
+    const single = boardSelClients.size===1 ? [...boardSelClients][0] : null;
+    const singleC = single ? DATA.clientList.find(c=>c.key===single) : null;
     // One continuous flex grid; full-width round headers force a wrap. Dedupe by
     // round so interleaved comp/PPI picks don't re-emit "Round 1" repeatedly.
     let html = `<div class="board-grid">`;
@@ -1089,36 +1174,67 @@
       if (svOnly && !ours) continue;
       if (!seenRounds.has(p.round)) { seenRounds.add(p.round); html += `<div class="bc-rnd">${roundLabel(p.round)}</div>`; }
       const onclock = state.onClock && state.onClock.overall === p.overall;
-      let cardCls = `bcard ${ours?"sv":""} ${onclock?"oc":""}`, accent="", lensHtml="";
-      if (lens && !p.isDrafted) {
-        const L = lensPick(lens, p, state);
-        if (!L.inRange) cardCls += " bc-dim";
-        else if (L.colored) {
-          accent = ` style="box-shadow:inset 4px 0 0 ${L.colorHex};background:${L.colorHex}14"`;
-          lensHtml = `<div class="bc-lens">${intelDot(L.key,L.team)}${L.f?`<span class="grade" data-org="${L.team}" style="background:${L.f.color}">${L.f.grade}</span>`:""}${contactBadges(L.key,L.team)}</div>`;
+      let cardCls = `bcard ${ours?"sv":""} ${onclock?"oc":""}`, dotsHtml = "", body, cardStyle = "";
+      if (p.isDrafted) {
+        body = (p.player||"—") + (ours?' <span class="svtag">SV</span>':"");
+      } else if (single) {
+        // Full-color heat card for the one selected player.
+        const team = p.team, rank = intelColorRank(single, team);
+        const inPlay = clientsInPlay(p, state).some(x=>x.c.key===single);
+        if (rank>=5 && !inPlay) { cardCls += " bc-dim"; body = onclock ? "⏱ OTC" : "—"; }
+        else {
+          const hex = intelColorHex(single, team), txt = textOn(hex);
+          const f = singleC && singleC.comp ? fit(singleC.comp, team, single, state) : null;
+          cardCls += " bc-heat"; cardStyle = ` style="background:${hex};color:${txt}"`;
+          body = onclock ? "⏱ OTC" : "";
+          dotsHtml = `<div class="bc-heatlab">${f?`<span class="grade" data-org="${team}" style="background:rgba(255,255,255,.9);color:#111">${f.grade}</span>`:""}${contactBadges(single,team)}</div>`;
         }
+      } else {
+        const entries = pickDots(p, state), shown = entries.slice(0, CAP);
+        if (focus && !entries.length) cardCls += " bc-dim";
+        if (shown.length) dotsHtml = `<div class="bc-dots">${shown.map(e=>
+          `<span class="bc-pd" data-intel-key="${e.key}" data-intel-team="${p.team}"><span class="idot" style="background:${e.hex}"></span><span class="bc-in">${initials(e.name)}</span></span>`
+        ).join("")}${entries.length>CAP?`<span class="bc-more">+${entries.length-CAP}</span>`:""}</div>`;
+        body = onclock ? "⏱ OTC" : (shown.length ? "" : "—");
       }
       const onclick = p.isDrafted ? `openPlayer('${normName(p.player||"").replace(/'/g,"\\'")}')` : `expandPick(${p.overall})`;
       const expSel = expandedPick===p.overall ? " expanded" : "";
-      const body = p.isDrafted ? (p.player||"—")+(ours?' <span class="svtag">SV</span>':"")
-                 : onclock ? "⏱ OTC" : "—";
-      html += `<div class="${cardCls.trim().replace(/\s+/g," ")}${expSel}"${accent} onclick="${onclick}">
+      html += `<div class="${cardCls.trim().replace(/\s+/g," ")}${expSel}"${cardStyle} ${onclock?'id="ocRow"':""} onclick="${onclick}">
         <div class="bc-no">#${p.overall}</div>
         <div class="bc-team">${p.team||"—"}</div>
         <div class="bc-slot">${p.slot>0?fmtM(p.slot):"—"}</div>
-        <div class="bc-player">${body}</div>${lensHtml}</div>`;
+        <div class="bc-player">${body}</div>${dotsHtml}</div>`;
     }
     html += `</div>`;
     $("boardList").innerHTML = html === `<div class="board-grid"></div>` ? `<div class="placeholder">No picks.</div>` : html;
   }
 
-  function jumpCurrent() { document.getElementById("ocRow")?.scrollIntoView({ block:"center", behavior:"smooth" }); }
-  function setBoardView(v) {
-    boardView = v;
-    $("btnBList").classList.toggle("on", v==="list");
-    $("btnBGrid").classList.toggle("on", v==="grid");
-    renderBoard(currentState);
+  // Right-hand running pick feed: every pick in order, live/upcoming state, click to focus.
+  function renderBoardFeed(state) {
+    const el = $("boardFeed"); if (!el) return;
+    let rows = "", lastRound = null;
+    for (const p of state.picks) {
+      if (p.round !== lastRound) { lastRound = p.round; rows += `<div class="feed-rnd">${roundLabel(p.round)}</div>`; }
+      const ours = p.isDrafted && DATA.clients.has(normName(p.player||""));
+      const onclock = state.onClock && state.onClock.overall === p.overall;
+      const comp = p.isDrafted ? DATA.compByName.get(normName(p.player||"")) : null;
+      let cls = "feed-row", who, sub;
+      if (p.isDrafted) {
+        who = p.player || "—";
+        sub = [p.pos, comp?.school || p.school].filter(Boolean).join(" · ");
+        if (ours) cls += " sv";
+      } else if (onclock) { cls += " oc"; who = "On the clock"; sub = "● NOW"; }
+      else { cls += " up"; who = "Upcoming"; sub = ""; }
+      const onclick = p.isDrafted ? `openPlayer('${normName(p.player||"").replace(/'/g,"\\'")}')` : `expandPick(${p.overall})`;
+      rows += `<div class="${cls}" onclick="${onclick}">
+        <span class="fr-no">#${p.overall}</span><span class="fr-tm">${p.team||"—"}</span>
+        <div class="fr-body"><div class="fr-who">${who}${ours?' <span class="svtag">SV</span>':""}</div>${sub?`<div class="fr-sub">${sub}</div>`:""}</div>
+        <span class="fr-val">${p.slot>0?fmtM(p.slot):"—"}</span></div>`;
+    }
+    el.innerHTML = `<div class="feed-hd"><span class="live"></span>Live Pick Feed</div><div class="feed-scroll">${rows}</div>`;
   }
+
+  function jumpCurrent() { document.getElementById("ocRow")?.scrollIntoView({ block:"center", behavior:"smooth" }); }
   // ---------- VIEW: BONUS POOLS ----------
   const POOL_COLS = [["team","Team"],["pool","Pool"],["picksMade","Picks"],["committedSlot","Committed slot"],
                      ["poolCharge","Spent"],["overUnder","Over/Under"],["room","Room"],["pctNum","%"]];
@@ -1260,31 +1376,7 @@
     const pk = (state.picks||[]).find(p=>p.overall===expandedPick);
     if (!pk || pk.isDrafted) { el.innerHTML=""; return; }
     const team = pk.team, pool = state.poolsMap[team];
-    const drafted = new Set(state.picks.filter(p=>p.isDrafted&&p.player).map(p=>normName(p.player)));
-
-    let clients = DATA.clientList.filter(c=>c.comp && !drafted.has(c.key)).map(c=>{
-      const rec = latestIntel(c.key, team);
-      const cap = intelFor(c.key);
-      const f = fit(c.comp, team, c.key, state);
-      const bonus = negBonus(c.comp, pk.slot, pk.overall);
-      const ou = bonus - pk.slot;
-      const moneyFits = pool ? pool.room >= bonus : true;     // does the team's pool actually accommodate him
-      // talent reach: don't surface a player far outside a plausible window for this slot
-      // (rank-7 floor keeps a top guy off picks that would be an implausibly early reach).
-      const reachOk = pk.overall >= c.comp.rank - 7 && pk.overall <= c.comp.rank + 45;
-      const ruledHere = !!(cap && cap.ruleOuts && cap.ruleOuts.some(r => r.team===team || r.pick===expandedPick));
-      return { c, rec, cap, f, ou, bonus, moneyFits, reachOk, ruledHere };
-    }).filter(x => {
-      const teamCap = x.cap && (
-        [...x.cap.interest.values()].some(v => v.team===team) ||
-        (x.cap.offers||[]).some(o => o.team===team) ||
-        (x.cap.ruleOuts||[]).some(r => r.team===team)
-      );
-      // In play if we've captured team-specific intel, OR he's a genuine org fit within reach.
-      // orgScore is interest-dominant (full intel history), so a bare feed record doesn't count.
-      return teamCap || (x.reachOk && x.f.orgScore>=52);
-    });
-    clients.sort((a,b)=> b.f.orgScore-a.f.orgScore);
+    const clients = clientsInPlay(pk, state);
 
     let h = `<div class="exp-wrap"><div class="exp-head">
       <div><span class="exp-no">PICK #${pk.overall}</span> <b>${teamLink(team)}</b>
