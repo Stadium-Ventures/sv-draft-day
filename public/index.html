@@ -669,6 +669,14 @@
                           .sort((a,b)=>(b.date||"").localeCompare(a.date||""))[0];
     return COLOR_HEX[(rec?.color||"").toLowerCase()] || "#ccc";
   }
+  const COLOR_RANK = { green:0, "light green":1, yellow:2, orange:3, red:4 };
+  // Interest-color rank for sorting (green best → red worst; unknown last), from the most
+  // recent record that actually has a color — same source of truth as the dot.
+  function intelColorRank(clientKey, team) {
+    const rec = DATA.intel.filter(r => teamAlias(r.team)===team && normName(r.player)===clientKey && r.color)
+                          .sort((a,b)=>(b.date||"").localeCompare(a.date||""))[0];
+    return COLOR_RANK[(rec?.color||"").toLowerCase()] ?? 5;
+  }
   const _esc = (s) => (s||"").replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
   // The interest color dot, tagged so hovering it shows the latest teamintel message (below).
   function intelDot(clientKey, team) {
@@ -725,6 +733,13 @@
     return out;
   }
   function teamNextPick(state, team) { return state.picks.find(p => p.team===team && !p.isDrafted) || null; }
+  // The team's most relevant upcoming pick for a player: with a known range set, the earliest
+  // undrafted pick inside it (where he could actually land for this team); else the next pick.
+  function teamPickInRange(state, team, rg) {
+    const picks = state.picks.filter(p => p.team===team && !p.isDrafted).sort((a,b)=>a.overall-b.overall);
+    if (rg && (rg.lo || rg.hi)) { const lo=rg.lo||1, hi=rg.hi||9999; return picks.find(p => p.overall>=lo && p.overall<=hi) || null; }
+    return picks[0] || null;
+  }
 
   // landing-spot fit FOR the client: interest 45 / dev 20 / type 15 / money 20, where
   // interest is the full-history aggregate (teamInterest). Interest-dominant by design.
@@ -795,14 +810,24 @@
         // slot money, paired intel-dot / fit-grade. No simulations.
         const dem = demandFor(comp);
         status = `<span class="status av">On the board${dem!=null?` · est. value ~${fmt$(dem)} (${levelClass(comp).replace("College-","Col ")} ${comp.posGroup})`:""}</span>`;
-        // Interested teams (logged score>0) and the next pick each one currently holds — all deterministic
-        const teams = [...new Set(DATA.intel.filter(r=>normName(r.player)===c.key).map(r=>teamAlias(r.team)))]
-          .map(t => ({ t, rec:latestIntel(c.key,t), f:fit(comp,t,c.key,state), nx:teamNextPick(state,t) }))
+        // Interested teams and the pick each holds in his window (known range if set, else next pick)
+        const rg = rangeOf(comp);
+        const hasRange = !!(rg && (rg.lo || rg.hi));
+        let teams = [...new Set(DATA.intel.filter(r=>normName(r.player)===c.key).map(r=>teamAlias(r.team)))]
+          .map(t => ({ t, rec:latestIntel(c.key,t), f:fit(comp,t,c.key,state), nx:teamPickInRange(state,t,rg) }))
           .filter(x => (x.rec?.score||0) > 0);
-        // Teams with an upcoming pick first; then by fit
-        teams.sort((a,b) => (!!a.nx !== !!b.nx) ? (a.nx ? -1 : 1) : (b.f.score - a.f.score));
+        // With a known range, only teams that actually pick inside it are realistic landing spots
+        if (hasRange) teams = teams.filter(x => x.nx);
+        // Teams with an upcoming pick first; then by interest color (green→red); then earliest pick
+        teams.sort((a,b) => {
+          if (!!a.nx !== !!b.nx) return a.nx ? -1 : 1;
+          const cr = intelColorRank(c.key, a.t) - intelColorRank(c.key, b.t);
+          if (cr) return cr;
+          if (a.nx && b.nx) return a.nx.overall - b.nx.overall;
+          return b.f.score - a.f.score;
+        });
         const top = teams.slice(0,5);
-        const head = `<div class="proj-head">Upcoming picks with interest</div>`;
+        const head = `<div class="proj-head">${hasRange?`Landing window #${rg.lo||"?"}–#${rg.hi||"?"} · interested teams`:"Upcoming picks with interest"}</div>`;
         const rows = top.length
           ? top.map(x => {
               const ou = x.nx ? negBonus(comp,x.nx.slot,x.nx.overall)-x.nx.slot : null;
