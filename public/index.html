@@ -846,8 +846,7 @@
         const head = `<div class="proj-head">${hasRange?`Landing window #${rg.lo||"?"}–#${rg.hi||"?"} · interested teams`:"Upcoming picks with interest"}</div>`;
         const rows = top.length
           ? top.map(x => {
-              const ou = x.nx ? negBonus(comp,x.nx.slot,x.nx.overall)-x.nx.slot : null;
-              const money = x.nx ? `${fmtM(x.nx.slot)}${ou!=null?` · ${fmtVsSlot(ou)}`:""}` : "no picks left";
+              const money = x.nx ? fmtM(x.nx.slot) : "no picks left";
               return `<div class="ct">
                 <span class="ov">${x.nx?`#${x.nx.overall}`:"—"}</span>
                 <span class="tm">${x.t}</span>
