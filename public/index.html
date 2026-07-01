@@ -948,8 +948,7 @@
       const gone = drafted.has(normName(r.player));
       return `<div class="row">${intelDot(normName(r.player), team)}
         <span class="nm" style="${gone?"text-decoration:line-through;color:#9aa0a6":""}">${r.player}</span>
-        ${contactBadges(normName(r.player), team)}${gone?'<span style="font-size:11px;color:#9aa0a6">drafted</span>':""}
-        <span class="sc">${r.score>0?"+":""}${r.score??""}</span></div>`;
+        ${contactBadges(normName(r.player), team)}${gone?'<span style="font-size:11px;color:#9aa0a6">drafted</span>':""}</div>`;
     }).join("") : `<div class="placeholder">No logged interest from ${team} on our clients.</div>`;
   }
 
