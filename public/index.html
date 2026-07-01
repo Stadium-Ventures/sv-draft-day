@@ -36,6 +36,7 @@
   .bar .note { color:var(--muted); font-size:12px; margin-left:auto; }
 
   main { max-width:1080px; margin:0 auto; padding:16px; }
+  main.wide { max-width:none; padding:16px 32px; }
   .view { display:none; } .view.on { display:block; }
 
   /* shared */
@@ -1567,6 +1568,8 @@
     const det = !!selected;
     $("viewDetail").classList.toggle("on", det);
     for (const [tab,sec,name] of VIEWS) { $(sec).classList.toggle("on", !det && name===VIEW); $(tab).classList.toggle("on", name===VIEW); }
+    // Board carries a grid + feed and wants the full viewport; other views stay a readable column.
+    document.querySelector("main")?.classList.toggle("wide", !det && VIEW==="board");
   }
   window.openPlayer = (key) => {
     selected={type:"player",id:key};
