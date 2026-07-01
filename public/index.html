@@ -734,7 +734,7 @@
       t.ceiling = t.pool * CUSHION;                      // hard spend wall
       t.room = t.ceiling - t.poolCharge;                 // AMMO: $ still spendable within the rules
       t.overUnder = t.poolBonusPaid - t.committedSlot;   // picks over (+) / banked (−) vs slot to date
-      t.overage = t.poolCharge - t.pool;                 // $ spent over (+) / under (−) the full pool
+      t.overage = t.ceiling - t.pool;                    // the 5% cushion in $ — max spend allowed over the pool
       t.pctNum = t.pool ? (t.poolCharge - t.pool)/t.pool*100 : 0;
     }
     return { year, picks, onClockIndex, onClock, madeCount:picks.filter(p=>p.isDrafted).length, poolsMap:pools,
@@ -970,7 +970,7 @@
         ["Pick slot", fmt$(oc.slot)],
         ["Room left (incl. 5%)", fmt$(pool.room)],
         ["Spent / pool", `${fmt$(pool.poolCharge)} / ${fmt$(pool.pool)}`],
-        ["Overage", (pool.overage>0?"+":pool.overage<0?"−":"") + fmt$(Math.abs(pool.overage))],
+        ["Overage (5% cushion)", fmt$(pool.overage)],
         ["Over/under to date", fmtOU(pool.overUnder)],
         ["Picks", `${pool.picksMade}/${pool.picksTotal}`],
       ].map(([k,v]) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("") : "";
@@ -1269,8 +1269,6 @@
     $("poolBody").innerHTML = pools.map(t => {
       const ouCls = t.overUnder>50000 ? "over" : t.overUnder<-50000 ? "under" : "atslot";
       const pctCls = t.pctNum>=4.8 ? "over" : t.pctNum<0 ? "under" : "atslot";
-      const ovCls = t.overage>50000 ? "over" : t.overage<-50000 ? "under" : "atslot";
-      const ovTxt = (t.overage>0?"+":t.overage<0?"−":"") + fmt$(Math.abs(t.overage));
       return `<tr class="clickable" onclick="openTeam('${t.team}')">
         <td><b>${t.team}</b></td>
         <td>${fmt$(t.pool)}</td>
@@ -1279,7 +1277,7 @@
         <td>${fmt$(t.poolCharge)}${t.hasEst?' <span class="outag est atslot">est</span>':""}</td>
         <td><span class="outag ${ouCls}">${fmtOU(t.overUnder)}</span></td>
         <td>${fmt$(t.room)}</td>
-        <td><span class="outag ${ovCls}">${ovTxt}</span></td>
+        <td>${fmt$(t.overage)}</td>
         <td><span class="outag ${pctCls}">${t.pctNum>=0?"+":""}${t.pctNum.toFixed(1)}%</span></td>
       </tr>`;
     }).join("");
@@ -1523,7 +1521,7 @@
     let h = `<div class="cc"><div class="detail-head"><span class="big">${t}</span><span class="pl">${teamName}</span></div>`;
     if (pool) h += `<div class="pool-row">${[
       ["Pool", fmt$(pool.pool)], ["Spent", fmt$(pool.poolCharge)+(pool.hasEst?" est":"")],
-      ["Room (ammo)", fmt$(pool.room)], ["Overage", (pool.overage>0?"+":pool.overage<0?"−":"") + fmt$(Math.abs(pool.overage))],
+      ["Room (ammo)", fmt$(pool.room)], ["Overage (5% cushion)", fmt$(pool.overage)],
       ["Over/under", fmtOU(pool.overUnder)], ["Picks", `${pool.picksMade}/${pool.picksTotal}`],
     ].map(([k,v])=>`<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("")}</div>`;
     h += `</div>`;
