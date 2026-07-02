@@ -358,8 +358,8 @@
   .tc-kv:first-of-type { border-top:none; }
   .tc-kv .k { font-size:12px; color:var(--muted); font-weight:700; }
   .tc-kv .v { font-size:14px; font-weight:800; font-variant-numeric:tabular-nums; }
-  .tc-kv .v.hg-line { font-size:12px; white-space:nowrap; }
-  .hg-sep { color:var(--muted); font-weight:400; margin:0 5px; }
+  .hg-pct { color:var(--muted); font-weight:700; }
+  .pi-ovr { color:var(--muted); font-weight:600; margin-left:2px; }
   .tc-upc { width:100%; border-collapse:collapse; margin-top:4px; }
   .tc-upc th { text-align:left; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.3px; color:var(--muted); padding:4px 6px; }
   .tc-upc td { font-size:13px; font-weight:700; padding:5px 6px; border-top:1px solid var(--line); font-variant-numeric:tabular-nums; }
@@ -2021,7 +2021,7 @@
     } else if (tcNavMenu === "pick") {
       navMenu = `<div class="pdrop-menu tc-nav-menu">${navPicks.filter(p=>String(p.round)===String(pk.round)).map(p=>
         `<div class="pdrop-item ${p.overall===pk.overall?'on':''}" onclick="tcNavGoPick(${p.overall},event)">
-          ${teamLogo(p.team,16)}<span class="pi-nm">Pick ${p.roundPick} · ${p.team}</span><span class="pi-rk">${p.teamName||""}</span></div>`
+          ${teamLogo(p.team,16)}<span class="pi-nm">Pick ${p.roundPick} <span class="pi-ovr">· #${p.overall} OVR</span></span><span class="pi-rk">${p.teamName||""}</span></div>`
       ).join("")}</div>`;
     }
 
@@ -2223,14 +2223,16 @@
     let h = `<div class="tc-panel"><h4><span class="n">3</span> Historical Team Habits</h4>`;
     if (!o || o.orgRank==null) return h + `<div class="placeholder">No org profile for ${team}.</div></div>`;
     const dev = o.dev || {}, spread = spreadOf(team);
-    // homegrown = drafted by this org & still in system, split by current level (MLB StatsAPI bake)
+    // homegrown = drafted by this org & still with them (MLB StatsAPI bake)
     const hg = o.hgLevels;
-    const hgVal = hg
-      ? [["MLB",hg.MLB],["AAA",hg.AAA],["AA",hg.AA],["A+",hg["A+"]],["A",hg.A],["RK",hg.RK]]
-          .filter(([,n])=>n>0).map(([l,n])=>`${n} ${l}`).join('<span class="hg-sep">|</span>')
-        + `<span class="hg-sep">|</span><b>${hg.total} in Org</b>`
-      : (o.homegrown!=null ? `${o.homegrown} in system` : "—");
-    h += `<div class="tc-kv"><span class="k">Homegrown</span><span class="v hg-line">${hgVal}</span></div>`;
+    if (hg && hg.fortyManAll) {
+      const pct40 = Math.round(100*hg.fortyMan/hg.fortyManAll);
+      const pctOrg = hg.orgAll ? Math.round(100*hg.total/hg.orgAll) : null;
+      h += `<div class="tc-kv"><span class="k">40-man homegrown</span><span class="v">${hg.fortyMan} of ${hg.fortyManAll} <span class="hg-pct">· ${pct40}%</span></span></div>`;
+      h += `<div class="tc-kv"><span class="k">Org homegrown</span><span class="v">${hg.total} of ${hg.orgAll}${pctOrg!=null?` <span class="hg-pct">· ${pctOrg}%</span>`:""}</span></div>`;
+    } else {
+      h += `<div class="tc-kv"><span class="k">Homegrown</span><span class="v">${o.homegrown!=null?`${o.homegrown} in system`:"—"}</span></div>`;
+    }
     h += `<div class="tc-kv"><span class="k">Early-pick pitchers</span><span class="v">${o.earlyPitcherPct!=null?o.earlyPitcherPct+"%":"—"}</span></div>`;
     h += `<div class="tc-kv"><span class="k">HS / College mix</span><span class="v">${o.hsPct!=null?o.hsPct:"—"}% / ${o.collegePct!=null?o.collegePct:"—"}%</span></div>`;
     h += `<div class="tc-kv"><span class="k">MLB-debut rate (dev)</span><span class="v">${dev.mlbDebut!=null?Math.round(dev.mlbDebut*100)+"%":"—"}</span></div>`;

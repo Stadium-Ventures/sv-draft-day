@@ -7,7 +7,9 @@ signees carry no draft record and are excluded, so this measures drafted-and-
 retained talent — the draft-day-relevant sense of "homegrown".
 
 Writes public/data/homegrown.json keyed by MLB team id:
-  { "136": { "MLB": 4, "AAA": 2, "AA": 1, "A+": 3, "A": 0, "RK": 0, "total": 10 }, ... }
+  { "136": { "MLB": 4, "AAA": 2, ..., "total": 10,       # homegrown by current level
+             "orgAll": 190,                              # every rostered player in the org
+             "fortyMan": 12, "fortyManAll": 40 }, ... }  # homegrown on the 40-man
 
 Run whenever a refresh is wanted:  python3 scripts/build_homegrown.py
 """
@@ -27,10 +29,21 @@ def get(url):
     return json.loads(urllib.request.urlopen(req, timeout=30).read())
 
 
+def is_homegrown(entry, parent):
+    drafts = entry.get("person", {}).get("drafts", [])
+    if not drafts:
+        return False
+    # multiple selections possible (drafted, unsigned, re-drafted) and the
+    # feed returns them unordered — the newest one is the signing club
+    last = max(drafts, key=lambda d: int(d.get("year") or 0))
+    return (last.get("team") or {}).get("id") == parent
+
+
 def main():
     clubs = get(f"{BASE}/teams?sportId=1&season={SEASON}")["teams"]
     club_ids = {t["id"] for t in clubs}
-    out = {str(cid): {lvl: 0 for _, lvl in LEVELS} | {"total": 0} for cid in club_ids}
+    out = {str(cid): {lvl: 0 for _, lvl in LEVELS} | {"total": 0, "orgAll": 0, "fortyMan": 0, "fortyManAll": 0}
+           for cid in club_ids}
 
     for sport_id, lvl in LEVELS:
         teams = clubs if sport_id == 1 else get(f"{BASE}/teams?sportId={sport_id}&season={SEASON}")["teams"]
@@ -44,18 +57,27 @@ def main():
             except Exception as e:
                 print(f"  ! {t.get('name')}: {e}")
                 continue
+            rec = out[str(parent)]
+            rec["orgAll"] += len(roster)
             for entry in roster:
-                drafts = entry.get("person", {}).get("drafts", [])
-                if not drafts:
-                    continue
-                # multiple selections possible (drafted, unsigned, re-drafted) and the
-                # feed returns them unordered — the newest one is the signing club
-                last = max(drafts, key=lambda d: int(d.get("year") or 0))
-                if (last.get("team") or {}).get("id") == parent:
-                    out[str(parent)][lvl] += 1
-                    out[str(parent)]["total"] += 1
+                if is_homegrown(entry, parent):
+                    rec[lvl] += 1
+                    rec["total"] += 1
             time.sleep(0.08)
         print(f"✓ {lvl}")
+
+    for t in clubs:
+        url = f"{BASE}/teams/{t['id']}/roster?rosterType=40Man&season={SEASON}&hydrate=person(draft)"
+        try:
+            roster = get(url).get("roster", [])
+        except Exception as e:
+            print(f"  ! 40-man {t.get('name')}: {e}")
+            continue
+        rec = out[str(t["id"])]
+        rec["fortyManAll"] = len(roster)
+        rec["fortyMan"] = sum(1 for e in roster if is_homegrown(e, t["id"]))
+        time.sleep(0.08)
+    print("✓ 40-man")
 
     with open(OUT, "w") as f:
         json.dump(out, f, separators=(",", ":"))
