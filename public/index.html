@@ -699,6 +699,39 @@
   window.clearRange = (key) => { delete RANGES[key]; saveRanges(key);
     postIntel({ kind:"strike_window", player_name:clientName(key), window_lo:null, window_hi:null }, true); };
   const TEAMINTEL_URL = "https://sv-teamintel.vercel.app/teamintel.json";
+  // sv-teamintel's shared per-pick "in play" checkboxes (Draft Card `pk|player|team` overrides):
+  // key ABSENT = in play at every one of that team's picks; present = whitelist of pick numbers.
+  const TI_OVERRIDES_URL = "https://sv-teamintel.vercel.app/api/overrides";
+  async function loadPickInPlay(rerender) {
+    try {
+      const d = await fetch(TI_OVERRIDES_URL, { cache:"no-store" }).then(r=>r.json());
+      const v = d.values || d, m = new Map();
+      for (const k in v) {
+        if (!k.startsWith("pk|")) continue;
+        const parts = k.split("|"); if (parts.length < 3) continue;
+        m.set(normName(parts[1]) + "|" + teamAlias(parts[2]), new Set(Array.isArray(v[k]) ? v[k] : []));
+      }
+      DATA.pickInPlay = m;
+      if (rerender) renderActive();
+    } catch (e) {}
+  }
+  // In play for THIS pick: not ruled out in our store (team-wide or at this pick), and inside the
+  // sv-teamintel per-pick whitelist when one exists.
+  function tiInPlayAt(key, team, overall) {
+    const cap = intelFor(key);
+    if (cap && cap.ruleOuts && cap.ruleOuts.some(r => r.team===team && (!r.pick || r.pick===overall))) return false;
+    const wl = DATA.pickInPlay && DATA.pickInPlay.get(key + "|" + team);
+    return !wl || wl.has(overall);
+  }
+  // The board's initials rule (teamintel-only, no heat scores): our undrafted clients whose LIVE
+  // teamintel color with this team is green/light green AND who are in play at this specific pick.
+  function tiClientsAt(pk, state) {
+    const drafted = new Set(state.picks.filter(x=>x.isDrafted&&x.player).map(x=>normName(x.player)));
+    return DATA.clientList.filter(c => c.comp && !drafted.has(c.key)
+        && intelColorRank(c.key, pk.team) <= 1
+        && tiInPlayAt(c.key, pk.team, pk.overall))
+      .sort((a,b)=> intelColorRank(a.key,pk.team)-intelColorRank(b.key,pk.team) || a.comp.rank-b.comp.rank);
+  }
   // Historical draft-slot signings (2018–25): per-pick bonus vs slot. CORS-open, so fetch directly.
   const SLOT_HISTORY_URL = "https://mdecicco-sv.github.io/draft-slot-tracker/data.csv";
   const posGroupOf = (pos) => { const p=(pos||"").toUpperCase();
@@ -1332,20 +1365,15 @@
   }
 
   // ---------- Mock-side operator modules (radar + digger) ----------
-  // Next N undrafted picks × our clients. A chip appears where a client has a live teamintel
-  // color with that team OR is in play at that pick; chip color is strictly teamintel.
+  // Next N undrafted picks × our clients — same teamintel-only rule as the board dots:
+  // green/light-green with the team AND in play at that specific pick.
   function renderMockRadar(state) {
     const el = $("mockRadar"); if (!el) return;
     const next = state.picks.filter(p=>!p.isDrafted).slice(0, 8);
     if (!next.length) { el.innerHTML = `<div class="placeholder">Draft complete.</div>`; return; }
-    const drafted = new Set(state.picks.filter(p=>p.isDrafted&&p.player).map(p=>normName(p.player)));
     const first = next[0].overall;
     el.innerHTML = next.map(p=>{
-      const inPlay = new Set(clientsInPlay(p, state).map(x=>x.c.key));
-      const chips = DATA.clientList.filter(c=>c.comp && !drafted.has(c.key))
-        .filter(c => inPlay.has(c.key) || intelColorRank(c.key, p.team) < 5)
-        .sort((a,b)=> intelColorRank(a.key,p.team)-intelColorRank(b.key,p.team))
-        .slice(0, 6);
+      const chips = tiClientsAt(p, state).slice(0, 6);
       const away = p.overall - first;
       return `<div class="radar-row" onclick="expandPick(${p.overall})">
         <span class="rr-no">#${p.overall}</span>
@@ -1353,7 +1381,7 @@
         <span class="rr-tm">${teamLogo(p.team,15)}${p.team}</span>
         <span class="rr-slot">${p.slot>0?fmtM(p.slot):"—"}</span>
         <span class="rr-chips">${chips.map(c=>`<span class="rr-chip" data-intel-key="${c.key}" data-intel-team="${p.team}">
-          <span class="idot" style="background:${intelColorHex(c.key,p.team)}"></span>${initials(c.name)}${inPlay.has(c.key)?"·IP":""}</span>`).join("") || '<span class="rr-none">—</span>'}</span></div>`;
+          <span class="idot" style="background:${intelColorHex(c.key,p.team)}"></span>${initials(c.name)}</span>`).join("") || '<span class="rr-none">—</span>'}</span></div>`;
     }).join("");
   }
 
@@ -1454,16 +1482,16 @@
   window.clearBoardClients = (e) => { if (e) e.stopPropagation(); boardSelClients.clear(); renderBoard(currentState); };
 
   // The dot cluster for one undrafted pick: {key,name,rank,hex} per player to show.
-  // Big Board mode → the pick's whole in-play cluster. Focus mode → only the selected
-  // clients, shown wherever they're in play OR have a logged interest color at this team.
+  // Teamintel-only (no heat scores): Big Board mode → every client with live green/light-green
+  // teamintel for this team who is in play at THIS pick (sv-teamintel checkboxes + our rule-outs).
+  // Focus mode → the selected clients, any logged color, still gated by per-pick in-play.
   function pickDots(pk, state) {
     const team = pk.team, sel = boardSelClients;
-    const inPlay = clientsInPlay(pk, state);
     const mk = (c) => ({ key:c.key, name:c.name, rank:intelColorRank(c.key,team), hex:intelColorHex(c.key,team) });
     let entries;
-    if (sel.size===0) entries = inPlay.map(x=>mk(x.c));
+    if (sel.size===0) entries = tiClientsAt(pk, state).map(mk);
     else entries = [...sel].map(k=>DATA.clientList.find(c=>c.key===k)).filter(c=>c&&c.comp)
-      .filter(c => intelColorRank(c.key,team)<5 || inPlay.some(x=>x.c.key===c.key))
+      .filter(c => intelColorRank(c.key,team)<5 && tiInPlayAt(c.key, team, pk.overall))
       .map(mk);
     return entries.sort((a,b)=> a.rank-b.rank || a.name.localeCompare(b.name));
   }
@@ -1486,12 +1514,13 @@
       if (p.isDrafted) {
         body = (p.player||"—") + (ours?' <span class="svtag">SV</span>':"");
       } else if (single) {
-        // Full-color heat card for the one selected player.
+        // Full-color heat card for the one selected player — mirrors the sv-teamintel Draft Card:
+        // a pick unchecked there (not in play) paints RED regardless of the team's intel color.
         const team = p.team, rank = intelColorRank(single, team);
-        const inPlay = clientsInPlay(p, state).some(x=>x.c.key===single);
-        if (rank>=5 && !inPlay) { cardCls += " bc-dim"; body = onclock ? "⏱ OTC" : "—"; }
+        const inPlay = tiInPlayAt(single, team, p.overall);
+        if (rank>=5 && inPlay) { cardCls += " bc-dim"; body = onclock ? "⏱ OTC" : "—"; }
         else {
-          const hex = intelColorHex(single, team), txt = textOn(hex);
+          const hex = inPlay ? intelColorHex(single, team) : COLOR_HEX.red, txt = textOn(hex);
           const f = singleC && singleC.comp ? fit(singleC.comp, team, single, state) : null;
           cardCls += " bc-heat"; cardStyle = ` style="background:${hex};color:${txt}"`;
           body = onclock ? "⏱ OTC" : "";
@@ -1784,9 +1813,10 @@
     if (!pk || pk.isDrafted) { closeTeamCard(); return; }
     const team = pk.team, pool = state.poolsMap[team] || null, o = DATA.orgs[team] || {};
     const onClockHere = !!(state.onClock && state.onClock.overall === pk.overall);
-    // Full roster of our undrafted clients, each scored against THIS team; in-play ones surface first.
+    // Full roster of our undrafted clients, each scored against THIS team; in-play ones surface
+    // first. "IN PLAY" = the teamintel rule: green/light-green + this pick not ruled out.
     const drafted = new Set(state.picks.filter(p=>p.isDrafted&&p.player).map(p=>normName(p.player)));
-    const inPlayKeys = new Set(clientsInPlay(pk, state).map(x=>x.c.key));
+    const inPlayKeys = new Set(tiClientsAt(pk, state).map(c=>c.key));
     const roster = DATA.clientList.filter(c=>c.comp && !drafted.has(c.key)).map(c=>({
       c, f: fit(c.comp, team, c.key, state), inPlay: inPlayKeys.has(c.key)
     })).sort((a,b)=> (b.inPlay - a.inPlay) || (b.f.orgScore - a.f.orgScore));
@@ -1936,7 +1966,8 @@
         const pf = tcPickFit(sel.c.comp, p, state);
         lastCol = `<span class="tg ${pf.cls}">${pf.label}</span>`;
       } else {
-        const cand = clientsInPlay(p, state)[0];
+        const cand0 = tiClientsAt(p, state)[0];
+        const cand = cand0 ? { c: cand0, f: fit(cand0.comp, team, cand0.key, state) } : null;
         lastCol = cand ? `<span class="tc-cdot" style="background:${intelColorHex(cand.c.key, team)};display:inline-block;vertical-align:middle;margin-right:4px"></span>${tcInitialName(cand.c.name).split(" ").slice(-1)[0]} <span style="color:var(--muted)">${cand.f.orgGrade}</span>` : "—";
       }
       return `<tr>
@@ -2567,10 +2598,12 @@
     try { await loadOrder(); } catch (e) {}   // slot table for demandFor() in all views
     await loadIntel().then(backfillLocalSettings);   // load shared intel, then migrate browser-only ranges/medicals
     loadSlotHistory();                                // historical draft-slot signings for the team card's Q4
+    await loadPickInPlay();                           // sv-teamintel per-pick "in play" checkboxes
     pollLive();
     setInterval(pollLive, 3000);
     setInterval(loadIntel, 12000);            // refresh shared intel so the war room stays in sync
     setInterval(() => loadTeamIntel(true), 15000);   // re-pull teamintel colors/scores live
+    setInterval(() => loadPickInPlay(true), 15000);  // re-pull per-pick in-play checkboxes
     setInterval(tick, 250);
   })();
 </script>
