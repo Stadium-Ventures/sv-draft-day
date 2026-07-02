@@ -908,9 +908,18 @@
         fetch("/data/homegrown.json").then(r=>r.json()).catch(()=>null),
       ]);
       DATA.composite = c; DATA.orgs = o; DATA.leverage = lev;
-      // homegrown-by-level (baked from MLB StatsAPI, keyed by team id) → org records
-      if (hg) for (const [ab, id] of Object.entries(ABBR_TO_ID)) {
-        if (o[ab] && hg[String(id)]) o[ab].hgLevels = hg[String(id)];
+      // homegrown-by-level (baked from MLB StatsAPI, keyed by team id) → org records,
+      // with each team's league rank on the two homegrown percentages
+      if (hg) {
+        const rows = Object.values(hg);
+        const pct = (n,d) => d ? n/d : -1;
+        const rankBy = (v, f) => 1 + rows.filter(x => f(x) > f(v)).length;
+        for (const [ab, id] of Object.entries(ABBR_TO_ID)) {
+          const v = hg[String(id)];
+          if (o[ab] && v) o[ab].hgLevels = { ...v,
+            rank40: rankBy(v, x=>pct(x.fortyMan, x.fortyManAll)),
+            rankOrg: rankBy(v, x=>pct(x.total, x.orgAll)) };
+        }
       }
       c.forEach(p => { p._key = normName(p.name); });   // cache normalized key (hot in sims)
       DATA.compByName = new Map(c.map(p => [p._key, p]));
@@ -1855,7 +1864,13 @@
     const st = currentState; if (!st) return;
     const pk = pickByOverall(st, ov); if (!pk || pk.isDrafted) return;
     cardPick = ov; armed = null; tcMenuOpen = false; tcNavMenu = null; tcRangeMode = "profile";
-    evalPlayer = null;   // open in team-profile mode; user picks a player to go player-specific
+    // Team-profile mode by default — but a board filtered to a player opens on him
+    // (renderTeamCard drops the preselect if he's not on the card's roster).
+    evalPlayer = null;
+    if (boardSelClients.size) {
+      const drafted = new Set(st.picks.filter(p=>p.isDrafted&&p.player).map(p=>normName(p.player)));
+      evalPlayer = [...boardSelClients].find(k=>!drafted.has(k)) || null;
+    }
     loadSlotHistory();   // lazy-load historical signings for Q4 (no-op once cached)
     renderTeamCard(st);
     const bd = $("teamCard"); if (bd) { bd.classList.add("on"); bd.scrollTop = 0; }
@@ -2226,10 +2241,11 @@
     // homegrown = drafted by this org & still with them (MLB StatsAPI bake)
     const hg = o.hgLevels;
     if (hg && hg.fortyManAll) {
+      const ord = n => n + (n%100>=11 && n%100<=13 ? "th" : ["th","st","nd","rd"][n%10] || "th");
       const pct40 = Math.round(100*hg.fortyMan/hg.fortyManAll);
       const pctOrg = hg.orgAll ? Math.round(100*hg.total/hg.orgAll) : null;
-      h += `<div class="tc-kv"><span class="k">40-man homegrown</span><span class="v">${hg.fortyMan} of ${hg.fortyManAll} <span class="hg-pct">· ${pct40}%</span></span></div>`;
-      h += `<div class="tc-kv"><span class="k">Org homegrown</span><span class="v">${hg.total} of ${hg.orgAll}${pctOrg!=null?` <span class="hg-pct">· ${pctOrg}%</span>`:""}</span></div>`;
+      h += `<div class="tc-kv"><span class="k">40-man homegrown</span><span class="v">${hg.fortyMan} of ${hg.fortyManAll} <span class="hg-pct">· ${pct40}%${hg.rank40?` (${ord(hg.rank40)})`:""}</span></span></div>`;
+      h += `<div class="tc-kv"><span class="k">Org homegrown</span><span class="v">${hg.total} of ${hg.orgAll}${pctOrg!=null?` <span class="hg-pct">· ${pctOrg}%${hg.rankOrg?` (${ord(hg.rankOrg)})`:""}</span>`:""}</span></div>`;
     } else {
       h += `<div class="tc-kv"><span class="k">Homegrown</span><span class="v">${o.homegrown!=null?`${o.homegrown} in system`:"—"}</span></div>`;
     }
