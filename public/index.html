@@ -360,6 +360,13 @@
   .tc-kv .v { font-size:14px; font-weight:800; font-variant-numeric:tabular-nums; }
   .hg-pct { color:var(--muted); font-weight:700; }
   .pi-ovr { color:var(--muted); font-weight:600; margin-left:2px; }
+  .tc-made { flex:1 1 auto; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:30px; text-align:center; }
+  .tc-made-name { font-size:26px; font-weight:600; color:var(--ink); }
+  .tc-made-name b { font-weight:900; }
+  .tc-made-sub { font-size:15px; font-weight:700; color:var(--muted); }
+  .tc-made .tk-sv { background:#1a7f37; color:#fff; font-weight:900; font-size:12px; letter-spacing:.5px; padding:3px 9px; border-radius:5px; vertical-align:4px; margin-left:6px; }
+  .tc-made-adv { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.5px; color:var(--red); animation:tcPulse 1s ease-in-out infinite; }
+  @keyframes tcPulse { 0%,100% { opacity:1; } 50% { opacity:.35; } }
   .tc-upc { width:100%; border-collapse:collapse; margin-top:4px; }
   .tc-upc th { text-align:left; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.3px; color:var(--muted); padding:4px 6px; }
   .tc-upc td { font-size:13px; font-weight:700; padding:5px 6px; border-top:1px solid var(--line); font-variant-numeric:tabular-nums; }
@@ -834,6 +841,7 @@
   let evalPlayer = null;       // client key currently being evaluated inside the team card, or null
   let tcMenuOpen = false;      // team-card player dropdown open state (survives card re-renders)
   let tcNavMenu = null;        // header round/pick dropdown: null | 'round' | 'pick'
+  let tcAdvance = null;        // { pick, timer } — open card's pick just got made; auto-advance pending
   let tcRangeMode = "profile"; // Q4 comps: 'profile' (same level×pos) or 'all' (everyone in the range)
   // TV mode: per-device (localStorage). The wall TV turns it on once; laptops stay interactive.
   // TV ON = bigger board type + team card suppressed unless the "card" sub-toggle is enabled.
@@ -1878,6 +1886,7 @@
   };
   window.closeTeamCard = () => {
     cardPick = null; evalPlayer = null; armed = null; tcMenuOpen = false; tcNavMenu = null;
+    if (tcAdvance) { clearTimeout(tcAdvance.timer); tcAdvance = null; }
     const bd = $("teamCard"); if (bd) { bd.classList.remove("on"); bd.innerHTML = ""; }
     document.body.style.overflow = "";
   };
@@ -1890,6 +1899,7 @@
     const pk = pickByOverall(st, ov); if (!pk || pk.isDrafted) return;
     cardPick = ov; armed = null; tcMenuOpen = false; tcRangeMode = "profile";
     tcNavMenu = keepNavMenu || null;
+    if (tcAdvance) { clearTimeout(tcAdvance.timer); tcAdvance = null; }
     renderTeamCard(st);
     const bd = $("teamCard"); if (bd) bd.scrollTop = 0;
   }
@@ -2005,7 +2015,37 @@
   function renderTeamCard(state) {
     const bd = $("teamCard"); if (!bd || cardPick==null || !state) return;
     const pk = pickByOverall(state, cardPick);
-    if (!pk || pk.isDrafted) { closeTeamCard(); return; }
+    if (!pk) { closeTeamCard(); return; }
+    // The open pick just got made — flash the selection, then advance to the next pick.
+    if (pk.isDrafted) {
+      if (!tcAdvance || tcAdvance.pick !== pk.overall) {
+        if (tcAdvance) clearTimeout(tcAdvance.timer);
+        tcAdvance = { pick: pk.overall, timer: setTimeout(() => {
+          tcAdvance = null;
+          const st = currentState;
+          if (!st || cardPick !== pk.overall) return;
+          const nxt = st.picks.filter(p=>!p.isDrafted && p.overall>pk.overall).sort((a,b)=>a.overall-b.overall)[0];
+          if (nxt) goCardPick(nxt.overall); else closeTeamCard();
+        }, 2000) };
+      }
+      const key = normName(pk.player||""), comp = DATA.compByName.get(key), ours = DATA.clients.has(key);
+      const sub = [comp?comp.pos:(pk.pos||""), schoolShort(pk.school||(comp?comp.school:"")||""), pk.bonus!=null?fmtM(pk.bonus):""]
+        .filter(Boolean).join(" · ");
+      bd.innerHTML = `<div class="tc-card"><div class="tc-top">
+          ${teamLogo(pk.team,30)}
+          <span class="tc-abbr">${pk.team||"—"}</span>
+          <span class="tc-ttl">Pick #${pk.overall} · ${pk.teamName||pk.team||""}</span>
+          <span class="tc-live">● Pick made</span>
+          <button class="tc-x" onclick="closeTeamCard()">✕</button></div>
+        <div class="tc-made">
+          ${teamLogo(pk.team,52)}
+          <div class="tc-made-name">${pk.teamName||pk.team} selects <b>${pk.player||"—"}</b>${ours?' <span class="tk-sv">SV CLIENT</span>':''}</div>
+          ${sub?`<div class="tc-made-sub">${sub}</div>`:""}
+          <div class="tc-made-adv">advancing to the next pick…</div>
+        </div></div>`;
+      return;
+    }
+    if (tcAdvance) { clearTimeout(tcAdvance.timer); tcAdvance = null; }
     const team = pk.team, pool = state.poolsMap[team] || null, o = DATA.orgs[team] || {};
     const onClockHere = !!(state.onClock && state.onClock.overall === pk.overall);
     // Full roster of our undrafted clients, each scored against THIS team; in-play ones surface
@@ -2237,7 +2277,7 @@
   function renderTcHabits(state, team, pk, pool, o, sel) {
     let h = `<div class="tc-panel"><h4><span class="n">3</span> Historical Team Habits</h4>`;
     if (!o || o.orgRank==null) return h + `<div class="placeholder">No org profile for ${team}.</div></div>`;
-    const dev = o.dev || {}, spread = spreadOf(team);
+    const dev = o.dev || {};
     // homegrown = drafted by this org & still with them (MLB StatsAPI bake)
     const hg = o.hgLevels;
     if (hg && hg.fortyManAll) {
@@ -2249,11 +2289,39 @@
     } else {
       h += `<div class="tc-kv"><span class="k">Homegrown</span><span class="v">${o.homegrown!=null?`${o.homegrown} in system`:"—"}</span></div>`;
     }
-    h += `<div class="tc-kv"><span class="k">Early-pick pitchers</span><span class="v">${o.earlyPitcherPct!=null?o.earlyPitcherPct+"%":"—"}</span></div>`;
+    // Range-specific org habits: the team's actual 2018-25 picks near THIS slot
+    // (slot-tracker rows carry the signing team as a full name; franchises renamed
+    // mid-window are aliased forward).
+    const NAME_FWD = { "Cleveland Indians":"Cleveland Guardians", "Oakland Athletics":"Athletics" };
+    const rgLo = Math.max(1, pk.overall-15), rgHi = pk.overall+15;
+    const myName = pk.teamName || "";
+    const rg = DATA.slotHistory.length
+      ? DATA.slotHistory.filter(r => (NAME_FWD[r.team]||r.team)===myName && r.overall>=rgLo && r.overall<=rgHi)
+      : null;   // null = tracker still loading
+    const rangeLbl = `#${rgLo}–#${rgHi}`;
+    let mixV = "…", leanPitcher = o.earlyPitcherPct!=null && o.earlyPitcherPct>=50, leanWhere = "early";
+    if (rg) {
+      if (rg.length) {
+        const pN = rg.filter(r=>r.group==="P").length;
+        const pPct = Math.round(100*pN/rg.length);
+        mixV = `${pPct}% P / ${100-pPct}% H <span class="hg-pct">· ${rg.length} picks</span>`;
+        if (rg.length >= 5) { leanPitcher = pPct >= 50; leanWhere = "in this range"; }
+      } else mixV = "—";
+    }
+    h += `<div class="tc-kv"><span class="k">P / H mix · ${rangeLbl}</span><span class="v">${mixV}</span></div>`;
     h += `<div class="tc-kv"><span class="k">HS / College mix</span><span class="v">${o.hsPct!=null?o.hsPct:"—"}% / ${o.collegePct!=null?o.collegePct:"—"}%</span></div>`;
     h += `<div class="tc-kv"><span class="k">MLB-debut rate (dev)</span><span class="v">${dev.mlbDebut!=null?Math.round(dev.mlbDebut*100)+"%":"—"}</span></div>`;
-    const posture = spread>=0.55 ? "spreads pool — pays over slot to bank picks" : spread<=0.25 ? "disciplined — pays at/under slot" : "balanced pool approach";
-    h += `<div class="tc-kv"><span class="k">Bonus posture</span><span class="v" style="font-size:12px;text-align:right">${Math.round(spread*100)}% spread · ${fmtOU(pool?pool.overUnder:0)}<br><span style="color:var(--muted);font-weight:600">${posture}</span></span></div>`;
+    let postV = "…";
+    if (rg) {
+      const signed = rg.filter(r=>r.diff!=null);
+      if (signed.length) {
+        const overN = signed.filter(r=>r.diff>0).length;
+        const avg = signed.reduce((s,r)=>s+r.diff,0)/signed.length;
+        const posture = avg>=100000 ? "pays over slot in this range" : avg<=-100000 ? "pays under slot in this range" : "pays at slot in this range";
+        postV = `${Math.round(100*overN/signed.length)}% over · avg ${avg>=0?"+":""}${fmtM(avg)}<br><span style="color:var(--muted);font-weight:600">${signed.length} signings · ${posture}</span>`;
+      } else postV = "—";
+    }
+    h += `<div class="tc-kv"><span class="k">Bonus posture · ${rangeLbl}</span><span class="v" style="font-size:12px;text-align:right">${postV}</span></div>`;
     const r1 = o.recentR1 || [];
     if (r1.length) {
       h += `<div class="tc-chart-h" style="margin-top:11px">Recent 1st-round picks <span style="font-weight:600;text-transform:none;letter-spacing:0">· signing bonus</span></div>`;
@@ -2269,14 +2337,14 @@
     if (sel) {
       const c = sel.c.comp, isHS = c.level==="HS", p = isPitcher(c.pos);
       const levPct = isHS ? o.hsPct : o.collegePct;
-      const withLean = (p && o.earlyPitcherPct>=50) || (!p && o.earlyPitcherPct<50);
+      const withLean = (p && leanPitcher) || (!p && !leanPitcher);
       const bonus = negBonus(c, pk.slot, pk.overall), ou = bonus - pk.slot;
       const last = tcInitialName(sel.c.name).split(" ").slice(-1)[0];
       const lb3 = bonusFor(sel.c.key);
       if (lb3) h += `<div class="tc-kv" style="margin-top:8px"><span class="k">Logged ${last} bonus (${lb3.kind})</span><span class="v">${fmtM(lb3.amount)}${lb3.pick?` <span class="tc-onpace">at #${lb3.pick}</span>`:""}</span></div>`;
       h += `<div class="tc-kv" ${lb3?'':'style="margin-top:8px"'}><span class="k">Projected ${last} bonus · ${team}</span><span class="v">${fmtM(bonus)} <span class="tg ${ou>0?'over':ou<0?'under':'fit'}">${ou>0?"over":ou<0?"under":"at"} slot</span></span></div>`;
       h += `<div class="tc-kv"><span class="k">Agent · market value</span><span class="v" style="font-size:12px">${c.agent||"—"} · ${fmt$(demandFor(c))}</span></div>`;
-      h += `<div class="tc-hab-note">${last} is a ${isHS?"HS":"college"} ${p?"pitcher":"position player"}. ${team} takes ${levPct!=null?levPct+"%":"—"} ${isHS?"HS":"college"} and leans ${o.earlyPitcherPct>=50?"pitcher":"hitter"} early — this profile ${withLean?"fits":"runs against"} their early-pick habit.</div>`;
+      h += `<div class="tc-hab-note">${last} is a ${isHS?"HS":"college"} ${p?"pitcher":"position player"}. ${team} takes ${levPct!=null?levPct+"%":"—"} ${isHS?"HS":"college"} and leans ${leanPitcher?"pitcher":"hitter"} ${leanWhere} — this profile ${withLean?"fits":"runs against"} their habit at this spot.</div>`;
     }
     return h + `</div>`;
   }
