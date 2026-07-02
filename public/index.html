@@ -19,6 +19,10 @@
   .seg { display:inline-flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
   .seg button { border:0; background:#fff; padding:6px 12px; font:inherit; font-weight:700; cursor:pointer; color:var(--muted); }
   .seg button.on { background:var(--red); color:#fff; }
+  .agtog { font-size:11px; font-weight:800; border:1px solid var(--line); border-radius:999px; padding:3px 11px; cursor:pointer; background:#fff; color:var(--muted); white-space:nowrap; }
+  .agtog.on { background:#eef7ee; color:#1a7f37; border-color:#bfe3c4; }
+  /* Family/demo mode: hide every agency mention site-wide */
+  body.no-agency .agcol, body.no-agency .tk-agency { display:none; }
 
   .tabs { display:flex; gap:4px; padding:8px 16px 0; background:#fff; border-bottom:1px solid var(--line); position:sticky; top:49px; z-index:5; }
   .tabs button { border:0; border-bottom:3px solid transparent; background:none; padding:8px 14px; font:inherit; font-weight:700; color:var(--muted); cursor:pointer; }
@@ -370,6 +374,7 @@
     <button id="mMock" onclick="setMode('mock')">⚙ Mock</button>
   </span>
   <span class="badge" id="yearBadge">2026 MLB DRAFT</span>
+  <button id="agencyToggle" class="agtog" onclick="toggleAgencies()" title="Show/hide player agencies site-wide (for family/demo viewing)">Agencies: On</button>
 </header>
 
 <nav class="tabs">
@@ -468,7 +473,7 @@
       <span class="count" id="baCount"></span>
     </div>
     <table class="ba">
-      <thead><tr><th>#</th><th>Player</th><th>Pos</th><th>Lvl</th><th class="hide-sm">School</th><th class="hide-sm">Agency</th><th class="hide-sm">Age</th><th class="sr-col">BA</th><th class="sr-col">MLB</th><th class="sr-col">OS</th><th class="sr-col">ESPN</th></tr></thead>
+      <thead><tr><th>#</th><th>Player</th><th>Pos</th><th>Lvl</th><th class="hide-sm">School</th><th class="hide-sm agcol">Agency</th><th class="hide-sm">Age</th><th class="sr-col">BA</th><th class="sr-col">MLB</th><th class="sr-col">OS</th><th class="sr-col">ESPN</th></tr></thead>
       <tbody id="baBody"></tbody>
     </table>
   </section>
@@ -620,6 +625,20 @@
     return Math.max(50000, Math.round(b));
   }
   let MODE = "live", VIEW = "clients", selected = null;
+  // Agency visibility — off hides every agency mention (Best Available column, ticker, feed) for family/demo viewing.
+  let SHOW_AGENCIES = true;
+  try { SHOW_AGENCIES = localStorage.getItem("dd:showAgencies") !== "0"; } catch (e) {}
+  function syncAgencyToggle() {
+    document.body.classList.toggle("no-agency", !SHOW_AGENCIES);
+    const b = document.getElementById("agencyToggle");
+    if (b) { b.textContent = SHOW_AGENCIES ? "Agencies: On" : "Agencies: Off"; b.classList.toggle("on", SHOW_AGENCIES); }
+  }
+  window.toggleAgencies = () => {
+    SHOW_AGENCIES = !SHOW_AGENCIES;
+    try { localStorage.setItem("dd:showAgencies", SHOW_AGENCIES ? "1" : "0"); } catch (e) {}
+    syncAgencyToggle();
+    renderActive();   // re-render the feed's inline agency text (Best Available column + ticker are CSS-driven)
+  };
   const teamLink = (t) => t ? `<span class="tlink" onclick="openTeam('${t}')">${t}</span>` : "";
   const playerLink = (name) => `<span class="tlink" onclick="openPlayer('${normName(name).replace(/'/g,"\\'")}')">${name}</span>`;
   let currentState = null, lastLive = null, ORDER = null;
@@ -1056,7 +1075,7 @@
       return `<tr class="${ours?"sv":""} ${clickable?"draftable":""}" ${clickable?`onclick="draftManual('${p.name.replace(/'/g,"\\'")}')"`:""}>
         <td class="rk">#${p.rank}</td><td>${p.name} ${ours?'<span class="svtag">SV</span>':""}</td>
         <td>${p.pos}</td><td><span class="lvl ${p.level}">${p.level}</span></td>
-        <td class="hide-sm">${p.school||""}</td><td class="hide-sm">${p.agent||"—"}</td><td class="hide-sm">${fmtAge(p.age)}</td>
+        <td class="hide-sm">${p.school||""}</td><td class="hide-sm agcol">${p.agent||"—"}</td><td class="hide-sm">${fmtAge(p.age)}</td>
         <td class="sr-col">${p.ba!=null?"#"+p.ba:"—"}</td>
         <td class="sr-col">${p.mlb!=null?"#"+p.mlb:"—"}</td>
         <td class="sr-col">${p.overslot!=null?"#"+p.overslot:"—"}</td>
@@ -1230,7 +1249,7 @@
       let cls = "feed-row", who, sub;
       if (p.isDrafted) {
         who = p.player || "—";
-        sub = [p.pos, comp?.agent, comp?.school || p.school].filter(Boolean).join(" · ");
+        sub = [p.pos, SHOW_AGENCIES?comp?.agent:null, comp?.school || p.school].filter(Boolean).join(" · ");
         if (ours) cls += " sv";
       } else if (onclock) { cls += " oc"; who = "On the clock"; sub = "● NOW"; }
       else { cls += " up"; who = "Upcoming"; sub = ""; }
@@ -1908,6 +1927,7 @@
   }
 
   (async () => {
+    syncAgencyToggle();
     initOrgTooltip();
     await loadStatic();
     try { await loadOrder(); } catch (e) {}   // slot table for demandFor() in all views
