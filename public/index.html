@@ -392,6 +392,14 @@
   .cmp-table .cmp-bn { font-weight:800; font-variant-numeric:tabular-nums; white-space:nowrap; }
   .cmp-us { background:#fff0f1; } .cmp-us .cmp-nm { color:var(--red); }
   .cmp-foot { margin-top:9px; font-size:11px; color:var(--muted); font-weight:600; }
+  .cmp-emh { margin:16px 0 6px; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.5px; color:var(--ink); border-top:1px solid var(--line); padding-top:12px; }
+  .cmp-em-row { display:flex; align-items:center; gap:9px; padding:5px 7px; border-radius:8px; cursor:pointer; font-size:12px; }
+  .cmp-em-row:hover { background:#fdeef0; }
+  .cmp-em-row .rr-no { font-weight:900; color:var(--red); min-width:38px; font-variant-numeric:tabular-nums; }
+  .cmp-em-tm { font-weight:900; min-width:38px; }
+  .cmp-em-nm { font-weight:800; min-width:110px; }
+  .cmp-em-meta { color:var(--muted); font-weight:600; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .cmp-em-val { font-weight:800; font-variant-numeric:tabular-nums; white-space:nowrap; }
   /* ── TV mode: wall-screen scale for the live board (per-device toggle) ── */
   body.tv .bcard { min-width:132px; }
   body.tv .bcard .bc-no { font-size:13px; }
@@ -784,6 +792,8 @@
   const normName = (s) => (s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"")
       .replace(/[.''`\-]/g," ").replace(SUFFIX,"").replace(/[^a-z\s]/g," ").replace(/\s+/g," ").trim();
   const teamAlias = (t) => (t === "OAK" ? "ATH" : t);
+  // "Etowah HS, Woodstock GA" -> "Etowah HS" — hometowns stay off tiles/chips/feed rows.
+  const schoolShort = (s) => (s||"").split(",")[0].trim();
   // abbrev -> MLBAM id (mirrors lib/teams.js) so we can pull official team logos from the MLB CDN
   const ABBR_TO_ID = { LAA:108,ARI:109,BAL:110,BOS:111,CHC:112,CIN:113,CLE:114,COL:115,DET:116,HOU:117,KC:118,LAD:119,WSH:120,NYM:121,ATH:133,PIT:134,SD:135,SEA:136,SF:137,STL:138,TB:139,TEX:140,TOR:141,MIN:142,PHI:143,ATL:144,CHW:145,MIA:146,NYY:147,MIL:158 };
   const teamLogo = (t, size=20) => { const id = ABBR_TO_ID[teamAlias(t)]; return id ? `<img class="tlogo" src="https://www.mlbstatic.com/team-logos/${id}.svg" alt="${t}" width="${size}" height="${size}" loading="lazy" onerror="this.style.display='none'">` : ""; };
@@ -897,7 +907,8 @@
         const amt = r.bonus_amount!=null ? r.bonus_amount : (typeof r.bonus==="number" ? r.bonus : null);
         if (amt==null || !r.player) continue;
         const k = normName(r.player);
-        const kind = String(r.bonus_status||r.bonus_kind||"rumored").toLowerCase()==="confirmed" ? "confirmed" : "rumored";
+        const raw = String(r.bonus_status||r.bonus_kind||"reported").toLowerCase();
+        const kind = raw==="confirmed" ? "confirmed" : (raw==="estimated" ? "estimated" : "reported");
         const cur = DATA.feedBonuses.get(k);
         const beats = !cur || (kind==="confirmed" && cur.kind!=="confirmed")
           || ((kind==="confirmed")===(cur.kind==="confirmed") && (r.date||"")>(cur.date||""));
@@ -937,7 +948,7 @@
   }
 
   // Actual bonus if known (mock engine, or live once signed); else a LOGGED bonus
-  // (war-room confirmed beats rumored); otherwise our model estimate, flagged est.
+  // (war-room confirmed beats reported/estimated); otherwise our model estimate, flagged est.
   function effectiveBonus(p) {
     if (!p.isDrafted) return { bonus:null, est:false };
     if (p.bonus != null) return { bonus:p.bonus, est:false };
@@ -959,7 +970,7 @@
     if (p.slot > 0) parts.push(`slot ${fmtM(p.slot)}`);
     if (eb.bonus != null) parts.push(fmtM(eb.bonus));
     let s = parts.join(" · ");
-    if (eb.bonus != null && p.slot > 0) s += " " + ouTag(eb.bonus - p.slot, eb.src==="rumored" ? "RUM" : eb.est);
+    if (eb.bonus != null && p.slot > 0) s += " " + ouTag(eb.bonus - p.slot, eb.src && eb.src!=="confirmed" ? eb.src.slice(0,3).toUpperCase() : eb.est);
     return s;
   }
 
@@ -1421,7 +1432,68 @@
           <td class="cmp-dr"><b>2026</b><br><span>TBD${comp.rank?` · ranked #${comp.rank}`:""}</span></td><td class="cmp-bn">—</td></tr>
         ${rowsH || `<tr><td colspan="7"><div class="placeholder">No comps found for this profile.</div></td></tr>`}
       </tbody></table>
-      <div class="cmp-foot">${curated?"Curated comps (SV deck)":"Auto comps — same level × position, drafted nearest his rank"}${avg!=null?` · comp bonuses ${fmtM(lo)}–${fmtM(hi)} · avg <b>${fmt$(Math.round(avg))}</b>`:""}</div>`;
+      <div class="cmp-foot">${curated?"Presented comps (already shared)":"Auto comps — same level × position, drafted nearest his rank"}${avg!=null?` · comp bonuses ${fmtM(lo)}–${fmtM(hi)} · avg <b>${fmt$(Math.round(avg))}</b>`:""}</div>
+      ${renderEmerging(state, c, comp)}`;
+  }
+
+  // Emerging context — weighs intel vs the CURRENT draft state, updating as picks are made:
+  // (1) how THIS draft is paying his archetype so far, (2) upcoming picks where he could land
+  // that we might not anticipate — live intel fits AND habit-based fits (team history + pool $).
+  function renderEmerging(state, c, comp) {
+    const lvl = comp.level==="HS" ? "HS" : "College", grp = comp.posGroup || posGroupOf(comp.pos);
+    const last = tcInitialName(c.name).split(" ").slice(-1)[0];
+    let h = "";
+    // (1) same-archetype signings in the current (live or mock) draft state
+    const em = state.picks.filter(p=>p.isDrafted && p.player).map(p=>{
+      const pc = DATA.compByName.get(normName(p.player)); return pc ? { p, pc } : null;
+    }).filter(Boolean).filter(x => (x.pc.level==="HS"?"HS":"College")===lvl && (x.pc.posGroup||posGroupOf(x.pc.pos))===grp);
+    h += `<div class="cmp-emh">Emerging comps — this draft <span class="exp-hint">${lvl} ${grp} taken so far</span></div>`;
+    if (!em.length) h += `<div class="placeholder">None of his archetype drafted yet.</div>`;
+    else {
+      const rowsE = em.slice(0,6).map(x=>{
+        const eb = effectiveBonus(x.p), known = eb.bonus!=null && (x.p.bonus!=null || eb.src);
+        const ou = known && x.p.slot>0 ? eb.bonus-x.p.slot : null;
+        return `<div class="cmp-em-row" onclick="openPlayer('${normName(x.p.player).replace(/'/g,"\\'")}')">
+          <span class="rr-no">#${x.p.overall}</span>${teamLogo(x.p.team,14)}<span class="cmp-em-tm">${x.p.team}</span>
+          <span class="cmp-em-nm">${x.p.player}</span><span class="cmp-em-meta">${[x.pc.pos, x.pc.agent, schoolShort(x.pc.school)].filter(Boolean).join(" · ")}</span>
+          <span class="cmp-em-val">${known?fmtM(eb.bonus)+(eb.src&&eb.src!=="confirmed"?` <span class="fr-src">${eb.src.slice(0,3)}</span>`:""):("slot "+(x.p.slot>0?fmtM(x.p.slot):"—"))}${ou!=null?` <span class="tg ${ou>50000?'over':ou<-50000?'under':'fit'}">${ou>50000?"+":""}${Math.abs(ou)>50000?fmtM(ou):"at slot"}</span>`:""}</span></div>`;
+      }).join("");
+      const paid = em.map(x=>effectiveBonus(x.p)).filter(e=>e.bonus!=null);
+      const slots = em.filter(x=>x.p.slot>0);
+      const mult = paid.length && slots.length ? (em.reduce((s,x)=>{const e=effectiveBonus(x.p);return s+((e.bonus!=null&&x.p.slot>0)?e.bonus/x.p.slot:0);},0) / em.filter(x=>effectiveBonus(x.p).bonus!=null&&x.p.slot>0).length) : null;
+      h += rowsE + `<div class="cmp-foot">${em.length} of his archetype gone${mult?` · paying <b>${mult.toFixed(2)}× slot</b> this draft`:""}</div>`;
+    }
+    // (2) emerging opportunities: upcoming picks in his talent window — live-intel fits plus
+    // habit fits (org history leans his profile AND the pool accommodates him) he might not expect
+    const dpk = state.picks.find(p=>p.isDrafted && normName(p.player||"")===c.key);
+    if (dpk) {
+      const deb = effectiveBonus(dpk);
+      return h + `<div class="cmp-emh">Emerging opportunities</div>
+        <div class="placeholder">${last} is off the board — drafted #${dpk.overall} by ${dpk.team}${deb.bonus!=null?` · ${fmtM(deb.bonus)}`:""}.</div>`;
+    }
+    const ops = [];
+    for (const p of state.picks) {
+      if (p.isDrafted) continue;
+      if (p.overall < comp.rank-7 || p.overall > comp.rank+45) continue;
+      const team = p.team, o = DATA.orgs[team] || {};
+      const intel = intelColorRank(c.key, team) <= 1 && tiInPlayAt(c.key, team, p.overall);
+      const lvlLean = lvl==="HS" ? (o.hsPct!=null && o.hsPct>=30) : (o.collegePct!=null && o.collegePct>=75);
+      const posLean = isPitcher(comp.pos) ? (o.earlyPitcherPct!=null && o.earlyPitcherPct>=55)
+                                          : (o.earlyPitcherPct!=null && o.earlyPitcherPct<=45);
+      const pool = state.poolsMap[team];
+      const money = pool ? pool.room >= negBonus(comp, p.slot, p.overall) : true;
+      const habit = lvlLean && posLean && money && tiInPlayAt(c.key, team, p.overall);
+      if (intel || habit) ops.push({ p, why: intel ? (habit?"intel + habit":"live intel") : "habit + $" });
+      if (ops.length >= 6) break;
+    }
+    h += `<div class="cmp-emh">Emerging opportunities — where ${last} could land <span class="exp-hint">live intel + team-habit fits in his window · click for the team card</span></div>`;
+    h += ops.length ? ops.map(x=>`<div class="cmp-em-row" onclick="expandPick(${x.p.overall})">
+        <span class="rr-no">#${x.p.overall}</span>${teamLogo(x.p.team,14)}<span class="cmp-em-tm">${x.p.team}</span>
+        <span class="cmp-em-nm">${x.p.slot>0?fmtM(x.p.slot):"—"}</span>
+        <span class="cmp-em-meta">${roundLabel(x.p.round)}</span>
+        <span class="cmp-em-val"><span class="tg ${x.why.includes("intel")?"over":"late"}">${x.why}</span></span></div>`).join("")
+      : `<div class="placeholder">No open picks in his window fit yet.</div>`;
+    return h;
   }
   // Readable text color for a filled intel-color card.
   function textOn(hex) {
@@ -1498,17 +1570,19 @@
       const onclock = state.onClock && state.onClock.overall === p.overall;
       let cardCls = `bcard ${ours?"sv":""} ${onclock?"oc":""}`, dotsHtml = "", body, cardStyle = "";
       if (p.isDrafted) {
-        // Selected player: name + pos · agency · school (school denotes level) + bonus when known.
+        // Selected player: one line per vital — position, school (denotes level), agency,
+        // bonus, slot diff. No hometown on tiles.
         body = (p.player||"—") + (ours?' <span class="svtag">SV</span>':"");
         const comp = DATA.compByName.get(normName(p.player||""));
-        const meta = [p.pos, comp?.agent, comp?.school || p.school].filter(Boolean).join(" · ");
         const eb = effectiveBonus(p);
-        let bonusHtml = "";
+        const lines = [p.pos, schoolShort(comp?.school || p.school), comp?.agent]
+          .filter(Boolean).map(v=>`<div class="bc-meta">${v}</div>`);
         if (eb.bonus!=null && (p.bonus!=null || eb.src)) {   // facts only on tiles — no model estimates
+          lines.push(`<div class="bc-bonus">${fmtM(eb.bonus)}${eb.src?` <span class="bc-src">${eb.src==="confirmed"?"✓":eb.src.slice(0,3)}</span>`:""}</div>`);
           const ou = p.slot>0 ? eb.bonus-p.slot : null;
-          bonusHtml = `<div class="bc-bonus">${fmtM(eb.bonus)}${eb.src?` <span class="bc-src">${eb.src==="confirmed"?"✓":"rum"}</span>`:""}${ou!=null?` <span class="tg ${ou>50000?'over':ou<-50000?'under':'fit'}">${ou>50000?"+":""}${Math.abs(ou)>50000?fmtM(ou):"at slot"}</span>`:""}</div>`;
+          if (ou!=null) lines.push(`<div class="bc-bonus"><span class="tg ${ou>50000?'over':ou<-50000?'under':'fit'}">${ou>50000?"+":""}${Math.abs(ou)>50000?fmtM(ou)+" vs slot":"at slot"}</span></div>`);
         }
-        dotsHtml = (meta?`<div class="bc-meta">${meta}</div>`:"") + bonusHtml;
+        dotsHtml = lines.join("");
       } else if (single) {
         // Full-color heat card for the one selected player — mirrors the sv-teamintel Draft Card:
         // a pick unchecked there (not in play) paints RED regardless of the team's intel color.
@@ -1554,16 +1628,16 @@
       let cls = "feed-row", who, sub;
       if (p.isDrafted) {
         who = p.player || "—";
-        sub = [p.pos, comp?.agent, comp?.school || p.school].filter(Boolean).join(" · ");
+        sub = [p.pos, comp?.agent, schoolShort(comp?.school || p.school)].filter(Boolean).join(" · ");
         if (ours) cls += " sv";
       } else if (onclock) { cls += " oc"; who = "On the clock"; sub = "● NOW"; }
       else { cls += " up"; who = "Upcoming"; sub = ""; }
       const onclick = p.isDrafted ? `openPlayer('${normName(p.player||"").replace(/'/g,"\\'")}')` : `expandPick(${p.overall})`;
-      // Drafted rows show the best-known money (official > confirmed > rumored > est) vs slot.
+      // Drafted rows show the best-known money (official > confirmed > reported/estimated > est) vs slot.
       let val = p.slot>0?fmtM(p.slot):"—";
       if (p.isDrafted) {
         const eb = effectiveBonus(p);
-        if (eb.bonus!=null && (p.bonus!=null || eb.src)) val = `${fmtM(eb.bonus)}${eb.src?` <span class="fr-src">${eb.src==="confirmed"?"✓":"rum"}</span>`:""}`;
+        if (eb.bonus!=null && (p.bonus!=null || eb.src)) val = `${fmtM(eb.bonus)}${eb.src?` <span class="fr-src">${eb.src==="confirmed"?"✓":eb.src.slice(0,3)}</span>`:""}`;
       }
       rows += `<div class="${cls}" onclick="${onclick}">
         <span class="fr-no">#${p.overall}</span><span class="fr-tm">${teamLogo(p.team,16)}${p.team||"—"}</span>
@@ -1654,8 +1728,8 @@
         if (!s.window) s.window = { lo: ev.window_lo, hi: ev.window_hi, date: ev.created_at };
       } else if (ev.kind==="offer") {
         s.offers.push({ team, type: ev.offer_type, amount: ev.amount, lo: ev.amount_lo, hi: ev.amount_hi, pick: ev.pick_overall, status: ev.status, date: ev.created_at });
-      } else if (ev.kind==="bonus") {                   // rumored/confirmed signing bonus (newest first)
-        s.bonuses.push({ team, kind: ev.offer_type||"rumored", amount: ev.amount, pick: ev.pick_overall, note: ev.note, date: ev.created_at });
+      } else if (ev.kind==="bonus") {                   // reported/confirmed/estimated signing bonus (newest first)
+        s.bonuses.push({ team, kind: ev.offer_type||"reported", amount: ev.amount, pick: ev.pick_overall, note: ev.note, date: ev.created_at });
       } else if (ev.kind==="medical") {                 // newest-first, so first seen wins
         if (s.medical===undefined) s.medical = ev.note || "unknown";
       } else if (ev.kind==="range") {
@@ -1737,7 +1811,7 @@
       else { ev.amount = parseFloat(val("afAmount"))||null; }
       ev.note = val("afNote")||null;
     } else if (k==="bonus") {
-      ev.offer_type = val("afBonusKind")||"rumored"; ev.amount = parseFloat(val("afAmount"))||null;
+      ev.offer_type = val("afBonusKind")||"reported"; ev.amount = parseFloat(val("afAmount"))||null;
       ev.pick_overall = parseInt(val("afPick"),10)||null; ev.note = val("afNote")||null;
     }
     armed = null; postIntel(ev);   // loadIntel() -> renderActive() refreshes the open card
@@ -2095,7 +2169,7 @@
     const k = armed.kind, labels = { interest_received:"Interest received", interest_sought:"Interest sought", strike_window:"Strike window", offer:"Offer", bonus:"Signing bonus" };
     let inner = "";
     if (k==="bonus") {
-      inner = `<label>Status <select id="afBonusKind"><option value="rumored">rumored</option><option value="confirmed">confirmed</option></select></label>
+      inner = `<label>Status <select id="afBonusKind"><option value="reported">reported</option><option value="confirmed">confirmed</option><option value="estimated">estimated</option></select></label>
         <span style="display:inline-flex;gap:4px;align-items:center">$<input id="afAmount" type="number" placeholder="amount" style="width:120px"></span>
         <label>pick #<input id="afPick" type="number" min="1" value="${pk?pk.overall:""}" style="width:64px"></label>
         <input id="afNote" placeholder="source / note (optional)">`;
@@ -2123,8 +2197,50 @@
   }
 
 
+  // Drafted NON-client → a vitals card: level, school, position(s), agency, slot, and a
+  // bonus-intel input (confirmed / reported / estimated). Clients keep the full detail view.
+  function renderDraftedVitals(state, c, pk) {
+    const comp = c.comp;
+    const displayName = pk.player || c.name;
+    const positions = [...new Set([pk.pos, comp?.pos].filter(Boolean).flatMap(s=>String(s).split(/[\/,]/).map(x=>x.trim())).filter(Boolean))].join(" / ");
+    const level = comp ? levelClass(comp).replace("College-","College ") : (pk.schoolClass || "—");
+    const eb = effectiveBonus(pk), lb = bonusFor(c.key);
+    let h = `<div class="cc"><div class="detail-head">${teamLogo(pk.team,32)}<span class="big">${displayName}</span>
+      <span class="pl">drafted #${pk.overall} · ${roundLabel(pk.round)} · ${pk.teamName||pk.team}</span></div>`;
+    h += `<div class="pool-row" style="margin-top:12px">${[
+      ["Level", level],
+      ["School", schoolShort(comp?.school || pk.school) || "—"],
+      [positions.includes("/") ? "Positions" : "Position", positions || "—"],
+      ["Agency", comp?.agent || "—"],
+      ["Pick slot", pk.slot>0?fmt$(pk.slot):"—"],
+      ["Bonus", eb.bonus!=null && (pk.bonus!=null||eb.src) ? fmt$(eb.bonus)+(eb.src?` (${eb.src})`:"") : "—"],
+    ].map(([k,v])=>`<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("")}</div></div>`;
+    const qn = displayName.replace(/'/g,"\\'");
+    h += `<div class="panel" style="margin-top:14px"><h3>Bonus intel</h3>
+      ${lb?`<div class="ct"><span style="color:#6b7280;font-weight:700">Logged:</span> <b>${fmt$(lb.amount)}</b> <span class="tg ${lb.kind==='confirmed'?'over':'fit'}">${lb.kind}</span>${pk.slot>0&&lb.amount!=null?` ${ouTag(lb.amount-pk.slot, lb.kind!=='confirmed'?lb.kind.slice(0,3).toUpperCase():false)}`:""}</div>`:""}
+      <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;font-size:13px;margin-top:6px">
+        $<input id="bvAmount" type="number" placeholder="amount" style="width:130px;padding:6px;border:1px solid var(--line);border-radius:6px">
+        <select id="bvKind" style="font:inherit;padding:6px;border:1px solid var(--line);border-radius:6px">
+          <option value="reported">reported</option><option value="confirmed">confirmed</option><option value="estimated">estimated</option></select>
+        <input id="bvNote" placeholder="source / note (optional)" style="flex:1;min-width:160px;padding:6px;border:1px solid var(--line);border-radius:6px">
+        <button class="ctl primary" onclick="saveBonusVital('${qn}','${pk.team}',${pk.overall})">Save</button>
+      </div></div>`;
+    $("detailBody").innerHTML = h;
+  }
+  window.saveBonusVital = (name, team, overall) => {
+    const amt = parseFloat($("bvAmount")?.value);
+    if (!Number.isFinite(amt) || amt<=0) { alert("Enter a bonus amount."); return; }
+    postIntel({ kind:"bonus", player_name:name, team, pick_overall:overall,
+      offer_type: $("bvKind")?.value || "reported", amount:amt, note: $("bvNote")?.value || null, status:"active" });
+  };
+
   function renderPlayerDetail(state) {
     const c = DATA.clientList.find(x => x.key===selected.id) || { name:selected.id, key:selected.id, comp:DATA.compByName.get(selected.id) };
+    // Drafted non-SV player → compact vitals + bonus-intel capture instead of the client view.
+    if (!DATA.clients.has(c.key)) {
+      const dpk = state.picks.find(p => p.isDrafted && normName(p.player)===c.key);
+      if (dpk) { renderDraftedVitals(state, c, dpk); return; }
+    }
     const comp = c.comp;
     const dem = demandFor(comp);
     const pk = state.picks.find(p => p.isDrafted && normName(p.player)===c.key);
