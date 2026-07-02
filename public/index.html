@@ -212,6 +212,11 @@
   .bcard .bc-team { font-weight:900; font-size:14px; line-height:1.1; display:flex; align-items:center; gap:4px; }
   .bcard .bc-slot { font-size:10px; color:var(--muted); }
   .bcard .bc-player { font-weight:700; font-size:11px; flex:1; margin-top:3px; line-height:1.3; }
+  /* drafted-tile advisory lines: pos · agency · school, then bonus when known */
+  .bcard .bc-meta { font-size:9px; color:var(--muted); font-weight:600; line-height:1.3; margin-top:1px; }
+  .bcard .bc-bonus { font-size:10px; font-weight:800; font-variant-numeric:tabular-nums; margin-top:2px; display:flex; align-items:center; gap:3px; flex-wrap:wrap; }
+  .bcard .bc-bonus .tg { font-size:8px; padding:0 4px; }
+  .bc-src { font-size:8px; font-weight:800; text-transform:uppercase; color:var(--muted); }
   .bcard .bc-ti { display:flex; flex-wrap:wrap; gap:2px; margin-top:auto; padding-top:3px; }
   .bcard .ti-pill { font-size:9px; font-weight:800; background:#f0f1f3; border-radius:3px; padding:1px 4px; color:#444; }
   .bcard .ti-Ap { background:#d4edda; color:#155724; }
@@ -394,6 +399,8 @@
   body.tv .bcard .bc-slot { font-size:14px; }
   body.tv .bcard .bc-player { font-size:15px; font-weight:800; }
   body.tv .bcard .bc-in { font-size:12px; }
+  body.tv .bcard .bc-meta { font-size:11px; }
+  body.tv .bcard .bc-bonus { font-size:13px; }
   body.tv .bcard .idot { width:14px; height:14px; }
   body.tv .bc-rnd { font-size:15px; }
   body.tv .feed-row .fr-no { font-size:13px; }
@@ -1491,7 +1498,17 @@
       const onclock = state.onClock && state.onClock.overall === p.overall;
       let cardCls = `bcard ${ours?"sv":""} ${onclock?"oc":""}`, dotsHtml = "", body, cardStyle = "";
       if (p.isDrafted) {
+        // Selected player: name + pos · agency · school (school denotes level) + bonus when known.
         body = (p.player||"—") + (ours?' <span class="svtag">SV</span>':"");
+        const comp = DATA.compByName.get(normName(p.player||""));
+        const meta = [p.pos, comp?.agent, comp?.school || p.school].filter(Boolean).join(" · ");
+        const eb = effectiveBonus(p);
+        let bonusHtml = "";
+        if (eb.bonus!=null && (p.bonus!=null || eb.src)) {   // facts only on tiles — no model estimates
+          const ou = p.slot>0 ? eb.bonus-p.slot : null;
+          bonusHtml = `<div class="bc-bonus">${fmtM(eb.bonus)}${eb.src?` <span class="bc-src">${eb.src==="confirmed"?"✓":"rum"}</span>`:""}${ou!=null?` <span class="tg ${ou>50000?'over':ou<-50000?'under':'fit'}">${ou>50000?"+":""}${Math.abs(ou)>50000?fmtM(ou):"at slot"}</span>`:""}</div>`;
+        }
+        dotsHtml = (meta?`<div class="bc-meta">${meta}</div>`:"") + bonusHtml;
       } else if (single) {
         // Full-color heat card for the one selected player — mirrors the sv-teamintel Draft Card:
         // a pick unchecked there (not in play) paints RED regardless of the team's intel color.
