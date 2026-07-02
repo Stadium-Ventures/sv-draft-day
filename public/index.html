@@ -296,11 +296,11 @@
   .pub-chip { font-size:12px; font-weight:600; background:#f1f3f5; border-radius:999px; padding:3px 10px; color:#374151; }
   .pub-chip .pub-rk { color:var(--muted); font-weight:700; }
 
-  /* ── Board team-card modal ── */
-  .tc-backdrop { display:none; position:fixed; inset:0; z-index:90; background:rgba(0,0,0,.42); padding:24px; overflow-y:auto; }
-  .tc-backdrop.on { display:flex; align-items:flex-start; justify-content:center; }
-  .tc-card { background:var(--card); border-radius:16px; width:100%; max-width:1180px; margin:auto; box-shadow:0 24px 70px rgba(0,0,0,.3); display:flex; flex-direction:column; overflow:hidden; }
-  .tc-top { display:flex; align-items:center; gap:12px; padding:16px 22px; border-bottom:1px solid var(--line); }
+  /* ── Board team-card modal — horizontal, fills the screen, no card scrolling ── */
+  .tc-backdrop { display:none; position:fixed; inset:0; z-index:90; background:rgba(0,0,0,.42); padding:24px; }
+  .tc-backdrop.on { display:flex; align-items:stretch; justify-content:center; }
+  .tc-card { background:var(--card); border-radius:16px; width:100%; height:calc(100vh - 48px); box-shadow:0 24px 70px rgba(0,0,0,.3); display:flex; flex-direction:column; overflow:hidden; }
+  .tc-top { display:flex; align-items:center; gap:12px; padding:13px 22px; border-bottom:1px solid var(--line); flex:0 0 auto; }
   .tc-top .tc-ttl { font-size:15px; font-weight:900; letter-spacing:.3px; text-transform:uppercase; color:var(--ink); }
   .tc-top .tc-abbr { font-weight:900; background:var(--ink); color:#fff; border-radius:7px; padding:3px 8px; font-size:12px; letter-spacing:.5px; }
   .tlogo { vertical-align:middle; object-fit:contain; }
@@ -310,22 +310,23 @@
   .tc-top .tc-round { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); }
   .tc-x { margin-left:auto; border:none; background:none; font-size:22px; line-height:1; cursor:pointer; color:var(--muted); padding:2px 6px; }
   .tc-x:hover { color:var(--ink); }
-  .tc-stats { display:flex; flex-wrap:wrap; gap:2px 0; padding:14px 22px; border-bottom:1px solid var(--line); }
+  .tc-band { display:flex; align-items:center; gap:16px; padding:10px 22px; border-bottom:1px solid var(--line); flex:0 0 auto; }
+  .tc-band .tc-stats { flex:1 1 auto; border-bottom:none; padding:0; }
+  .tc-stats { display:flex; flex-wrap:wrap; gap:2px 0; }
   .tc-stat { flex:1 1 130px; min-width:120px; padding:2px 14px; border-left:1px solid var(--line); }
   .tc-stat:first-child { border-left:none; padding-left:0; }
   .tc-stat .k { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); }
   .tc-stat .v { font-size:18px; font-weight:900; font-variant-numeric:tabular-nums; margin-top:2px; }
   .tc-stat .v.big { color:var(--red); font-size:22px; }
   .tc-stat .sub { font-size:10px; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.3px; }
-  .tc-sec-lbl { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); padding:14px 22px 8px; }
-  .tc-selrow { padding:0 22px 14px; }
+  .tc-selrow { flex:0 0 auto; }
   .tc-inplay { font-size:8px; font-weight:800; color:var(--good); border:1px solid var(--good); border-radius:3px; padding:0 3px; margin-left:5px; letter-spacing:.3px; vertical-align:middle; }
   .tc-cdot { width:10px; height:10px; border-radius:50%; flex-shrink:0; display:inline-block; }
   .tc-pdrop .pdrop-btn { padding:8px 14px; min-width:280px; }
   .tc-pdrop .pdrop-menu { min-width:340px; max-height:300px; }
   .tc-pdrop .pdrop-item .pi-nm { display:flex; align-items:center; }
-  .tc-panels { display:grid; grid-template-columns:1fr 1fr; gap:14px; padding:0 22px 18px; }
-  .tc-panel { border:1px solid var(--line); border-radius:12px; padding:15px 16px; }
+  .tc-panels { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:14px; padding:14px 22px; flex:1 1 auto; min-height:0; }
+  .tc-panel { border:1px solid var(--line); border-radius:12px; padding:15px 16px; overflow-y:auto; min-height:0; }
   .tc-panel h4 { margin:0 0 12px; font-size:12px; font-weight:900; text-transform:uppercase; letter-spacing:.5px; color:var(--ink); display:flex; align-items:center; gap:8px; }
   .tc-panel h4 .n { color:var(--muted); font-weight:900; }
   .tc-intel-grid { display:grid; grid-template-columns:auto 1fr; gap:14px; }
@@ -400,6 +401,9 @@
   .cmp-em-nm { font-weight:800; min-width:110px; }
   .cmp-em-meta { color:var(--muted); font-weight:600; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .cmp-em-val { font-weight:800; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .cmp-pop { background:#fff0f1; }
+  .cmp-popbadge { color:var(--red); font-size:9px; font-weight:800; border:1px solid var(--red); border-radius:3px; padding:0 4px; vertical-align:middle; }
+  .cmp-popnote { font-size:11px; font-weight:700; color:var(--red); margin:2px 0 5px; }
   /* ── TV mode: wall-screen scale for the live board (per-device toggle) ── */
   body.tv .bcard { min-width:132px; }
   body.tv .bcard .bc-no { font-size:13px; }
@@ -421,6 +425,13 @@
   .tc-foot .tc-qa { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); margin-right:4px; }
   .tc-foot .spacer { margin-left:auto; }
   .tc-onpace { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.3px; color:var(--muted); }
+  /* narrower screens: card reverts to a scrolling column (2×2, then 1-col) */
+  @media (max-width:1100px){
+    .tc-card { height:auto; max-height:calc(100vh - 48px); overflow-y:auto; }
+    .tc-panels { grid-template-columns:1fr 1fr; flex:none; }
+    .tc-panel { overflow-y:visible; }
+    .tc-band { flex-wrap:wrap; }
+  }
   @media (max-width:820px){ .tc-panels { grid-template-columns:1fr; } .tc-stat { flex-basis:45%; } }
 
   /* ── Board: heat layout (left rail + heat-colored master grid) ── */
@@ -582,7 +593,7 @@
              "if this team comes with interest, what should we look at for X?" at any juncture. -->
         <div id="mockOps" style="display:none">
           <div class="mock-mod">
-            <div class="mock-mod-h">Recent draft comparisons <span class="exp-hint">baseball comps per client — drafted slot &amp; bonus facts from the slot tracker</span></div>
+            <div class="mock-mod-h" onclick="toggleComps()" style="cursor:pointer"><span id="compsChev">▾</span> Recent draft comparisons <span class="exp-hint">presented comps + historical precedent in the live context — click to collapse</span></div>
             <div id="compsSel" class="cmp-sel"></div>
             <div id="compsBody"></div>
           </div>
@@ -1387,6 +1398,8 @@
     "bo lowrance":   ["Colson Montgomery","PJ Morlando","Brett Baty","Xavier Neyens"],
   };
   let compsSel = null;   // client key shown in the comps module
+  let compsOpen = true; try { compsOpen = localStorage.getItem("dd:compsOpen") !== "0"; } catch (e) {}
+  window.toggleComps = () => { compsOpen = !compsOpen; try { localStorage.setItem("dd:compsOpen", compsOpen?"1":"0"); } catch (e) {} renderComps(currentState); };
   window.setComps = (k, e) => { if (e) e.stopPropagation(); compsSel = k; renderComps(currentState); };
   const compAge = (born, year) => {   // age on draft day (~Jul 14) from the CSV's m/d/yyyy borndate
     const t = Date.parse(born); if (!Number.isFinite(t)) return null;
@@ -1405,6 +1418,9 @@
   }
   function renderComps(state) {
     const selEl = $("compsSel"), bodyEl = $("compsBody"); if (!selEl || !bodyEl || !state) return;
+    const chev = $("compsChev"); if (chev) chev.textContent = compsOpen ? "▾" : "▸";
+    selEl.style.display = compsOpen ? "" : "none"; bodyEl.style.display = compsOpen ? "" : "none";
+    if (!compsOpen) return;
     const clients = DATA.clientList.filter(c=>c.comp)
       .sort((a,b)=> ((DRAFT_COMPS[b.key]?1:0)-(DRAFT_COMPS[a.key]?1:0)) || a.comp.rank-b.comp.rank);
     if (!clients.length) { bodyEl.innerHTML = `<div class="placeholder">No clients loaded.</div>`; return; }
@@ -1436,43 +1452,39 @@
       ${renderEmerging(state, c, comp)}`;
   }
 
-  // Emerging context — weighs intel vs the CURRENT draft state, updating as picks are made:
-  // (1) how THIS draft is paying his archetype so far, (2) upcoming picks where he could land
-  // that we might not anticipate — live intel fits AND habit-based fits (team history + pool $).
+  // Historical precedent search over the FULL 2018-25 slot-tracker database: same-profile
+  // signings scored against a live context lens (pick band, $ band, team) — recency breaks ties.
+  function precedentRows(comp, ctx) {
+    const lvl = comp.level==="HS" ? "HS" : "College", grp = comp.posGroup || posGroupOf(comp.pos);
+    const rows = DATA.slotHistory.filter(r => r.bonus!=null && r.level===lvl && r.group===grp);
+    const score = (r) => {
+      let s = 0;
+      if (ctx.pickLo!=null) s += (r.overall>=ctx.pickLo && r.overall<=ctx.pickHi) ? 0
+        : Math.min(Math.abs(r.overall-ctx.pickLo), Math.abs(r.overall-ctx.pickHi));
+      if (ctx.amtLo!=null) { const m=(ctx.amtLo+ctx.amtHi)/2;
+        s += (r.bonus>=ctx.amtLo && r.bonus<=ctx.amtHi) ? 0 : Math.abs(r.bonus-m)/m*30; }
+      if (ctx.teamName && r.team===ctx.teamName) s -= 25;   // same-team precedent is gold
+      return s;
+    };
+    return rows.map(r=>({r, s:score(r)})).sort((a,b)=> a.s-b.s || b.r.year-a.r.year)
+      .slice(0,5).map(x=>x.r);
+  }
+
+  // Emerging context — as the draft develops, what's the reasonable HISTORICAL precedent for
+  // this client given the live situation: logged offers, his strike window, prospective team
+  // fits. Presented comps are highlighted when they "pop" into the current context.
   function renderEmerging(state, c, comp) {
     const lvl = comp.level==="HS" ? "HS" : "College", grp = comp.posGroup || posGroupOf(comp.pos);
     const last = tcInitialName(c.name).split(" ").slice(-1)[0];
+    const presented = new Set((DRAFT_COMPS[c.key]||[]).map(normName));
+    const teamNameOf = (ab) => (state.picks.find(p=>p.team===ab)||{}).teamName || null;
+    const cap = intelFor(c.key);
     let h = "";
-    // (1) same-archetype signings in the current (live or mock) draft state
-    const em = state.picks.filter(p=>p.isDrafted && p.player).map(p=>{
-      const pc = DATA.compByName.get(normName(p.player)); return pc ? { p, pc } : null;
-    }).filter(Boolean).filter(x => (x.pc.level==="HS"?"HS":"College")===lvl && (x.pc.posGroup||posGroupOf(x.pc.pos))===grp);
-    h += `<div class="cmp-emh">Emerging comps — this draft <span class="exp-hint">${lvl} ${grp} taken so far</span></div>`;
-    if (!em.length) h += `<div class="placeholder">None of his archetype drafted yet.</div>`;
-    else {
-      const rowsE = em.slice(0,6).map(x=>{
-        const eb = effectiveBonus(x.p), known = eb.bonus!=null && (x.p.bonus!=null || eb.src);
-        const ou = known && x.p.slot>0 ? eb.bonus-x.p.slot : null;
-        return `<div class="cmp-em-row" onclick="openPlayer('${normName(x.p.player).replace(/'/g,"\\'")}')">
-          <span class="rr-no">#${x.p.overall}</span>${teamLogo(x.p.team,14)}<span class="cmp-em-tm">${x.p.team}</span>
-          <span class="cmp-em-nm">${x.p.player}</span><span class="cmp-em-meta">${[x.pc.pos, x.pc.agent, schoolShort(x.pc.school)].filter(Boolean).join(" · ")}</span>
-          <span class="cmp-em-val">${known?fmtM(eb.bonus)+(eb.src&&eb.src!=="confirmed"?` <span class="fr-src">${eb.src.slice(0,3)}</span>`:""):("slot "+(x.p.slot>0?fmtM(x.p.slot):"—"))}${ou!=null?` <span class="tg ${ou>50000?'over':ou<-50000?'under':'fit'}">${ou>50000?"+":""}${Math.abs(ou)>50000?fmtM(ou):"at slot"}</span>`:""}</span></div>`;
-      }).join("");
-      const paid = em.map(x=>effectiveBonus(x.p)).filter(e=>e.bonus!=null);
-      const slots = em.filter(x=>x.p.slot>0);
-      const mult = paid.length && slots.length ? (em.reduce((s,x)=>{const e=effectiveBonus(x.p);return s+((e.bonus!=null&&x.p.slot>0)?e.bonus/x.p.slot:0);},0) / em.filter(x=>effectiveBonus(x.p).bonus!=null&&x.p.slot>0).length) : null;
-      h += rowsE + `<div class="cmp-foot">${em.length} of his archetype gone${mult?` · paying <b>${mult.toFixed(2)}× slot</b> this draft`:""}</div>`;
-    }
-    // (2) emerging opportunities: upcoming picks in his talent window — live-intel fits plus
-    // habit fits (org history leans his profile AND the pool accommodates him) he might not expect
+
+    // Upcoming opportunities in his talent window (also feeds the fit lens below).
     const dpk = state.picks.find(p=>p.isDrafted && normName(p.player||"")===c.key);
-    if (dpk) {
-      const deb = effectiveBonus(dpk);
-      return h + `<div class="cmp-emh">Emerging opportunities</div>
-        <div class="placeholder">${last} is off the board — drafted #${dpk.overall} by ${dpk.team}${deb.bonus!=null?` · ${fmtM(deb.bonus)}`:""}.</div>`;
-    }
     const ops = [];
-    for (const p of state.picks) {
+    if (!dpk) for (const p of state.picks) {
       if (p.isDrafted) continue;
       if (p.overall < comp.rank-7 || p.overall > comp.rank+45) continue;
       const team = p.team, o = DATA.orgs[team] || {};
@@ -1483,9 +1495,56 @@
       const pool = state.poolsMap[team];
       const money = pool ? pool.room >= negBonus(comp, p.slot, p.overall) : true;
       const habit = lvlLean && posLean && money && tiInPlayAt(c.key, team, p.overall);
-      if (intel || habit) ops.push({ p, why: intel ? (habit?"intel + habit":"live intel") : "habit + $" });
+      if (intel || habit) ops.push({ p, intel, why: intel ? (habit?"intel + habit":"live intel") : "habit + $" });
       if (ops.length >= 6) break;
     }
+
+    // Assemble context lenses (priority: drafted > offers > window > fits > rank fallback).
+    const contexts = [];
+    if (dpk) {
+      contexts.push({ title:`Drafted lens · #${dpk.overall} ${dpk.team}`,
+        ctx:{ pickLo:Math.max(1,dpk.overall-8), pickHi:dpk.overall+8, teamName:dpk.teamName||teamNameOf(dpk.team) } });
+    } else {
+      for (const o of (cap?.offers||[]).slice(0,2)) {
+        const loA = o.lo!=null ? o.lo : (o.amount!=null ? o.amount*0.8 : null);
+        const hiA = o.hi!=null ? o.hi : (o.amount!=null ? o.amount*1.2 : null);
+        if (loA==null) continue;
+        contexts.push({ title:`Offer lens · ${o.team||"?"} · ${o.amount!=null?fmtM(o.amount):`${fmtM(o.lo)}–${fmtM(o.hi)}`}`,
+          ctx:{ amtLo:loA, amtHi:hiA, teamName:teamNameOf(o.team) } });
+      }
+      const win = cap?.window || RANGES[c.key];
+      if (win && (win.lo || win.hi)) {
+        const wl = win.lo||1, wh = win.hi||(win.lo+20);
+        contexts.push({ title:`Range lens · #${wl}–#${wh}`, ctx:{ pickLo:wl, pickHi:wh } });
+      }
+      for (const x of ops.filter(o=>o.intel).slice(0, 2 - Math.min(1, contexts.length))) {
+        contexts.push({ title:`Fit lens · ${x.p.team} at #${x.p.overall}`,
+          ctx:{ pickLo:Math.max(1,x.p.overall-8), pickHi:x.p.overall+8, teamName:x.p.teamName||teamNameOf(x.p.team) } });
+      }
+    }
+    if (!contexts.length) contexts.push({ title:`Rank lens · around #${comp.rank}`,
+      ctx:{ pickLo:Math.max(1,comp.rank-10), pickHi:comp.rank+10 } });
+
+    // Render precedent blocks — pop-highlight presented comps that surface naturally.
+    for (const blk of contexts.slice(0,3)) {
+      const rows = precedentRows(comp, blk.ctx);
+      const pops = rows.filter(r=>presented.has(normName(r.full || (r.first+" "+r.last))));
+      h += `<div class="cmp-emh">Historical precedent — ${blk.title}</div>`;
+      if (pops.length) h += `<div class="cmp-popnote">★ Presented comp pops here: <b>${pops.map(r=>r.full||(r.first+" "+r.last)).join(", ")}</b></div>`;
+      h += rows.length ? rows.map(r=>{
+        const pop = presented.has(normName(r.full || (r.first+" "+r.last)));
+        return `<div class="cmp-em-row ${pop?'cmp-pop':''}">
+          <span class="rr-no">'${String(r.year).slice(2)}</span>
+          <span class="cmp-em-nm">${r.full||(r.first+" "+r.last)}${pop?' <span class="cmp-popbadge">★ presented</span>':''}</span>
+          <span class="cmp-em-meta">${r.pos} · #${r.overall} · ${r.team}</span>
+          <span class="cmp-em-val">${fmt$(r.bonus)}${r.diff!=null?` <span class="tg ${r.diff>0?'over':r.diff<0?'under':'fit'}">${r.diff>0?"+":""}${fmtM(r.diff)} vs slot</span>`:""}</span></div>`;
+      }).join("") : `<div class="placeholder">No same-profile precedent in this context.</div>`;
+    }
+    if (dpk) {
+      const deb = effectiveBonus(dpk);
+      return h + `<div class="cmp-foot">${last} drafted #${dpk.overall} by ${dpk.team}${deb.bonus!=null?` · ${fmtM(deb.bonus)}`:""} — precedent above frames the signing conversation.</div>`;
+    }
+
     h += `<div class="cmp-emh">Emerging opportunities — where ${last} could land <span class="exp-hint">live intel + team-habit fits in his window · click for the team card</span></div>`;
     h += ops.length ? ops.map(x=>`<div class="cmp-em-row" onclick="expandPick(${x.p.overall})">
         <span class="rr-no">#${x.p.overall}</span>${teamLogo(x.p.team,14)}<span class="cmp-em-tm">${x.p.team}</span>
@@ -1912,9 +1971,8 @@
       ["Team spent", pool?fmt$(pool.poolCharge)+(pool.hasEst?" est":""):"—", "spent to date"],
       ["Over / under", pool?fmtOU(pool.overUnder):"—", "vs slot"],
     ];
-    h += `<div class="tc-stats">${stats.map(([k,v,sub])=>`<div class="tc-stat"><div class="k">${k}</div><div class="v">${v}</div>${sub?`<div class="sub">${sub}</div>`:""}</div>`).join("")}</div>`;
-
-    h += `<div class="tc-sec-lbl">Evaluate ${team} <span class="exp-hint">team profile by default — pick one of our clients to go player-specific</span></div>`;
+    // stats + player selector share one horizontal band (card fills the screen, no scrolling)
+    let selHtml;
     if (roster.length) {
       const teamItem = `<div class="pdrop-item ${!sel?'on':''}" onclick="selectEval('',event)">
           <span class="tc-cdot" style="background:var(--ink)"></span>
@@ -1926,7 +1984,7 @@
           <span class="pi-nm">${x.c.name}${x.inPlay?'<span class="tc-inplay">IN PLAY</span>':''}</span>
           <span class="pi-rk">#${x.c.comp.rank} ${x.c.comp.pos}</span></div>`;
       }).join("");
-      h += `<div class="tc-selrow"><div class="pdrop tc-pdrop">
+      selHtml = `<div class="tc-selrow"><div class="pdrop tc-pdrop">
           <button class="pdrop-btn" onclick="toggleTcMenu(event)">
             <span class="tc-cdot" style="background:${sel?intelColorHex(sel.c.key, team):'var(--ink)'}"></span>
             <span class="pdrop-txt"><span class="pdrop-t">Player to evaluate</span><span class="pdrop-v ${sel?'sel':''}">${sel?sel.c.name:'Team overview'}${sel&&sel.inPlay?'<span class="tc-inplay">IN PLAY</span>':''}</span></span>
@@ -1934,8 +1992,9 @@
           <div class="pdrop-menu" style="display:${tcMenuOpen?'block':'none'}">${teamItem}${items}</div>
         </div></div>`;
     } else {
-      h += `<div class="tc-selrow"><div class="placeholder">No undrafted clients on file.</div></div>`;
+      selHtml = `<div class="tc-selrow"><div class="placeholder">No undrafted clients on file.</div></div>`;
     }
+    h += `<div class="tc-band"><div class="tc-stats">${stats.map(([k,v,sub])=>`<div class="tc-stat"><div class="k">${k}</div><div class="v">${v}</div>${sub?`<div class="sub">${sub}</div>`:""}</div>`).join("")}</div>${selHtml}</div>`;
 
     h += `<div class="tc-panels">
       ${sel ? renderTcIntel(state, team, pk, sel) : renderTcMatrix(state, team, o, roster)}
