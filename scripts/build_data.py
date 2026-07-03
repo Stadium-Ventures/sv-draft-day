@@ -165,6 +165,13 @@ def build_composite():
             "espn": _src_rank(r.get("ESPN_Rank")),
             "pbr": _src_rank(r.get("PBR_Rank")),
             "ath": _src_rank(latest(ath_ranks.get(key))),
+            # vitals (Jul 2026 feed additions): bats R/L/B, throws R/L, "6-2"/"203",
+            # college commitment (HS kids — the draft-day signability lever)
+            "bats": (r.get("Bats") or "").strip().upper() or None,
+            "throws": (r.get("Throws") or "").strip().upper() or None,
+            "ht": (str(r.get("Height") or "")).strip() or None,
+            "wt": (str(r.get("Weight") or "")).strip() or None,
+            "commit": (r.get("Commit") or "").strip() or None,
         }
         # composite rank across ranking editions (aligned to meta.json's histDates)
         if hp and any(v is not None for v in hp["rw"]):
