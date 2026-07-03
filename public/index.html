@@ -1,7 +1,12 @@
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>SV Draft Day</title>
 <link rel="icon" href="/favicon.svg" />
+<link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials" />
+<meta name="theme-color" content="#ff2a22" />
+<link rel="apple-touch-icon" href="/icons/icon-180.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <style>
   @font-face { font-family:'Satoshi'; src:url('/fonts/Satoshi-Regular.otf') format('opentype'); font-weight:400; font-display:swap; }
   @font-face { font-family:'Satoshi'; src:url('/fonts/Satoshi-Medium.otf') format('opentype'); font-weight:500; font-display:swap; }
@@ -550,6 +555,108 @@
   /* heat-colored picks (bg set inline) */
   .brow.heat .who { color:var(--ink); } .bcard.heat .bc-player { font-size:13px; font-weight:800; }
   .heat-pct { font-weight:800; font-variant-numeric:tabular-nums; }
+
+  /* ════ MOBILE COMPANION (body.mob = ≤640px, JS-synced) — stacked PWA layout.
+     Every rule keys off body.mob so desktop and TV mode are pixel-untouched. ════ */
+  /* shell: compact header, desktop tabs replaced by a fixed bottom bar */
+  #mtabs { display:none; }
+  body.mob header { gap:8px; padding:8px 10px; }
+  body.mob header .title { display:none; }
+  body.mob header .badge { font-size:10px; padding:2px 8px; white-space:nowrap; }
+  body.mob .tabs { display:none; }
+  body.mob .bar, body.mob .prebanner { position:static; }
+  body.mob main, body.mob main.wide { padding:12px 10px calc(74px + env(safe-area-inset-bottom)); }
+  body.mob #mtabs { display:flex; position:fixed; left:0; right:0; bottom:0; z-index:70;
+    background:#fff; border-top:1px solid var(--line); padding:5px 4px calc(5px + env(safe-area-inset-bottom)); }
+  #mtabs button { flex:1; border:0; background:none; font:inherit; font-weight:800; font-size:10px;
+    text-transform:uppercase; letter-spacing:.3px; color:var(--muted);
+    display:flex; flex-direction:column; align-items:center; gap:2px; padding:4px 0 2px; cursor:pointer; }
+  #mtabs button .mi { font-size:17px; line-height:1; }
+  #mtabs button.on { color:var(--red); }
+  body.mob #ticker { bottom:calc(56px + env(safe-area-inset-bottom)); }
+
+  /* board: every pick a screen-width tile — the board IS the list on a phone.
+     Children keep their desktop classes; we re-place them on a 3-col grid
+     (pick#/team | player + advisory lines | slot $) with dots wrapping full-width. */
+  body.mob .bcard { width:100%; min-height:0; padding:8px 12px;
+    display:grid; grid-template-columns:52px minmax(0,1fr) auto; column-gap:10px; align-items:center; }
+  body.mob .bcard .bc-no { grid-column:1; grid-row:1; font-size:11px; }
+  body.mob .bcard .bc-team { grid-column:1; grid-row:2; font-size:13px; }
+  body.mob .bcard .bc-slot { grid-column:3; grid-row:1; font-size:11px; text-align:right; }
+  body.mob .bcard .bc-player { grid-column:2; grid-row:1; margin-top:0; font-size:13px; }
+  body.mob .bcard .bc-meta { grid-column:2; font-size:11px; margin-top:0; }
+  body.mob .bcard .bc-bonus { grid-column:2 / -1; margin-top:0; }
+  body.mob .bcard .bc-dots, body.mob .bcard .bc-heatlab, body.mob .bcard .bc-lens, body.mob .bcard .bc-ti {
+    grid-column:1 / -1; margin-top:0; padding-top:6px; }
+  body.mob .bc-dots { display:flex; flex-wrap:wrap; gap:4px 14px; }
+  body.mob .bc-pd { font-size:12px; }
+  body.mob .bc-pd .idot { width:11px; height:11px; }
+  body.mob .bc-more { font-size:10px; }
+  body.mob .bc-rnd { position:sticky; top:44px; z-index:3; background:var(--bg); padding:6px 2px; margin:6px 0 2px; }
+  /* the side feed is redundant when the board itself is the list */
+  body.mob .board-split { display:block; }
+  body.mob .board-feed { display:none; }
+  /* toolbar: one swipeable row; TV toggle and the jump button (pill replaces it) hidden */
+  body.mob #viewBoard .ba-filters { flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:4px; }
+  body.mob #viewBoard .ba-filters label, body.mob #viewBoard .ba-filters .count { white-space:nowrap; }
+  body.mob #tvCtl, body.mob #viewBoard .ba-filters > button.ctl { display:none; }
+  #mJump { display:none; }
+  body.mob #mJump { display:inline-flex; position:fixed; right:12px; bottom:calc(66px + env(safe-area-inset-bottom)); z-index:60;
+    align-items:center; gap:5px; background:var(--red); color:#fff; border:0; border-radius:999px;
+    padding:10px 15px; font:inherit; font-weight:800; font-size:13px; box-shadow:0 4px 14px rgba(0,0,0,.22); }
+
+  /* team card: full-bleed sheet, modules stacked + collapsible (tap the numbered header).
+     Collapse rules are scoped to #teamCard — the player dossier reuses .tc-panel/.tc-foot. */
+  body.mob .tc-backdrop { padding:0; }
+  body.mob .tc-card { height:100dvh; max-height:100dvh; border-radius:0; overflow-y:auto; overscroll-behavior:contain; }
+  body.mob .tc-top { position:sticky; top:0; background:var(--card); z-index:4; flex-wrap:wrap; gap:8px; padding:9px 12px; }
+  body.mob .tc-top .tc-ttl { font-size:13px; }
+  body.mob .tc-nav { position:static; transform:none; order:5; flex-basis:100%; justify-content:center; gap:14px; }
+  body.mob .tc-nav-btn { width:44px; height:38px; font-size:19px; }
+  body.mob .tc-nav-menu { max-height:50dvh; overflow-y:auto; }
+  body.mob .tc-x { font-size:26px; padding:2px 10px; }
+  body.mob .tc-band { flex-wrap:wrap; gap:8px; padding:8px 12px; }
+  body.mob .tc-selrow { flex-basis:100%; }
+  body.mob .tc-pdrop .pdrop-btn { width:100%; min-width:0; }
+  body.mob .tc-pdrop .pdrop-menu { min-width:0; width:100%; }
+  /* stat tiles: one swipeable strip (also covers the player dossier's .pp-stats) */
+  body.mob .tc-stats { flex:1 1 100%; flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; gap:0 16px; padding-bottom:3px; }
+  body.mob .tc-stat { flex:0 0 auto; }
+  body.mob .tc-band .tc-selrow + .tc-stats .tc-stat:first-child { border-left:none; padding-left:0; }
+  body.mob .tc-panels { display:flex; flex-direction:column; gap:10px; padding:10px 12px; flex:none; }
+  body.mob .tc-panel { overflow-y:visible; }
+  body.mob #teamCard .tc-panel[data-q] > h4 { cursor:pointer; }
+  body.mob #teamCard .tc-panel[data-q] > h4::after { content:"▾"; margin-left:auto; color:var(--muted); font-size:14px; }
+  body.mob #teamCard .tc-panel.collapsed > h4 { margin-bottom:0; }
+  body.mob #teamCard .tc-panel.collapsed > h4::after { content:"▸"; }
+  body.mob #teamCard .tc-panel.collapsed { padding:12px 16px; }
+  body.mob #teamCard .tc-panel.collapsed > *:not(h4) { display:none; }
+  body.mob #teamCard .tc-foot { position:sticky; bottom:0; z-index:4; padding:10px 12px calc(10px + env(safe-area-inset-bottom)); }
+  body.mob #teamCard .tc-foot .spacer { display:none; }
+  /* armed intel-capture form: fixed sheet above the sticky foot so it's visible the
+     instant a quick action is tapped (innerHTML rebuilds reset the card's scroll) */
+  body.mob #tcArmed:not(:empty) { position:fixed; left:0; right:0; bottom:0; z-index:96; background:#fff;
+    box-shadow:0 -10px 34px rgba(0,0,0,.24); max-height:70dvh; overflow-y:auto;
+    padding-bottom:env(safe-area-inset-bottom); }
+  /* wide tables inside panels scroll sideways instead of stretching the sheet */
+  body.mob .tc-panel { min-width:0; }
+  body.mob .tc-panel table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+
+  /* our clients roster: trim to # / Player / Interest / Status — School/Age/Range already
+     drop via hide-sm; Pos(3), Lvl(4) and Money(10) go too (nth-child counts hidden cells) */
+  body.mob table.cl-table th:nth-child(3), body.mob table.cl-table td:nth-child(3),
+  body.mob table.cl-table th:nth-child(4), body.mob table.cl-table td:nth-child(4),
+  body.mob table.cl-table th:nth-child(10), body.mob table.cl-table td:nth-child(10) { display:none; }
+  body.mob table.ba th, body.mob table.ba td { padding:8px 6px; font-size:13px; }
+  body.mob .summary { display:grid; grid-template-columns:1fr 1fr; gap:10px 14px; }
+  body.mob .summary .v { font-size:20px; }
+  /* other roster-style tables (Best Available, Pools) scroll sideways rather than squeeze */
+  body.mob .view table.ba:not(.cl-table) { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  /* player dossier + detail pages */
+  body.mob #viewDetail .backbtn { position:sticky; top:45px; z-index:5; width:100%; text-align:left;
+    padding:11px 12px; font-size:15px; box-shadow:0 2px 8px rgba(0,0,0,.06); }
+  body.mob .ct { flex-wrap:wrap; }
+  body.mob .tc-foot.pp-foot { position:static; }
 </style>
 
 <header>
@@ -646,6 +753,7 @@
       </div>
       <aside id="boardFeed" class="board-feed"></aside>
     </div>
+    <button id="mJump" onclick="jumpCurrent()">⏱ Current pick</button>
   </section>
 
   <!-- DETAIL (player or team drill-down) -->
@@ -669,6 +777,15 @@
     </table>
   </section>
 </main>
+
+<!-- Mobile companion: fixed bottom tab bar (thumb reach) — desktop keeps the top tabs -->
+<nav id="mtabs">
+  <button data-view="board" onclick="setView('board')"><span class="mi">▦</span>Board</button>
+  <button data-view="clients" onclick="setView('clients')"><span class="mi">★</span>Clients</button>
+  <button data-view="best" onclick="setView('best')"><span class="mi">≡</span>Best</button>
+  <button data-view="clock" onclick="setView('clock')"><span class="mi">⏱</span>Clock</button>
+  <button data-view="pools" onclick="setView('pools')"><span class="mi">$</span>Pools</button>
+</nav>
 
 <div id="orgTip"></div>
 <div id="ticker"></div>
@@ -891,6 +1008,12 @@
   let tcNavMenu = null;        // header round/pick dropdown: null | 'round' | 'pick'
   let tcAdvance = null;        // { pick, timer } — open card's pick just got made; auto-advance pending
   let tcRangeMode = "profile"; // Q4 comps: 'profile' (same level×pos) or 'all' (everyone in the range)
+  // Mobile card modules: which are expanded (survives re-renders + pick nav; per-device).
+  // Intel leads by default; matrix (team-overview mode) shares the 'intel' slot.
+  let mPanelOpen = { intel:true };
+  try { mPanelOpen = JSON.parse(localStorage.getItem("dd:mPanels")) || mPanelOpen; } catch (e) {}
+  const mobPanels = (html) => !MOBILE.matches ? html :
+    html.replace(/<div class="tc-panel" data-q="(\w+)">/g, (m, q) => mPanelOpen[q] ? m : `<div class="tc-panel collapsed" data-q="${q}">`);
   // TV mode: per-device (localStorage). The wall TV turns it on once; laptops stay interactive.
   // TV ON = bigger board type + team card suppressed unless the "card" sub-toggle is enabled.
   let TV = false; try { TV = localStorage.getItem("dd:tv") === "1"; } catch (e) {}
@@ -950,6 +1073,13 @@
     return Math.max(50000, Math.round(b));
   }
   let MODE = "live", VIEW = "clients", selected = null;
+  // Mobile companion mode: body.mob mirrors the ≤640px query and drives the stacked
+  // PWA layout. On a phone the board IS the app, so it becomes the launch tab.
+  const MOBILE = matchMedia("(max-width:640px)");
+  const applyMobile = () => document.body.classList.toggle("mob", MOBILE.matches);
+  applyMobile();
+  if (MOBILE.addEventListener) MOBILE.addEventListener("change", applyMobile); else MOBILE.addListener(applyMobile);
+  if (MOBILE.matches) VIEW = "board";
   const teamLink = (t) => t ? `<span class="tlink" onclick="openTeam('${t}')">${t}</span>` : "";
   const playerLink = (name) => `<span class="tlink" onclick="openPlayer('${normName(name).replace(/'/g,"\\'")}')">${name}</span>`;
   let currentState = null, lastLive = null, ORDER = null;
@@ -2171,10 +2301,10 @@
     h += `<div class="tc-band">${selHtml}<div class="tc-stats">${stats.map(([k,v,sub])=>`<div class="tc-stat"><div class="k">${k}</div><div class="v">${v}</div>${sub?`<div class="sub">${sub}</div>`:""}</div>`).join("")}</div></div>`;
 
     h += `<div class="tc-panels">
-      ${sel ? renderTcIntel(state, team, pk, sel) : renderTcMatrix(state, team, o, roster)}
+      ${mobPanels(`${sel ? renderTcIntel(state, team, pk, sel) : renderTcMatrix(state, team, o, roster)}
       ${renderTcDraft(state, team, pk, pool, sel)}
       ${renderTcHabits(state, team, pk, pool, o, sel)}
-      ${renderTcRangeHistory(state, team, pk, sel)}
+      ${renderTcRangeHistory(state, team, pk, sel)}`)}
     </div>`;
 
     const qk = sel?sel.c.key.replace(/'/g,"\\'"):"", qn = sel?(sel.c.name||"").replace(/'/g,"\\'"):"";
@@ -2185,7 +2315,7 @@
       <button class="ctl" ${dis} onclick="armAction('${qk}','${qn}','bonus')">$ Bonus</button>
       <button class="ctl" ${dis} onclick="quickRuleOut('${qk}','${qn}','${team}',${pk.overall})">⊘ Rule Out</button>
       <span class="spacer"></span>
-      <button class="ctl" ${dis} onclick="openPlayer('${qk}');closeTeamCard()">View Player Profile ↗</button>
+      <button class="ctl" ${dis} onclick="openPlayer('${qk}');closeTeamCard()">${MOBILE.matches?"Profile ↗":"View Player Profile ↗"}</button>
       <button class="ctl primary" onclick="closeTeamCard()">Close</button></div>`;
     h += `<div id="tcArmed">${(armed && sel && armed.key===sel.c.key)?renderArmedForm(team, pk):""}</div>`;
     h += `</div>`;
@@ -2195,7 +2325,7 @@
   // Panel 1 — Team Intel (reflexive to the selected player). Leads with the fit summary
   // (landing/org fit + the four drivers) that used to live in the standalone strip.
   function renderTcIntel(state, team, pk, sel) {
-    let h = `<div class="tc-panel"><h4><span class="n">1</span> Team Intel</h4>`;
+    let h = `<div class="tc-panel" data-q="intel"><h4><span class="n">1</span> Team Intel</h4>`;
     if (!sel) return h + `<div class="placeholder">Select a player to view interest intel.</div></div>`;
     const key = sel.c.key, f = sel.f, comp = sel.c.comp;
     h += `<div class="tc-fitline">
@@ -2261,7 +2391,7 @@
   // Panel 2 — This team's remaining picks: pool status + per-pick fit for the selected
   // player AND the best-fitting client at each pick ("when are they next / who might fit").
   function renderTcDraft(state, team, pk, pool, sel) {
-    let h = `<div class="tc-panel"><h4><span class="n">2</span> Picks &amp; Fit for This Team</h4>`;
+    let h = `<div class="tc-panel" data-q="draft"><h4><span class="n">2</span> Picks &amp; Fit for This Team</h4>`;
     if (!pool) return h + `<div class="placeholder">No pool data for ${team}.</div></div>`;
     // player-mode: the placement insight moved out of the old strip (at-pick status + next landing)
     if (sel) {
@@ -2315,7 +2445,7 @@
 
   // Q1 in team mode — org dev rank header + broad matrix of our clients' fit with this team.
   function renderTcMatrix(state, team, o, roster) {
-    let h = `<div class="tc-panel"><h4><span class="n">1</span> Team Intel — Client Fit Matrix</h4>`;
+    let h = `<div class="tc-panel" data-q="intel"><h4><span class="n">1</span> Team Intel — Client Fit Matrix</h4>`;
     h += `<div class="tc-fitline sm"><span>Org dev rank <b>${o.orgRank!=null?"#"+o.orgRank+" / 30":"—"}</b></span><span class="tc-nextland">${o.n||0} recent picks graded</span></div>`;
     const top = roster.filter(x=>x.f.orgScore>=40).slice(0,8);
     if (!top.length) return h + `<div class="placeholder">No notable client fits on file for ${team}.</div></div>`;
@@ -2335,7 +2465,7 @@
   // Q3 Historical Team Habits — homegrown-by-level/tendencies + bonus posture + recent 1st-rounders;
   // profile-aware + projected signing $ for the selected player.
   function renderTcHabits(state, team, pk, pool, o, sel) {
-    let h = `<div class="tc-panel"><h4><span class="n">3</span> Historical Team Habits</h4>`;
+    let h = `<div class="tc-panel" data-q="habits"><h4><span class="n">3</span> Historical Team Habits</h4>`;
     if (!o || o.orgRank==null) return h + `<div class="placeholder">No org profile for ${team}.</div></div>`;
     const dev = o.dev || {};
     // homegrown = drafted by this org & still with them (MLB StatsAPI bake)
@@ -2434,7 +2564,7 @@
   // who signed in this spot. Player mode: comps matching the client's profile and how they fared.
   function renderTcRangeHistory(state, team, pk, sel) {
     const lastName = sel ? tcInitialName(sel.c.name).split(" ").slice(-1)[0] : "";
-    let h = `<div class="tc-panel"><h4><span class="n">4</span> Pick Range History${sel?' · '+lastName:''}</h4>`;
+    let h = `<div class="tc-panel" data-q="range"><h4><span class="n">4</span> Pick Range History${sel?' · '+lastName:''}</h4>`;
     const H = DATA.slotHistory;
     const { lo, hi } = slotWindow(pk.overall);
     const trackerUrl = SLOT_HISTORY_URL.replace("/data.csv","/");
@@ -2730,6 +2860,7 @@
     const det = !!selected;
     $("viewDetail").classList.toggle("on", det);
     for (const [tab,sec,name] of VIEWS) { $(sec).classList.toggle("on", !det && name===VIEW); $(tab).classList.toggle("on", name===VIEW); }
+    document.querySelectorAll("#mtabs [data-view]").forEach(b => b.classList.toggle("on", b.dataset.view===VIEW));
     // Board carries a grid + feed and wants the full viewport; the player page's quadrant
     // layout wants it too. Other views stay a readable column.
     document.querySelector("main")?.classList.toggle("wide", (det && selected.type==="player") || (!det && VIEW==="board"));
@@ -3079,9 +3210,24 @@
 
   document.addEventListener("keydown", (e) => { if (e.key==="Escape" && cardPick!=null) closeTeamCard(); });
 
+  // Mobile card: tap a module's numbered header to expand/collapse it (state in mPanelOpen,
+  // so it survives the 3s re-renders and pick navigation). Card overlay only — not the dossier.
+  $("teamCard").addEventListener("click", (e) => {
+    if (!MOBILE.matches) return;
+    const h4 = e.target.closest(".tc-panel[data-q] > h4"); if (!h4) return;
+    const q = h4.parentElement.dataset.q;
+    mPanelOpen[q] = !mPanelOpen[q];
+    try { localStorage.setItem("dd:mPanels", JSON.stringify(mPanelOpen)); } catch (err) {}
+    if (cardPick != null) renderTeamCard(currentState);
+  });
+
+  // Companion PWA: SW only caches static art/fonts — live data always hits the network.
+  if ("serviceWorker" in navigator) { try { navigator.serviceWorker.register("/sw.js"); } catch (e) {} }
+
   (async () => {
     initOrgTooltip();
     applyTv();
+    applyViewVis();   // sync tab/section classes (mobile boots into Board, not the HTML default)
     await loadStatic();
     try { await loadOrder(); } catch (e) {}   // slot table for demandFor() in all views
     await loadIntel().then(backfillLocalSettings);   // load shared intel, then migrate browser-only ranges/medicals
