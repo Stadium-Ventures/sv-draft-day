@@ -85,6 +85,14 @@
   #ticker .tk-agency { color:#e8c46a; font-size:12px; font-weight:800; letter-spacing:.3px; }
   #ticker .tk-bonus { color:#7fd39a; font-size:13px; font-weight:800; font-variant-numeric:tabular-nums; }
   #ticker .tk-sv { margin-left:auto; background:#1a7f37; color:#fff; font-weight:900; font-size:11px; letter-spacing:.5px; padding:3px 8px; border-radius:5px; }
+  /* zap: after the hold the banner flies (a fixed clone) into the pick's board tile, which pulses on landing */
+  #tickerZap { position:fixed; z-index:81; pointer-events:none; will-change:transform,opacity; }
+  .bcard.bc-land { animation:bcLand .7s ease-out; }
+  .bcard.sv.bc-land { animation-name:bcLandSv; }
+  @keyframes bcLand   { 0% { box-shadow:0 0 0 3px rgba(255,42,34,.7);  transform:scale(1.06); }
+                      100% { box-shadow:0 0 0 0 rgba(255,42,34,0);     transform:scale(1); } }
+  @keyframes bcLandSv { 0% { box-shadow:0 0 0 3px rgba(26,127,55,.7);  transform:scale(1.06); }
+                      100% { box-shadow:0 0 0 0 rgba(26,127,55,0);     transform:scale(1); } }
   .grade { font-size:12px; font-weight:800; color:#fff; border-radius:6px; padding:2px 7px; }
   .grade[data-org] { cursor:help; }
   #orgTip { position:fixed; z-index:60; max-width:270px; background:#141414; color:#fff; border-radius:10px;
@@ -1863,7 +1871,8 @@
       }
       const onclick = p.isDrafted ? `openPlayer('${normName(p.player||"").replace(/'/g,"\\'")}')` : `expandPick(${p.overall})`;
       const expSel = cardPick===p.overall ? " expanded" : "";
-      html += `<div class="${cardCls.trim().replace(/\s+/g," ")}${expSel}"${cardStyle} ${onclock?'id="ocRow"':""} onclick="${onclick}">
+      const land = landOverall===p.overall && Date.now()<landUntil ? " bc-land" : "";
+      html += `<div class="${cardCls.trim().replace(/\s+/g," ")}${expSel}${land}"${cardStyle} data-overall="${p.overall}" ${onclock?'id="ocRow"':""} onclick="${onclick}">
         <div class="bc-no">#${p.overall}</div>
         <div class="bc-team">${teamLogo(p.team,15)}${p.team||"—"}</div>
         <div class="bc-slot">${p.slot>0?fmtM(p.slot):"—"}</div>
@@ -2886,8 +2895,48 @@
   }
   let tickerQueue = [], tickerShowing = false;
   function enqueueTicker(pick) { tickerQueue.push(pick); if (!tickerShowing) nextTicker(); }
+  const REDUCE = window.matchMedia("(prefers-reduced-motion: reduce)");
+  // Landing pulse survives the board's wholesale innerHTML re-renders: renderBoardGrid
+  // re-applies .bc-land from these while the pulse is in flight.
+  let landOverall = null, landUntil = 0;
+  function landPulse(overall) {
+    landOverall = overall; landUntil = Date.now() + 700;
+    document.querySelector(`#boardList .bcard[data-overall="${overall}"]`)?.classList.add("bc-land");
+    setTimeout(() => { if (landOverall === overall) landOverall = null; }, 700);
+  }
+  // Where the banner flies: the pick's board tile if visible, else the Board tab/button.
+  function zapTarget(overall) {
+    const tile = document.querySelector(`#boardList .bcard[data-overall="${overall}"]`);
+    if (tile && tile.offsetParent) return { rect: tile.getBoundingClientRect(), isTile: true };
+    const tab = document.body.classList.contains("mob")
+      ? document.querySelector('#mtabs [data-view="board"]') : $("tabBoard");
+    if (tab && tab.offsetParent) return { rect: tab.getBoundingClientRect(), isTile: false };
+    return null;
+  }
+  // Fly/shrink the banner into the target via a body-parented fixed clone (immune to re-renders).
+  function zapTicker(el, overall, done) {
+    const inner = el.querySelector(".tk-inner"), tgt = zapTarget(overall);
+    if (!inner || !tgt || REDUCE.matches) { el.classList.remove("show"); setTimeout(done, 420); return; }
+    const src = inner.getBoundingClientRect(), r = tgt.rect;
+    // clamp so a scrolled-off tile still pulls the banner in the right direction (no scroll hijack)
+    const cx = Math.min(Math.max(r.left + r.width/2, 30), innerWidth - 30);
+    const cy = Math.min(Math.max(r.top + r.height/2, 30), innerHeight - 30);
+    const ghost = inner.cloneNode(true);
+    ghost.id = "tickerZap";
+    Object.assign(ghost.style, { left: src.left+"px", top: src.top+"px", width: src.width+"px", margin: "0", borderRadius: "12px" });
+    document.body.appendChild(ghost);
+    el.classList.remove("show"); el.style.visibility = "hidden";   // ghost carries the visual; ticker resets off-screen unseen
+    const s = Math.max(.08, Math.min(r.width/src.width, r.height/src.height));
+    const anim = ghost.animate([
+      { transform: "translate(0,0) scale(1)", opacity: 1 },
+      { opacity: 1, offset: .6 },
+      { transform: `translate(${cx-(src.left+src.width/2)}px,${cy-(src.top+src.height/2)}px) scale(${s})`, opacity: 0 }
+    ], { duration: 420, easing: "cubic-bezier(.4,0,.8,.4)" });
+    anim.onfinish = anim.oncancel = () => { ghost.remove(); if (tgt.isTile) landPulse(overall); done(); };
+  }
   function nextTicker() {
     const el = $("ticker"); if (!el) return;
+    el.style.visibility = "";
     if (!tickerQueue.length) { tickerShowing = false; el.classList.remove("show"); return; }
     tickerShowing = true;
     const p = tickerQueue.shift();
@@ -2908,8 +2957,12 @@
       ${knownBonus?`<span class="tk-bonus">${fmtM(eb.bonus)}${eb.src&&eb.src!=="confirmed"?" "+eb.src.slice(0,3):""}</span>`:""}
       ${ours?'<span class="tk-sv">SV CLIENT</span>':""}</div>`;
     el.classList.add("show");
-    const hold = tickerQueue.length > 4 ? 800 : 4500;   // drain bursts (mock turbo) fast
-    setTimeout(() => { el.classList.remove("show"); setTimeout(nextTicker, 420); }, hold);
+    const burst = tickerQueue.length > 4;               // drain bursts (mock turbo) fast, no zap
+    const hold = burst ? 800 : 2500;                    // banner surfaces ~2.5s, then zaps to its tile
+    setTimeout(() => {
+      if (burst) { el.classList.remove("show"); setTimeout(nextTicker, 420); }
+      else zapTicker(el, p.overall, () => setTimeout(nextTicker, 100));
+    }, hold);
   }
   const VIEWS = [["tabClients","viewClients","clients"],["tabBoard","viewBoard","board"],
                  ["tabPools","viewPools","pools"],["tabBest","viewBest","best"]];
