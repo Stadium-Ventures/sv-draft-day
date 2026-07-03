@@ -5,6 +5,9 @@
 
 export const config = { matcher: "/((?!_vercel).*)" };
 const COOKIE = "sv_auth";
+// PWA install assets must be fetchable before login (iOS/Chrome fetch the manifest,
+// icons and service worker outside the page's cookie context). Nothing sensitive here.
+const OPEN_PATHS = /^\/(manifest\.webmanifest|sw\.js|favicon\.svg|icons\/[^/]+)$/;
 const MAX_AGE = 60 * 60 * 24 * 7; // 7 days
 
 async function sha(s) {
@@ -37,6 +40,7 @@ export default async function middleware(request) {
   if (!PASSWORD) return; // not configured -> open
 
   const url = new URL(request.url);
+  if (OPEN_PATHS.test(url.pathname)) return; // PWA install assets stay open
   const expected = await sha(PASSWORD);
 
   if (request.method === "POST" && url.pathname === "/__login") {
