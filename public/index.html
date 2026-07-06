@@ -405,7 +405,7 @@
   .tc-pdrop .pdrop-btn { padding:8px 14px; min-width:280px; }
   .tc-pdrop .pdrop-menu { min-width:340px; max-height:300px; }
   .tc-pdrop .pdrop-item .pi-nm { display:flex; align-items:center; }
-  .tc-panels { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:14px; padding:14px 22px; flex:1 1 auto; min-height:0; }
+  .tc-panels { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:14px; padding:14px 22px; flex:1 1 auto; min-height:0; zoom:.88; }
   .tc-panel { border:1px solid #c9c9c7; border-radius:12px; padding:12px 13px; overflow-y:auto; min-height:0; }
   .tc-panel h4 { margin:0 0 9px; font-size:12px; font-weight:900; text-transform:uppercase; letter-spacing:.5px; color:var(--ink); display:flex; align-items:center; gap:8px; }
   .tc-panel h4 .n { color:var(--muted); font-weight:900; }
@@ -480,6 +480,9 @@
   .tc-chip.match { border-color:#1a7f37; color:#1a7f37; }
   .tc-chip.clear { border-style:dashed; }
   .tc-wizsum { display:flex; justify-content:space-between; align-items:baseline; gap:4px 10px; flex-wrap:wrap; font-size:11px; margin:4px 0 6px; border-top:1px solid var(--line); padding-top:7px; }
+  /* vs-slot money as plain colored text: over green, under red, at-slot black */
+  .vsv { font-size:10px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .vsv.over { color:#1a7f37; } .vsv.under { color:#c8102e; } .vsv.even { color:var(--ink); }
   /* HS/College badges */
   .tg.lvl-hs { background:#fef3c7; color:#92400e; font-size:8px; padding:0 4px; vertical-align:1px; }
   .tg.lvl-col { background:#e0e7ff; color:#3730a3; font-size:8px; padding:0 4px; vertical-align:1px; }
@@ -519,12 +522,13 @@
   .tc-dffit.sel { color:var(--red); }
   .tc-dffit.sel .tc-cdot { box-shadow:0 0 0 1.5px #fff, 0 0 0 3px var(--red); }
   .tc-dfsep { color:var(--line); font-weight:400; }
-  /* player-mode strip above the flow: dot + latest teamintel report (hover = full note) */
-  .tc-intelstrip { display:flex; align-items:baseline; gap:6px; font-size:11px; padding:5px 8px; margin:0 0 6px; background:#f7f8fa; border:1px solid var(--line); border-radius:8px; cursor:default; }
+  /* player-mode strip above the flow: dot + latest teamintel report; the note wraps
+     to fill the panel width instead of truncating to one line */
+  .tc-intelstrip { display:flex; align-items:baseline; gap:5px 6px; flex-wrap:wrap; font-size:11px; padding:8px 9px; margin:0 0 7px; background:#f7f8fa; border:1px solid var(--line); border-radius:8px; cursor:default; }
   .tc-intelstrip .tc-cdot { align-self:center; flex-shrink:0; }
   .tc-intelstrip b { white-space:nowrap; }
   .tc-is-date { font-size:9px; font-weight:800; color:var(--muted); text-transform:uppercase; white-space:nowrap; }
-  .tc-is-note { color:var(--muted); font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tc-is-note { flex-basis:100%; color:var(--ink); font-weight:600; line-height:1.45; display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden; }
   .tc-dfmore { font-size:10px; font-weight:700; color:var(--muted); }
   .tc-dfval { font-weight:800; font-variant-numeric:tabular-nums; font-size:11px; flex-shrink:0; }
   .fr-src { font-size:9px; font-weight:800; text-transform:uppercase; color:var(--muted); }
@@ -729,7 +733,7 @@
   body.mob .tc-stats { flex:1 1 100%; flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; gap:0 16px; padding-bottom:3px; }
   body.mob .tc-stat { flex:0 0 auto; }
   body.mob .tc-band .tc-selrow + .tc-stats .tc-stat:first-child { border-left:none; padding-left:0; }
-  body.mob .tc-panels { display:flex; flex-direction:column; gap:10px; padding:10px 12px; flex:1 1 auto; min-height:0; overflow:hidden; }
+  body.mob .tc-panels { display:flex; flex-direction:column; gap:10px; padding:10px 12px; flex:1 1 auto; min-height:0; overflow:hidden; zoom:1; }
   body.mob #teamCard .tc-panel[data-q]:not(.collapsed) { flex:1 1 0; min-height:0; overflow-y:auto; }
   body.mob #teamCard .tc-panel.collapsed { flex:0 0 auto; }
   body.mob #teamCard .tc-panel[data-q] > h4 { cursor:pointer; }
@@ -2602,7 +2606,7 @@
                              .sort((a,b)=>(b.date||"").localeCompare(a.date||""));
       const latest = recs.find(r => (r.note || r.full_text || "").trim()) || recs[0] || null;
       const raw = latest ? (latest.note || latest.full_text || "").trim() : "";
-      const note = raw.length > 110 ? raw.slice(0,110)+"…" : raw;
+      const note = raw.length > 240 ? raw.slice(0,240)+"…" : raw;
       h += `<div class="tc-intelstrip"${raw?` title="${_esc(raw).replace(/"/g,"&quot;")}"`:""}>
         <span class="tc-cdot" style="background:${intelColorHex(key, team)}"></span>
         <b>${tcInitialName(sel.c.name)}</b>
@@ -2627,9 +2631,11 @@
         val = known ? `${fmtM(eb.bonus)}${eb.src?` <span class="bc-src">${eb.src==="confirmed"?"✓":eb.src.slice(0,3)}</span>`:""}` : "$—";
         onclick = `openPlayer('${normName(p.player||"").replace(/'/g,"\\'")}')`;
       } else {
-        const fits = tiClientsAt(p, state), shown = fits.slice(0, 6);
+        // player mode: only HIS dot appears — a clean map of where he's in play with this team
+        const fits = sel ? tiClientsAt(p, state).filter(c=>c.key===sel.c.key) : tiClientsAt(p, state);
+        const shown = fits.slice(0, 6);
         main = shown.length
-          ? `<div class="tc-dffits">${shown.map(c=>`<span class="tc-dffit${sel && c.key===sel.c.key?' sel':''}" title="${c.name}"><span class="tc-cdot" style="background:${intelColorHex(c.key, team)}"></span>${initials(c.name)}</span>`).join('<span class="tc-dfsep">|</span>')}${fits.length>6?`<span class="tc-dfmore">+${fits.length-6}</span>`:""}</div>`
+          ? `<div class="tc-dffits">${shown.map(c=>`<span class="tc-dffit${sel?' sel':''}" title="${c.name}"><span class="tc-cdot" style="background:${intelColorHex(c.key, team)}"></span>${initials(c.name)}</span>`).join('<span class="tc-dfsep">|</span>')}${fits.length>6?`<span class="tc-dfmore">+${fits.length-6}</span>`:""}</div>`
           : `<div class="tc-dffits none">—</div>`;
         val = p.slot>0 ? fmtM(p.slot) : "—";
         onclick = `tcNavGoPick(${p.overall},event)`;
@@ -2683,32 +2689,18 @@
       hsPctRd = Math.round(100*rdRows.filter(r=>r.level==="HS").length/rdRows.length);
       leanPitcher = pPct >= 50; leanWhere = `in ${rdLbl}`;
     }
-    // Precedents — every pick this org made in this round across the DB years.
-    // With a player selected, true money comps (same HS/College level + position
-    // group) surface to the top; same-side P/H matches get the softer ≈ marker.
+    // Precedents — every pick this org made in this round across the DB years,
+    // newest first. Plain table in both modes (no comp markers or highlights).
     if (rdRows && rdRows.length) {
-      const tierOf = r => {
-        if (!sel) return 0;
-        const c = sel.c.comp;
-        const lvl = c.level==="HS" ? "HS" : "College";
-        if (r.level===lvl && r.group===(c.posGroup||posGroupOf(c.pos))) return 2;
-        return isPitcher(c.pos)===(r.group==="P") ? 1 : 0;
-      };
-      const prec = [...rdRows].sort((a,b)=> (tierOf(b)-tierOf(a)) || (b.year-a.year) || (a.overall-b.overall));
       h += `<div class="tc-chart-h" style="margin-top:11px">Round ${rd} · Recent Picks</div>`;
       h += `<table class="tc-upc"><thead><tr><th>Yr</th><th>Player</th><th>Pos</th><th>Pick</th><th>Bonus</th><th>vs Slot</th></tr></thead><tbody>`;
-      h += prec.map(r=>{
-        const tier = tierOf(r);
-        const mark = tier===2 ? ' <span class="tc-inplay">$ COMP</span>'
-                   : tier===1 ? ' <span class="tc-inplay" style="border-color:#3949ab;color:#3949ab">≈</span>' : '';
-        return `<tr${tier===2?' style="background:#f2faf4"':''}>
+      h += rdRows.map(r=>`<tr>
           <td>'${String(r.year).slice(2)}</td>
-          <td class="pl">${r.first?r.first[0]+". ":""}${r.last} ${lvlTag(r)}${mark}</td>
+          <td class="pl">${r.first?r.first[0]+". ":""}${r.last} ${lvlTag(r)}</td>
           <td style="color:var(--muted)">${posDisp(r)}</td>
           <td>#${r.overall}</td>
           <td>${r.bonus!=null?fmtM(r.bonus):`<span style="color:var(--muted);font-weight:600;font-size:11px">unsigned</span>`}</td>
-          <td>${r.diff!=null?`<span class="tg ${r.diff>0?'over':r.diff<0?'under':'fit'}" style="font-size:9px">${r.diff>0?"+":""}${fmtM(r.diff)}</span>`:"—"}</td></tr>`;
-      }).join("");
+          <td>${r.diff!=null?`<span class="vsv ${r.diff>50000?'over':r.diff<-50000?'under':'even'}">${r.diff>0?"+":""}${fmtM(r.diff)}</span>`:"—"}</td></tr>`).join("");
       h += `</tbody></table>`;
     }
     if (sel) {
@@ -2747,7 +2739,7 @@
       <td style="color:var(--muted)">${posDisp(r)}</td>
       <td style="color:var(--muted)">${teamAbbrevOf(r.team)}</td>
       <td>${r.bonus!=null?fmtM(r.bonus):`<span style="color:var(--muted);font-weight:600;font-size:11px">unsigned</span>`}</td>
-      <td>${r.diff!=null?`<span class="tg ${r.diff>0?'over':r.diff<0?'under':'fit'}" style="font-size:9px">${r.diff>0?"+":""}${fmtM(r.diff)}</span>`:"—"}</td></tr>`).join("");
+      <td>${r.diff!=null?`<span class="vsv ${r.diff>50000?'over':r.diff<-50000?'under':'even'}">${r.diff>0?"+":""}${fmtM(r.diff)}</span>`:"—"}</td></tr>`).join("");
     h += `</tbody></table>`;
     return h + `</div>`;
   }
@@ -2826,7 +2818,7 @@
       <td>#${r.overall}</td>
       <td style="color:var(--muted)">${teamAbbrevOf(r.team)}</td>
       <td>${r.bonus!=null?fmtM(r.bonus):`<span style="color:var(--muted);font-weight:600;font-size:11px">unsigned</span>`}</td>
-      <td>${r.diff!=null?`<span class="tg ${r.diff>0?'over':r.diff<0?'under':'fit'}" style="font-size:9px">${r.diff>0?"+":""}${fmtM(r.diff)}</span>`:"—"}</td></tr>`).join("");
+      <td>${r.diff!=null?`<span class="vsv ${r.diff>50000?'over':r.diff<-50000?'under':'even'}">${r.diff>0?"+":""}${fmtM(r.diff)}</span>`:"—"}</td></tr>`).join("");
     h += `</tbody></table>`;
     if (rows.length > CAP) h += `<div class="tc-feed-more">+ ${rows.length-CAP} more matches — tighten the lenses</div>`;
     out.innerHTML = h;
