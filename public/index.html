@@ -486,6 +486,7 @@
   /* HS/College badges */
   .tg.lvl-hs { background:#fef3c7; color:#92400e; font-size:8px; padding:0 4px; vertical-align:1px; }
   .tg.lvl-col { background:#e0e7ff; color:#3730a3; font-size:8px; padding:0 4px; vertical-align:1px; }
+  .tg.lvl-jc { background:#d1fae5; color:#065f46; font-size:8px; padding:0 4px; vertical-align:1px; }
   /* Research tab: filters left, results right; dual-thumb range sliders */
   .res-grid { display:grid; grid-template-columns:440px minmax(0,1fr); gap:18px; align-items:start; }
   .res-filters { position:sticky; top:76px; }
@@ -1070,6 +1071,24 @@
       else { if (ch===","){out.push(cur);cur="";} else if (ch==='"'){q=true;} else cur+=ch; } }
     out.push(cur); return out;
   }
+  // The tracker's level column is only HS/C — JuCos hide inside C. Classify from the
+  // LAST school in the education chain (the school he was drafted out of): explicit
+  // CC/JC/Community/Junior patterns, plus "X College"-style names that are JuCos in
+  // practice, minus the known four-year "College" programs that produce draftees.
+  const JUCO_4YR = new Set(["boston college","college of charleston","eckerd college","canisius college",
+    "presbyterian college","belmont abbey college","mesa state college","master's college","jamestown college",
+    "lenoir-rhyne college","lewis-clark state college","manhattan college","menlo college","mississippi college",
+    "montreat college","north central college","notre dame college","peru state college","siena college",
+    "st. john fisher college","st. mary's college","tusculum college","union college","waynesburg college",
+    "westmont college","skidmore college","georgetown college","baldwin-wallace college","holy names college"]);
+  function isJucoSchool(chain) {
+    const parts = String(chain||"").split(",").map(x=>x.trim()).filter(Boolean);
+    const L = parts.length ? parts[parts.length-1] : "";
+    if (!L) return false;
+    if (/\b(CC|JC)\b|J\.C\.|Community College|Junior College|Jr\.? College/i.test(L)) return true;
+    if (!/\bCollege\b/i.test(L)) return false;
+    return !JUCO_4YR.has(L.toLowerCase().replace(/\s*\([^)]*\)\s*/g," ").replace(/\s+/g," ").trim());
+  }
   async function loadSlotHistory() {
     if (DATA.slotHistory.length) return;
     try {
@@ -1080,7 +1099,7 @@
       for (let i=1;i<lines.length;i++){ if(!lines[i].trim()) continue; const f=parseCsvLine(lines[i]); if(f.length<23) continue;
         const bonus=num(f[20]), slot=num(f[21]);
         rows.push({ year:+f[1], round:f[2], overall:+f[3], first:f[6], last:f[7], pos:f[8], group:posGroupOf(f[8]),
-          level:(f[13]==="HS"?"HS":"College"), school:f[14], team:f[17], bonus, slot,
+          level:(f[13]==="HS"?"HS":(isJucoSchool(f[14])?"JuCo":"College")), school:f[14], team:f[17], bonus, slot,
           bats:f[9]||"", throws:f[10]||"", born:f[15]||"", ht:f[18]||"", wt:f[19]||"", full:f[16]||"",
           diff:(f[22]!==""&&f[22]!=null?num(f[22]):(bonus!=null&&slot!=null?bonus-slot:null)) });
       }
@@ -1184,7 +1203,7 @@
       (r.overall>=lo && r.overall<=hi) ||
       (bandLo!=null && r.bonus>=bandLo && r.bonus<=bandHi)
     )).map(r => (r.overall>=lo && r.overall<=hi) ? r : { ...r, _money: true });
-    if (filt && filt.level) rows = rows.filter(r => r.level===filt.level);
+    if (filt && filt.level) rows = rows.filter(r => (r.level==="HS")===(filt.level==="HS"));   // College comps include JuCo
     if (filt && filt.group) rows = rows.filter(r => r.group===filt.group);
     return rows.sort((a,b)=> (b.year-a.year) || (Math.abs(a.bonus-pk.slot)-Math.abs(b.bonus-pk.slot)));
   }
@@ -1838,7 +1857,7 @@
     const posHit = (r) => (String(r.pos||"").toUpperCase().split(/[^A-Z0-9]+/)[0]||"") === xp;
     const sameHand = (r) => !hand || (r[hand.field]||"").toUpperCase().startsWith(hand.side);
     const seen = new Set(), out = [];
-    const rows = DATA.slotHistory.filter(r => r.bonus!=null && r.level===lvl
+    const rows = DATA.slotHistory.filter(r => r.bonus!=null && (r.level==="HS")===(lvl==="HS")
         && (xp ? posHit(r) : r.group===grp)
         && (isPitcher(comp.pos) ? sameHand(r) : true))
       .sort((a,b) => (Math.abs(a.overall-comp.rank) + (sameHand(a)?0:25))
@@ -1881,7 +1900,7 @@
   // signings scored against a live context lens (pick band, $ band, team) — recency breaks ties.
   function precedentRows(comp, ctx) {
     const lvl = comp.level==="HS" ? "HS" : "College", grp = comp.posGroup || posGroupOf(comp.pos);
-    const rows = DATA.slotHistory.filter(r => r.bonus!=null && r.level===lvl && r.group===grp);
+    const rows = DATA.slotHistory.filter(r => r.bonus!=null && (r.level==="HS")===(lvl==="HS") && r.group===grp);
     const score = (r) => {
       let s = 0;
       if (ctx.pickLo!=null) s += (r.overall>=ctx.pickLo && r.overall<=ctx.pickHi) ? 0
@@ -2789,12 +2808,13 @@
               return v==="≤18" ? a<19 : v==="19" ? (a>=19&&a<20) : v==="20–21" ? (a>=20&&a<22) : a>=22; } },
     pos:   { label:"Position", opts:["P","C","IF","OF"], test:(r,v)=>r.group===v },
     cls:   { label:"Class", opts:["Prep","Early col","JR","SR+"], test:(r,v)=>wizClsOf(r)===v },
-    lvl:   { label:"Level", opts:["HS","College"], test:(r,v)=>r.level===v },
+    lvl:   { label:"Level", opts:["HS","College","JuCo"], test:(r,v)=>r.level===v },
     money: { label:"Money", opts:["Over slot","At slot","Under slot"], test:(r,v)=>{ if(r.diff==null) return false;
               return v==="Over slot" ? r.diff>50000 : v==="Under slot" ? r.diff<-50000 : Math.abs(r.diff)<=50000; } },
   };
-  // HS/College badge for tracker rows
-  const lvlTag = (r) => r.level==="HS" ? '<span class="tg lvl-hs">HS</span>' : '<span class="tg lvl-col">COL</span>';
+  // HS/College/JuCo badge for tracker rows
+  const lvlTag = (r) => r.level==="HS" ? '<span class="tg lvl-hs">HS</span>'
+    : r.level==="JuCo" ? '<span class="tg lvl-jc">JUCO</span>' : '<span class="tg lvl-col">COL</span>';
 
   // ---------- VIEW: RESEARCH — the precedent wizard over the whole tracker ----------
   // Multi-select chips (OR within a category, AND across categories), a position
@@ -2830,7 +2850,7 @@
     if (research.client === key) { research = RES_DEF(); renderResearch(); return; }
     const c = (DATA.clientList.find(x=>x.key===key) || {}).comp; if (!c) return;
     research = RES_DEF(); research.client = key;
-    research.lvl.add(c.level==="HS" ? "HS" : "College");
+    research.lvl.add(c.level==="HS" ? "HS" : /juco/i.test(c.level||"") ? "JuCo" : "College");
     const lc = levelClass(c);
     research.cls.add(c.level==="HS" ? "Prep" : lc.endsWith("SR") ? "SR+" : lc.endsWith("JR") ? "JR" : "Early col");
     if (isPitcher(c.pos)) research.pos.add(c.throws==="L" ? "LHP" : "RHP");
