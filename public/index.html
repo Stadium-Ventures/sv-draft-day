@@ -405,7 +405,7 @@
   .tc-pdrop .pdrop-btn { padding:8px 14px; min-width:280px; }
   .tc-pdrop .pdrop-menu { min-width:340px; max-height:300px; }
   .tc-pdrop .pdrop-item .pi-nm { display:flex; align-items:center; }
-  .tc-panels { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:14px; padding:14px 22px; flex:1 1 auto; min-height:0; }
+  .tc-panels { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:14px; padding:14px 22px; flex:1 1 auto; min-height:0; zoom:.88; }
   .tc-panel { border:1px solid #c9c9c7; border-radius:12px; padding:12px 13px; overflow-y:auto; min-height:0; }
   .tc-panel h4 { margin:0 0 9px; font-size:12px; font-weight:900; text-transform:uppercase; letter-spacing:.5px; color:var(--ink); display:flex; align-items:center; gap:8px; }
   .tc-panel h4 .n { color:var(--muted); font-weight:900; }
@@ -480,6 +480,40 @@
   .tc-chip.match { border-color:#1a7f37; color:#1a7f37; }
   .tc-chip.clear { border-style:dashed; }
   .tc-wizsum { display:flex; justify-content:space-between; align-items:baseline; gap:4px 10px; flex-wrap:wrap; font-size:11px; margin:4px 0 6px; border-top:1px solid var(--line); padding-top:7px; }
+  /* vs-slot money as plain colored text: over green, under red, at-slot black */
+  .vsv { font-size:10px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .vsv.over { color:#1a7f37; } .vsv.under { color:#c8102e; } .vsv.even { color:var(--ink); }
+  /* HS/College badges */
+  .tg.lvl-hs { background:#fef3c7; color:#92400e; font-size:8px; padding:0 4px; vertical-align:1px; }
+  .tg.lvl-col { background:#e0e7ff; color:#3730a3; font-size:8px; padding:0 4px; vertical-align:1px; }
+  /* Research tab: filters left, results right; dual-thumb range sliders */
+  .res-grid { display:grid; grid-template-columns:440px minmax(0,1fr); gap:18px; align-items:start; }
+  .res-filters { position:sticky; top:76px; }
+  .res-box { border:1px solid #c9c9c7; border-radius:12px; padding:12px 13px; background:var(--card); }
+  .res-box + .res-box { margin-top:10px; }
+  .res-chead { display:flex; justify-content:space-between; align-items:center; font-size:10px; font-weight:900; text-transform:uppercase; letter-spacing:.4px; color:var(--ink); cursor:pointer; user-select:none; }
+  .res-chead span { color:var(--muted); font-size:12px; }
+  .res-filters .tc-wizgrp { margin-bottom:7px; }
+  .res-filters .tc-chip { padding:2px 7px; }
+  .res-pdrop { position:relative; }
+  .res-pdrop > .tc-chip { max-width:320px; overflow:hidden; text-overflow:ellipsis; }
+  .res-posmenu { position:absolute; left:52px; top:26px; z-index:30; background:#fff; border:1px solid #c9c9c7; border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,.15); padding:9px 10px; min-width:300px; }
+  .res-posrow { display:flex; gap:4px; align-items:center; margin-bottom:5px; flex-wrap:wrap; }
+  .res-posrow:last-child { margin-bottom:0; }
+  .res-posrow .tc-chip.grp { border-style:dashed; font-weight:900; }
+  .tc-upc th.sortable { cursor:pointer; user-select:none; white-space:nowrap; }
+  .tc-upc th.sortable:hover { color:var(--ink); }
+  .posb { font-size:8px; font-weight:800; color:#9aa2ae; vertical-align:1px; }
+  .res-out { min-width:0; }
+  .res-slider { display:flex; align-items:center; gap:4px; flex-wrap:wrap; margin-bottom:7px; }
+  .res-slab { font-size:11px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .res-slider .dual { flex-basis:100%; }
+  .dual { position:relative; height:22px; }
+  .dual input[type=range] { position:absolute; inset:0; width:100%; margin:0; -webkit-appearance:none; appearance:none; background:none; pointer-events:none; height:22px; }
+  .dual input[type=range]::-webkit-slider-runnable-track { height:4px; background:var(--line); border-radius:2px; margin-top:9px; }
+  .dual input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; pointer-events:auto; width:15px; height:15px; border-radius:50%; background:#fff; border:2.5px solid var(--red); cursor:pointer; margin-top:-6px; box-shadow:0 1px 3px rgba(0,0,0,.2); }
+  .dual input[type=range]::-moz-range-track { height:4px; background:var(--line); border-radius:2px; }
+  .dual input[type=range]::-moz-range-thumb { pointer-events:auto; width:12px; height:12px; border-radius:50%; background:#fff; border:2.5px solid var(--red); cursor:pointer; }
   .tc-wizsum > span:first-child { font-weight:700; font-variant-numeric:tabular-nums; }
   .tc-wizscope { color:var(--muted); font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:.3px; white-space:nowrap; }
   /* The Draft fills its panel: header fixed, flow takes the rest, remaining line pinned */
@@ -499,7 +533,16 @@
   .tc-dffits { flex:1; min-width:0; display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
   .tc-dffits.none { color:var(--muted); font-weight:600; }
   .tc-dffit { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:800; color:#374151; white-space:nowrap; cursor:help; }
+  .tc-dffit.sel { color:var(--red); }
+  .tc-dffit.sel .tc-cdot { box-shadow:0 0 0 1.5px #fff, 0 0 0 3px var(--red); }
   .tc-dfsep { color:var(--line); font-weight:400; }
+  /* player-mode strip above the flow: dot + latest teamintel report; the note wraps
+     to fill the panel width instead of truncating to one line */
+  .tc-intelstrip { display:flex; align-items:baseline; gap:5px 6px; flex-wrap:wrap; font-size:11px; padding:8px 9px; margin:0 0 7px; background:#f7f8fa; border:1px solid var(--line); border-radius:8px; cursor:default; }
+  .tc-intelstrip .tc-cdot { align-self:center; flex-shrink:0; }
+  .tc-intelstrip b { white-space:nowrap; }
+  .tc-is-date { font-size:9px; font-weight:800; color:var(--muted); text-transform:uppercase; white-space:nowrap; }
+  .tc-is-note { flex-basis:100%; color:var(--ink); font-weight:600; line-height:1.45; display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden; }
   .tc-dfmore { font-size:10px; font-weight:700; color:var(--muted); }
   .tc-dfval { font-weight:800; font-variant-numeric:tabular-nums; font-size:11px; flex-shrink:0; }
   .fr-src { font-size:9px; font-weight:800; text-transform:uppercase; color:var(--muted); }
@@ -704,7 +747,7 @@
   body.mob .tc-stats { flex:1 1 100%; flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; gap:0 16px; padding-bottom:3px; }
   body.mob .tc-stat { flex:0 0 auto; }
   body.mob .tc-band .tc-selrow + .tc-stats .tc-stat:first-child { border-left:none; padding-left:0; }
-  body.mob .tc-panels { display:flex; flex-direction:column; gap:10px; padding:10px 12px; flex:1 1 auto; min-height:0; overflow:hidden; }
+  body.mob .tc-panels { display:flex; flex-direction:column; gap:10px; padding:10px 12px; flex:1 1 auto; min-height:0; overflow:hidden; zoom:1; }
   body.mob #teamCard .tc-panel[data-q]:not(.collapsed) { flex:1 1 0; min-height:0; overflow-y:auto; }
   body.mob #teamCard .tc-panel.collapsed { flex:0 0 auto; }
   body.mob #teamCard .tc-panel[data-q] > h4 { cursor:pointer; }
@@ -724,6 +767,8 @@
   body.mob .tc-panel { min-width:0; }
   body.mob .tc-panel table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
   body.mob .tc-draftflow { flex:none; overflow:visible; }  /* the expanded panel scrolls itself */
+  body.mob .res-grid { grid-template-columns:1fr; gap:10px; }
+  body.mob .res-filters { position:static; }
   body.mob .tc-wizlab { width:100%; }
 
   /* our clients roster: trim to # / Player / Interest / Status — School/Age/Range already
@@ -778,6 +823,7 @@
   <button id="tabClients" onclick="setView('clients')">Our Clients</button>
   <button id="tabPools" onclick="setView('pools')">Bonus Pools</button>
   <button id="tabBest" onclick="setView('best')">Best Available</button>
+  <button id="tabResearch" onclick="setView('research')">Research</button>
 </nav>
 
 <div class="bar hidden" id="mockBar">
@@ -857,6 +903,17 @@
       <tbody id="baBody"></tbody>
     </table>
   </section>
+
+  <!-- RESEARCH — precedent wizard over the full 2018-25 tracker: chips + range sliders -->
+  <section id="viewResearch" class="view">
+    <div class="res-grid">
+      <div class="res-filters" id="resFilters"></div>
+      <div class="res-out">
+        <div class="tc-wizsum" id="resSum" style="border-top:none;padding-top:0"></div>
+        <div id="resTable"></div>
+      </div>
+    </div>
+  </section>
 </main>
 
 <!-- Mobile companion: fixed bottom tab bar (thumb reach) — desktop keeps the top tabs -->
@@ -865,6 +922,7 @@
   <button data-view="clients" onclick="setView('clients')"><span class="mi">★</span>Clients</button>
   <button data-view="best" onclick="setView('best')"><span class="mi">≡</span>Best</button>
   <button data-view="pools" onclick="setView('pools')"><span class="mi">$</span>Pools</button>
+  <button data-view="research" onclick="setView('research')"><span class="mi">⌕</span>Research</button>
 </nav>
 
 <div id="orgTip"></div>
@@ -1037,6 +1095,7 @@
         idx(a, r); if (b && b !== a) idx(b, r);
       }
       if (cardPick!=null) renderTeamCard(currentState);
+      if (VIEW==="research") renderResearch();
     } catch (e) {}
   }
   // Renamed franchises alias forward so 2018-25 tracker rows pool under today's name.
@@ -1048,6 +1107,22 @@
     if (r.group !== "P") return p;
     const m = p.match(/[LR]HP/); if (m) return m[0];
     return r.throws==="L" ? "LHP" : r.throws==="R" ? "RHP" : "P";
+  }
+  // Table-cell variant: hitters also carry their bat side (S for switch) as a small mark.
+  function posDispB(r) {
+    if (r.group === "P") return posDisp(r);
+    const b = (r.bats||"").toUpperCase().replace("B","S");
+    return posDisp(r) + (b ? ` <span class="posb">${b}</span>` : "");
+  }
+  // Position display for live/mock feed picks (p.pos + composite record): pitchers get
+  // handedness from the comp's throws, hitters get their bat side.
+  function pickPos(p, comp) {
+    const raw = String(p.pos || (comp && comp.pos) || "").toUpperCase();
+    if (!raw) return "";
+    const m = raw.match(/[LR]HP/); if (m) return m[0];
+    if (isPitcher(raw)) return comp && comp.throws ? (comp.throws==="L" ? "LHP" : "RHP") : raw;
+    const b = comp && comp.bats ? String(comp.bats).toUpperCase().replace("B","S") : "";
+    return raw + (b ? ` <span class="posb">${b}</span>` : "");
   }
   // Tracker rows carry full team names; map to the feed's abbrevs (built lazily from the
   // live pick list), falling back to the nickname for any unmapped name.
@@ -1135,11 +1210,10 @@
   let tcNavMenu = null;        // header round/pick dropdown: null | 'round' | 'pick'
   let tcAdvance = null;        // { pick, timer } — open card's pick just got made; auto-advance pending
   let tcScrollDraft = false;   // one-shot: center the open pick in The Draft flow on open/nav
-  let tcWiz = { age:null, pos:null, cls:null, lvl:null, money:null };  // Precedent Wizard chips
-  const tcWizReset = () => { tcWiz = { age:null, pos:null, cls:null, lvl:null, money:null }; };
+  // Research tab filters — initialized to RES_DEF() in the Research section below
+  let research;
   // Mobile card modules: which are expanded (survives re-renders + pick nav; per-device).
-  // The Draft leads by default; player-mode intel shares slot 1 under its own 'intel' key.
-  let mPanelOpen = { draft:true, intel:true };
+  let mPanelOpen = { draft:true };
   try { mPanelOpen = JSON.parse(localStorage.getItem("dd:mPanels")) || mPanelOpen; } catch (e) {}
   const mobPanels = (html) => !MOBILE.matches ? html :
     html.replace(/<div class="tc-panel" data-q="(\w+)">/g, (m, q) => mPanelOpen[q] ? m : `<div class="tc-panel collapsed" data-q="${q}">`);
@@ -1236,14 +1310,16 @@
 
   async function loadStatic() {
     try {
-      const [c, o, lev, hg, meta] = await Promise.all([
+      const [c, o, lev, hg, meta, pros] = await Promise.all([
         fetch("/data/composite.json").then(r=>r.json()),
         fetch("/data/orgs.json").then(r=>r.json()),
         fetch("/data/leverage.json").then(r=>r.json()).catch(()=>null),
         fetch("/data/homegrown.json").then(r=>r.json()).catch(()=>null),
         fetch("/data/meta.json").then(r=>r.json()).catch(()=>null),
+        fetch("/data/prospects.json").then(r=>r.json()).catch(()=>null),
       ]);
       DATA.composite = c; DATA.orgs = o; DATA.leverage = lev; DATA.meta = meta;
+      DATA.prospects = pros || {};   // Org Review MLB.com T30 per org (build_prospects.py)
       // homegrown-by-level (baked from MLB StatsAPI, keyed by team id) → org records,
       // with each team's league rank on the two homegrown percentages
       if (hg) {
@@ -1940,6 +2016,7 @@
   document.addEventListener("click", (e) => {
     if (playerMenuOpen && !(e.target.closest && e.target.closest(".pdrop"))) { playerMenuOpen = false; renderBoardPlayers(currentState); }
     if (bonusEdit!=null && !(e.target.closest && e.target.closest(".bc-bform"))) { bonusEdit = null; renderBoard(currentState); }
+    if (resPosOpen && !(e.target.closest && e.target.closest(".res-pdrop"))) { resPosOpen = false; renderResearch(); }
   });
   window.toggleBoardClient = (key, e) => {
     if (e) e.stopPropagation();
@@ -1985,7 +2062,7 @@
     if (!Number.isFinite(amt) || amt<=0) { alert("Enter a bonus amount."); return; }
     const p = (currentState?.picks||[]).find(x=>x.overall===ov); if (!p) return;
     bonusEdit = null;
-    if (MODE==="mock") { p.bonus = amt; p.bonusV = val; pushMock(); }
+    if (MODE==="mock") { p.bonus = amt; p.bonusV = val; p.bonusUser = true; pushMock(); }
     else {
       renderBoard(currentState);   // close the form now; loadIntel() re-renders with the logged number
       postIntel({ kind:"bonus", player_name:p.player, team:p.team, pick_overall:ov,
@@ -2015,29 +2092,31 @@
         const comp = DATA.compByName.get(normName(p.player||""));
         const eb = effectiveBonus(p);
         // mobile tiles are rows, not columns — meta joins onto one line, money onto another
-        const metaParts = [p.pos, schoolShort(comp?.school || p.school), comp?.agent].filter(Boolean);
+        const metaParts = [pickPos(p, comp), schoolShort(comp?.school || p.school), comp?.agent].filter(Boolean);
         const lines = MOBILE.matches
           ? (metaParts.length ? [`<div class="bc-meta">${metaParts.join(" · ")}</div>`] : [])
           : metaParts.map(v=>`<div class="bc-meta">${v}</div>`);
-        // Bonus = click-to-enter chip. Checked box = validated money (official/confirmed);
-        // unchecked = our estimate (model, mock engine, or an unvalidated log), shown ~$X.
-        const logged = eb.bonus!=null && (p.bonus!=null || eb.src);
+        // Bonus = click-to-enter chip. NOTHING shows until a number is entered ($— placeholder):
+        // live = official feed or a war-room log; mock = only a chip-entered value (the engine's
+        // simulated bonus stays in the pool math but off the tile). Checked box = validated.
+        const shown = MODE==="mock" ? !!p.bonusUser : (eb.bonus!=null && (p.bonus!=null || eb.src));
         const validated = MODE==="mock" ? !!p.bonusV : (p.bonus!=null || eb.src==="confirmed");
         if (bonusEdit === p.overall) {
-          const cur = Math.round(logged ? eb.bonus : suggestBonus(p));
+          const cur = Math.round(shown ? eb.bonus : suggestBonus(p));
           lines.push(`<div class="bc-bform" onclick="event.stopPropagation()">
             $<input id="bxAmt" type="text" inputmode="numeric" value="${cur.toLocaleString("en-US")}" oninput="fmtBonusInput(this)" onkeydown="if(event.key==='Enter')saveBonusChip(${p.overall},event)">
             <label><input id="bxVal" type="checkbox"${validated?" checked":""}>validated</label>
             <button class="ok" onclick="saveBonusChip(${p.overall},event)">Save</button>
             <button onclick="closeBonusChip(event)">✕</button></div>`);
-        } else if (eb.bonus!=null) {
-          const est = MODE==="mock" ? !validated : !logged;
+        } else if (shown) {
           const src = eb.src && eb.src!=="confirmed" ? ` <span class="bc-src">${eb.src.slice(0,3)}</span>` : "";
-          const chip = `<span class="bc-chip${validated?" val":est?" est":""}" title="Click to enter signing bonus" onclick="openBonusChip(${p.overall},event)"><span class="bc-ck">${validated?"✓":""}</span>${est?"~":""}${fmtM(eb.bonus)}${src}</span>`;
-          const ou = p.slot>0 && (logged || MODE==="mock") ? eb.bonus-p.slot : null;
+          const chip = `<span class="bc-chip${validated?" val":""}" title="Click to edit signing bonus" onclick="openBonusChip(${p.overall},event)"><span class="bc-ck">${validated?"✓":""}</span>${fmtM(eb.bonus)}${src}</span>`;
+          const ou = p.slot>0 ? eb.bonus-p.slot : null;
           const tag = ou!=null ? `<span class="tg ${ou>50000?'over':ou<-50000?'under':'fit'}">${ou>50000?"+":""}${Math.abs(ou)>50000?fmtM(ou)+" vs slot":"at slot"}</span>` : "";
           if (MOBILE.matches) lines.push(`<div class="bc-bonus">${chip}${tag?` ${tag}`:""}</div>`);
           else { lines.push(`<div class="bc-bonus">${chip}</div>`); if (tag) lines.push(`<div class="bc-bonus">${tag}</div>`); }
+        } else {
+          lines.push(`<div class="bc-bonus"><span class="bc-chip est" title="Click to enter signing bonus" onclick="openBonusChip(${p.overall},event)"><span class="bc-ck"></span>$—</span></div>`);
         }
         dotsHtml = lines.join("");
       } else if (single) {
@@ -2093,7 +2172,7 @@
       let cls = "feed-row", who, sub;
       if (p.isDrafted) {
         who = p.player || "—";
-        sub = [p.pos, comp?.agent, schoolShort(comp?.school || p.school)].filter(Boolean).join(" · ");
+        sub = [pickPos(p, comp), comp?.agent, schoolShort(comp?.school || p.school)].filter(Boolean).join(" · ");
         if (ours) cls += " sv";
       } else if (onclock) { cls += " oc"; who = "On the clock"; sub = "● NOW"; }
       else { cls += " up"; who = "Upcoming"; sub = ""; }
@@ -2103,7 +2182,8 @@
       let val = p.slot>0?fmtM(p.slot):"—";
       if (p.isDrafted) {
         const eb = effectiveBonus(p);
-        if (eb.bonus!=null && (p.bonus!=null || eb.src)) val = `${fmtM(eb.bonus)}${eb.src?` <span class="fr-src">${eb.src==="confirmed"?"✓":eb.src.slice(0,3)}</span>`:""}`;
+        const shown = MODE==="mock" ? !!p.bonusUser : (eb.bonus!=null && (p.bonus!=null || eb.src));
+        if (shown) val = `${fmtM(eb.bonus)}${eb.src?` <span class="fr-src">${eb.src==="confirmed"?"✓":eb.src.slice(0,3)}</span>`:""}`;
       }
       rows += `<div class="${cls}" onclick="${onclick}">
         <span class="fr-no">#${p.overall}</span><span class="fr-tm">${teamLogo(p.team,16)}${p.team||"—"}</span>
@@ -2243,7 +2323,7 @@
     if (TV && !tvShowCard) return;   // TV screens stay a passive market map by default
     const st = currentState; if (!st) return;
     const pk = pickByOverall(st, ov); if (!pk || pk.isDrafted) return;
-    cardPick = ov; armed = null; tcMenuOpen = false; tcNavMenu = null; tcScrollDraft = true; tcWizReset();
+    cardPick = ov; armed = null; tcMenuOpen = false; tcNavMenu = null; tcScrollDraft = true;
     // Team-profile mode by default — but a board filtered to a player opens on him
     // (renderTeamCard drops the preselect if he's not on the card's roster).
     evalPlayer = null;
@@ -2502,10 +2582,10 @@
     h += `<div class="tc-band">${selHtml}<div class="tc-stats">${stats.map(([k,v,sub])=>`<div class="tc-stat"><div class="k">${k}</div><div class="v">${v}</div>${sub?`<div class="sub">${sub}</div>`:""}</div>`).join("")}</div></div>`;
 
     h += `<div class="tc-panels">
-      ${mobPanels(`${sel ? renderTcIntel(state, team, pk, sel) : renderTcTheDraft(state, team, pk)}
+      ${mobPanels(`${renderTcTheDraft(state, team, pk, sel)}
       ${renderTcProfile(state, team, pk, o, sel)}
       ${renderTcPickHistory(pk)}
-      ${renderTcWizard(state, team, pk, sel)}`)}
+      ${renderTcProspects(team, sel)}`)}
     </div>`;
 
     const qk = sel?sel.c.key.replace(/'/g,"\\'"):"", qn = sel?(sel.c.name||"").replace(/'/g,"\\'"):"";
@@ -2542,85 +2622,28 @@
       if (flow && cur) flow.scrollTop = Math.max(0, cur.offsetTop - flow.clientHeight/2 + cur.offsetHeight/2);
     }
   }
-
-  // Panel 1 — Team Intel (reflexive to the selected player). Leads with the fit summary
-  // (landing/org fit + the four drivers) that used to live in the standalone strip.
-  function renderTcIntel(state, team, pk, sel) {
-    let h = `<div class="tc-panel" data-q="intel"><h4><span class="n">1</span> Team Intel</h4>`;
-    if (!sel) return h + `<div class="placeholder">Select a player to view interest intel.</div></div>`;
-    const key = sel.c.key, f = sel.f, comp = sel.c.comp;
-    h += `<div class="tc-fitline">
-        <span class="tc-fitscore"><b>${f.score}</b><small>Landing fit</small></span>
-        <span class="tc-fitscore"><b>${f.orgScore}</b><small>Org fit</small></span>
-        ${tcDrivers(f)}</div>`;
-    // placement insight (lived in the old Picks & Fit panel): at-pick status + next landing
-    const here = tcPickFit(comp, pk, state), land = tcNextLanding(state, team, comp);
-    h += `<div class="tc-fitline sm">
-        <span>At <b>#${pk.overall}</b> <span class="tg ${here.cls}">${here.label}</span></span>
-        <span class="tc-nextland">Next realistic landing <b>${land?`#${land.overall} · ${roundLabel(land.round)}`:'—'}</b></span></div>`;
-    const ti = teamInterest(key, team);
-    const recs = DATA.intel.filter(r => teamAlias(r.team)===team && normName(r.player)===key)
-                           .sort((a,b)=>(a.date||"").localeCompare(b.date||""));
-    const score10 = ti.strength*10;
-    const lbl = score10>=6?"Strong":score10>=3.5?"Moderate":score10>0?"Light":"Quiet";
-    const latest = ti.latest, cf = contactFlags(key, team);
-    const lastColored = [...recs].reverse().find(r=>r.color);   // newest record that carries a color
-    // The panel accent reflects the LATEST logged interest color, not the strength magnitude.
-    const col = lastColored ? (COLOR_HEX[(lastColored.color||"").toLowerCase()] || "#9aa0a6") : "#9aa0a6";
-    // Build colored points: carry the last known color forward so note-only records keep the signal.
-    let curHex = "#9aa0a6";
-    const points = recs.map(r=>{
-      if (r.color) curHex = COLOR_HEX[(r.color||"").toLowerCase()] || curHex;
-      return { v: (r.score!=null?r.score:0), hex: curHex };
-    });
-    h += `<div class="tc-intel-grid"><div class="tc-score">
-        <div class="big" style="color:${col}">${score10.toFixed(1)}</div>
-        <div class="lbl" style="color:${col}">${lbl}${lastColored?` · ${lastColored.color}`:""}</div>
-        <div class="tc-mini-k">Latest signal</div><div class="tc-mini-v" style="color:${col};text-transform:capitalize">${lastColored?lastColored.color:"—"}</div>
-        <div class="tc-mini-k">Signals on file</div><div class="tc-mini-v">${ti.n}</div>
-        <div class="tc-mini-k">Last updated</div><div class="tc-mini-v">${latest?.date||"—"}</div>
-      </div><div>
-        <div class="tc-chart-h">Interest strength over time <span style="font-weight:600;text-transform:none;letter-spacing:0">· line color = signal at that time</span></div>
-        ${tcSparkline(points, col)}`;
-    // Teamintel feed — the raw logged records for this player × team, newest first
-    if (recs.length) {
-      const FEED_CAP = 12;
-      const feed = [...recs].reverse().slice(0, FEED_CAP);
-      h += `<div class="tc-chart-h" style="margin-top:12px">Teamintel feed · ${team} × ${tcInitialName(sel.c.name)}</div><div class="tc-feed">`;
-      h += feed.map((r, i) => {
-        const hex = points[recs.length-1-i].hex;
-        const src = r.is_manual ? "manual" : (r.channel ? "#"+r.channel : "");
-        const meta = [r.date||"—", (r.tier_label||"").replace(/_/g," ").toLowerCase(), src].filter(Boolean).join(" · ");
-        const raw = (r.note || r.full_text || "").trim();
-        const note = raw.length > 220 ? raw.slice(0,220)+"…" : raw;
-        const sig = [r.color?`signal: ${r.color}`:"", r.score!=null?`score ${r.score}`:""].filter(Boolean).join(" · ");
-        return `<div class="tc-feed-row"><span class="tc-cdot" style="background:${hex};margin-top:3px"></span>
-          <div class="tc-feed-body"><div class="tc-feed-meta">${meta}</div>
-          ${note?`<div class="tc-feed-note">${_esc(note)}</div>`:(sig?`<div class="tc-feed-note" style="color:var(--muted)">${sig}</div>`:"")}</div></div>`;
-      }).join("");
-      if (recs.length > FEED_CAP) h += `<div class="tc-feed-more">+ ${recs.length-FEED_CAP} earlier records</div>`;
-      h += `</div>`;
-    }
-    const tiers = {};
-    for (const r of recs) { const t=(r.tier_label||"").toUpperCase(); if (t) tiers[t]=(tiers[t]||0)+1; }
-    const tKeys = Object.keys(tiers), tTot = tKeys.reduce((s,k)=>s+tiers[k],0);
-    if (tTot) {
-      h += `<div class="tc-tier"><div class="tc-chart-h">Source tier breakdown</div>
-        <div class="tc-tierbar">${tKeys.map(k=>`<span style="width:${(100*tiers[k]/tTot).toFixed(0)}%;background:${tcTierColor(k)}"></span>`).join("")}</div>
-        <div class="tc-tierleg">${tKeys.map(k=>`<span><i style="background:${tcTierColor(k)}"></i>${k.replace(/_/g," ")} ${Math.round(100*tiers[k]/tTot)}%</span>`).join("")}</div></div>`;
-    }
-    if (cf.workout || cf.combine) h += `<div class="tc-tier"><div class="tc-chart-h">Contact flags</div>${contactBadges(key, team)}</div>`;
-    h += `</div></div></div>`;
-    return h;
-  }
-
-  // Panel 1 (team mode) — The Draft: the team's full pick ledger, vertical. Prior picks
-  // muted with known money, the open pick highlighted, upcoming picks carrying the same
-  // client clusters as the board tiles (teamintel green/light-green × in-play range).
-  function renderTcTheDraft(state, team, pk) {
+  // Panel 1 — The Draft: the team's full pick ledger, vertical. Prior picks muted with
+  // entered money, the open pick highlighted, upcoming picks carrying the same client
+  // clusters as the board tiles (teamintel green/light-green × in-play range). With a
+  // player selected: a compact teamintel strip on top (color dot + latest report) and
+  // his dots emphasized in the flow.
+  function renderTcTheDraft(state, team, pk, sel) {
     let h = `<div class="tc-panel" data-q="draft"><h4><span class="n">1</span> The Draft · ${team}</h4>`;
     const picks = state.picks.filter(p => p.team === team);
     if (!picks.length) return h + `<div class="placeholder">No picks for ${team}.</div></div>`;
+    if (sel) {
+      const key = sel.c.key;
+      const recs = DATA.intel.filter(r => teamAlias(r.team)===team && normName(r.player)===key)
+                             .sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+      const latest = recs.find(r => (r.note || r.full_text || "").trim()) || recs[0] || null;
+      const raw = latest ? (latest.note || latest.full_text || "").trim() : "";
+      const note = raw.length > 240 ? raw.slice(0,240)+"…" : raw;
+      h += `<div class="tc-intelstrip"${raw?` title="${_esc(raw).replace(/"/g,"&quot;")}"`:""}>
+        <span class="tc-cdot" style="background:${intelColorHex(key, team)}"></span>
+        <b>${tcInitialName(sel.c.name)}</b>
+        ${latest && latest.date?`<span class="tc-is-date">${latest.date}</span>`:""}
+        <span class="tc-is-note">${raw?_esc(note):"no teamintel on file for this org"}</span></div>`;
+    }
     const rem = picks.filter(p=>!p.isDrafted && !p.isPass);
     const remSlot = rem.reduce((s,p)=>s+(p.slot>0?p.slot:0),0);
     h += `<div class="tc-draftflow">`;
@@ -2631,16 +2654,19 @@
       let main, val, onclick;
       if (p.isDrafted) {
         const eb = effectiveBonus(p);
-        const known = eb.bonus!=null && (p.bonus!=null || eb.src);
+        // same display rule as board tiles: entered/official money only, else $—
+        const known = MODE==="mock" ? !!p.bonusUser : (eb.bonus!=null && (p.bonus!=null || eb.src));
         const comp = DATA.compByName.get(normName(p.player||""));
-        const sub = [p.pos, schoolShort(comp?.school || p.school)].filter(Boolean).join(" · ");
+        const sub = [pickPos(p, comp), schoolShort(comp?.school || p.school)].filter(Boolean).join(" · ");
         main = `<div class="tc-dfwho">${p.player||"—"}${DATA.clients.has(normName(p.player||""))?' <span class="svtag">SV</span>':''}${sub?`<span class="tc-dfsub">${sub}</span>`:""}</div>`;
-        val = known ? `${fmtM(eb.bonus)}${eb.src?` <span class="bc-src">${eb.src==="confirmed"?"✓":eb.src.slice(0,3)}</span>`:""}` : "—";
+        val = known ? `${fmtM(eb.bonus)}${eb.src?` <span class="bc-src">${eb.src==="confirmed"?"✓":eb.src.slice(0,3)}</span>`:""}` : "$—";
         onclick = `openPlayer('${normName(p.player||"").replace(/'/g,"\\'")}')`;
       } else {
-        const fits = tiClientsAt(p, state), shown = fits.slice(0, 6);
+        // player mode: only HIS dot appears — a clean map of where he's in play with this team
+        const fits = sel ? tiClientsAt(p, state).filter(c=>c.key===sel.c.key) : tiClientsAt(p, state);
+        const shown = fits.slice(0, 6);
         main = shown.length
-          ? `<div class="tc-dffits">${shown.map(c=>`<span class="tc-dffit" title="${c.name}"><span class="tc-cdot" style="background:${intelColorHex(c.key, team)}"></span>${initials(c.name)}</span>`).join('<span class="tc-dfsep">|</span>')}${fits.length>6?`<span class="tc-dfmore">+${fits.length-6}</span>`:""}</div>`
+          ? `<div class="tc-dffits">${shown.map(c=>`<span class="tc-dffit${sel?' sel':''}" title="${c.name}"><span class="tc-cdot" style="background:${intelColorHex(c.key, team)}"></span>${initials(c.name)}</span>`).join('<span class="tc-dfsep">|</span>')}${fits.length>6?`<span class="tc-dfmore">+${fits.length-6}</span>`:""}</div>`
           : `<div class="tc-dffits none">—</div>`;
         val = p.slot>0 ? fmtM(p.slot) : "—";
         onclick = `tcNavGoPick(${p.overall},event)`;
@@ -2694,32 +2720,18 @@
       hsPctRd = Math.round(100*rdRows.filter(r=>r.level==="HS").length/rdRows.length);
       leanPitcher = pPct >= 50; leanWhere = `in ${rdLbl}`;
     }
-    // Precedents — every pick this org made in this round across the DB years.
-    // With a player selected, true money comps (same HS/College level + position
-    // group) surface to the top; same-side P/H matches get the softer ≈ marker.
+    // Precedents — every pick this org made in this round across the DB years,
+    // newest first. Plain table in both modes (no comp markers or highlights).
     if (rdRows && rdRows.length) {
-      const tierOf = r => {
-        if (!sel) return 0;
-        const c = sel.c.comp;
-        const lvl = c.level==="HS" ? "HS" : "College";
-        if (r.level===lvl && r.group===(c.posGroup||posGroupOf(c.pos))) return 2;
-        return isPitcher(c.pos)===(r.group==="P") ? 1 : 0;
-      };
-      const prec = [...rdRows].sort((a,b)=> (tierOf(b)-tierOf(a)) || (b.year-a.year) || (a.overall-b.overall));
       h += `<div class="tc-chart-h" style="margin-top:11px">Round ${rd} · Recent Picks</div>`;
       h += `<table class="tc-upc"><thead><tr><th>Yr</th><th>Player</th><th>Pos</th><th>Pick</th><th>Bonus</th><th>vs Slot</th></tr></thead><tbody>`;
-      h += prec.map(r=>{
-        const tier = tierOf(r);
-        const mark = tier===2 ? ' <span class="tc-inplay">$ COMP</span>'
-                   : tier===1 ? ' <span class="tc-inplay" style="border-color:#3949ab;color:#3949ab">≈</span>' : '';
-        return `<tr${tier===2?' style="background:#f2faf4"':''}>
+      h += rdRows.map(r=>`<tr>
           <td>'${String(r.year).slice(2)}</td>
-          <td class="pl">${r.first?r.first[0]+". ":""}${r.last}${mark}</td>
-          <td style="color:var(--muted)">${posDisp(r)}</td>
+          <td class="pl">${r.first?r.first[0]+". ":""}${r.last} ${lvlTag(r)}</td>
+          <td style="color:var(--muted)">${posDispB(r)}</td>
           <td>#${r.overall}</td>
           <td>${r.bonus!=null?fmtM(r.bonus):`<span style="color:var(--muted);font-weight:600;font-size:11px">unsigned</span>`}</td>
-          <td>${r.diff!=null?`<span class="tg ${r.diff>0?'over':r.diff<0?'under':'fit'}" style="font-size:9px">${r.diff>0?"+":""}${fmtM(r.diff)}</span>`:"—"}</td></tr>`;
-      }).join("");
+          <td>${r.diff!=null?`<span class="vsv ${r.diff>50000?'over':r.diff<-50000?'under':'even'}">${r.diff>0?"+":""}${fmtM(r.diff)}</span>`:"—"}</td></tr>`).join("");
       h += `</tbody></table>`;
     }
     if (sel) {
@@ -2754,20 +2766,18 @@
     h += `<table class="tc-upc"><thead><tr><th>Yr</th><th>Player</th><th>Pos</th><th>Team</th><th>Bonus</th><th>vs Slot</th></tr></thead><tbody>`;
     h += rows.map(r=>`<tr>
       <td>'${String(r.year).slice(2)}</td>
-      <td class="pl">${r.first?r.first[0]+". ":""}${r.last}</td>
-      <td style="color:var(--muted)">${posDisp(r)}</td>
+      <td class="pl">${r.first?r.first[0]+". ":""}${r.last} ${lvlTag(r)}</td>
+      <td style="color:var(--muted)">${posDispB(r)}</td>
       <td style="color:var(--muted)">${teamAbbrevOf(r.team)}</td>
       <td>${r.bonus!=null?fmtM(r.bonus):`<span style="color:var(--muted);font-weight:600;font-size:11px">unsigned</span>`}</td>
-      <td>${r.diff!=null?`<span class="tg ${r.diff>0?'over':r.diff<0?'under':'fit'}" style="font-size:9px">${r.diff>0?"+":""}${fmtM(r.diff)}</span>`:"—"}</td></tr>`).join("");
+      <td>${r.diff!=null?`<span class="vsv ${r.diff>50000?'over':r.diff<-50000?'under':'even'}">${r.diff>0?"+":""}${fmtM(r.diff)}</span>`:"—"}</td></tr>`).join("");
     h += `</tbody></table>`;
     return h + `</div>`;
   }
 
-  // Panel 4 — Precedent Wizard: combinable lenses (single-select per group, AND across
-  // groups) over every league signing in this round, 2018-25. "Class" is an age-derived
-  // eligibility proxy (no class-standing source in the tracker). This team's own rows get
-  // a marker; a selected player gets a match quick-chip that preseeds his profile — the
-  // hook where player fit comps land in the next pass.
+  // Precedent-lens machinery (shared with the Research tab): combinable filters over
+  // tracker signings. "Class" is an age-derived eligibility proxy (no class-standing
+  // source in the tracker).
   const wizAgeOf = r => { const a = parseFloat(compAge(r.born, r.year)); return Number.isFinite(a) ? a : null; };
   const wizClsOf = r => {
     if (r.level==="HS") return "Prep";
@@ -2783,53 +2793,174 @@
     money: { label:"Money", opts:["Over slot","At slot","Under slot"], test:(r,v)=>{ if(r.diff==null) return false;
               return v==="Over slot" ? r.diff>50000 : v==="Under slot" ? r.diff<-50000 : Math.abs(r.diff)<=50000; } },
   };
-  window.tcWizChip = (g, v) => { tcWiz[g] = tcWiz[g]===v ? null : v; renderTeamCard(currentState); };
-  window.tcWizClear = () => { tcWizReset(); renderTeamCard(currentState); };
-  window.tcWizSet = (pos, lvl, cls) => { tcWizReset(); tcWiz.pos=pos||null; tcWiz.lvl=lvl||null; tcWiz.cls=cls||null; renderTeamCard(currentState); };
-  function renderTcWizard(state, team, pk, sel) {
-    let h = `<div class="tc-panel" data-q="wizard"><h4><span class="n">4</span> Precedent Wizard</h4>`;
-    const H = DATA.slotHistory;
-    if (!H.length) return h + `<div class="placeholder">Loading historical signings…</div></div>`;
-    const rd = numericRound(state, pk);
-    const pool = H.filter(r => String(r.round) === rd);
-    const anyOn = Object.values(tcWiz).some(Boolean);
-    // selected-player quick-chip: preseed pos group / level / class proxy from his profile
-    let matchChip = "";
-    if (sel && sel.c.comp) {
-      const c = sel.c.comp, lvl = c.level==="HS" ? "HS" : "College";
-      const grp = c.posGroup || posGroupOf(c.pos);
-      const lc = levelClass(c), cls = lvl==="HS" ? "Prep" : lc.endsWith("SR") ? "SR+" : lc.endsWith("JR") ? "JR" : "Early col";
-      const last = tcInitialName(sel.c.name).split(" ").slice(-1)[0];
-      matchChip = `<button class="tc-chip match" onclick="tcWizSet('${grp||""}','${lvl}','${cls}')">≈ match ${last}</button>`;
-    }
-    h += `<div class="tc-wiz">${Object.entries(WIZ_GROUPS).map(([g,def]) =>
-      `<div class="tc-wizgrp"><span class="tc-wizlab">${def.label}</span>${def.opts.map(v=>
-        `<button class="tc-chip${tcWiz[g]===v?' on':''}" onclick="tcWizChip('${g}','${v}')">${v}</button>`).join("")}</div>`).join("")}
-      <div class="tc-wizgrp">${matchChip}${anyOn?`<button class="tc-chip clear" onclick="tcWizClear()">✕ clear</button>`:""}</div></div>`;
-    let rows = pool;
-    for (const [g,def] of Object.entries(WIZ_GROUPS)) if (tcWiz[g]) rows = rows.filter(r=>def.test(r, tcWiz[g]));
-    rows = [...rows].sort((a,b)=> (b.year-a.year) || (a.overall-b.overall));
+  // HS/College badge for tracker rows
+  const lvlTag = (r) => r.level==="HS" ? '<span class="tg lvl-hs">HS</span>' : '<span class="tg lvl-col">COL</span>';
+
+  // ---------- VIEW: RESEARCH — the precedent wizard over the whole tracker ----------
+  // Multi-select chips (OR within a category, AND across categories), a position
+  // dropdown with group-selects, dual-thumb Age and Bonus range sliders, and a fully
+  // sortable results table. Sliders repaint ONLY the results (no full re-render
+  // mid-drag); the view never re-renders on live ticks.
+  let researchDrawn = false, resPosOpen = false, resClientsOpen = false;
+  window.toggleResClients = () => { resClientsOpen = !resClientsOpen; renderResearch(); };
+  const BN_MAX = 10000000;
+  const RES_DEF = () => ({ pos:new Set(), cls:new Set(), lvl:new Set(), money:new Set(), round:new Set(),
+                           ageLo:16, ageHi:25, bnLo:0, bnHi:BN_MAX, client:null, sortKey:"year", sortDir:-1 });
+  research = RES_DEF();
+  const RES_ROUNDS = ["1","2","3","4","5","6","7","8","9","10","11+"];
+  const POS_TREE = { P:["RHP","LHP"], C:["C"], IF:["1B","2B","3B","SS"], OF:["OF","CF","LF","RF"] };
+  // a row can carry multiple positions ("RF-C"); pitchers resolve to handedness
+  const rowPosTokens = (r) => r.group==="P" ? [posDisp(r)] : String(r.pos||"").toUpperCase().split(/[-\/,\s]+/).filter(Boolean);
+  const setTog = (set, v) => { if (set.has(v)) set.delete(v); else set.add(v); };
+  window.resChip = (g, v) => { setTog(research[g], v); research.client = null; renderResearch(); };
+  window.resReset = () => { research = RES_DEF(); resPosOpen = false; renderResearch(); };
+  window.toggleResPos = (e) => { if (e) e.stopPropagation(); resPosOpen = !resPosOpen; renderResearch(); };
+  window.resPosTok = (t, e) => { if (e) e.stopPropagation(); setTog(research.pos, t); research.client = null; renderResearch(); };
+  window.resPosGrp = (g, e) => { if (e) e.stopPropagation();
+    const toks = POS_TREE[g], all = toks.every(t=>research.pos.has(t));
+    toks.forEach(t => all ? research.pos.delete(t) : research.pos.add(t));
+    research.client = null; renderResearch(); };
+  window.resSort = (k) => {
+    if (research.sortKey === k) research.sortDir *= -1;
+    else { research.sortKey = k; research.sortDir = (k==="player"||k==="pos"||k==="team") ? 1 : -1; }
+    renderResearchResults(); };
+  // Preload a client's comp profile: level, class proxy, positions, age ±1.
+  // Clicking the already-selected client clears back to defaults.
+  window.resClient = (key) => {
+    if (research.client === key) { research = RES_DEF(); renderResearch(); return; }
+    const c = (DATA.clientList.find(x=>x.key===key) || {}).comp; if (!c) return;
+    research = RES_DEF(); research.client = key;
+    research.lvl.add(c.level==="HS" ? "HS" : "College");
+    const lc = levelClass(c);
+    research.cls.add(c.level==="HS" ? "Prep" : lc.endsWith("SR") ? "SR+" : lc.endsWith("JR") ? "JR" : "Early col");
+    if (isPitcher(c.pos)) research.pos.add(c.throws==="L" ? "LHP" : "RHP");
+    else String(c.pos||"").toUpperCase().split(/[-\/,\s]+/).filter(Boolean).forEach(t=>research.pos.add(t));
+    const a = parseFloat(compAge(c.born, 2026));
+    if (Number.isFinite(a)) { research.ageLo = Math.max(16, Math.round((a-1)*10)/10); research.ageHi = Math.min(25, Math.round((a+1)*10)/10); }
+    renderResearch(); };
+  window.resSlide = () => {
+    let aLo = parseFloat($("resAgeLo").value), aHi = parseFloat($("resAgeHi").value);
+    if (aLo > aHi) [aLo, aHi] = [aHi, aLo];
+    let bLo = parseInt($("resBnLo").value,10), bHi = parseInt($("resBnHi").value,10);
+    if (bLo > bHi) [bLo, bHi] = [bHi, bLo];
+    Object.assign(research, { ageLo:aLo, ageHi:aHi, bnLo:bLo, bnHi:bHi, client:null });
+    $("resAgeLab").textContent = `${aLo.toFixed(1)} – ${aHi.toFixed(1)}`;
+    $("resBnLab").textContent = `${fmtM(bLo)} – ${bHi>=BN_MAX?"$10M+":fmtM(bHi)}`;
+    renderResearchResults();
+  };
+  function researchRows() {
+    let rows = DATA.slotHistory;
+    if (research.pos.size)   rows = rows.filter(r => rowPosTokens(r).some(t=>research.pos.has(t)));
+    if (research.cls.size)   rows = rows.filter(r => research.cls.has(wizClsOf(r)));
+    if (research.lvl.size)   rows = rows.filter(r => research.lvl.has(r.level));
+    if (research.money.size) rows = rows.filter(r => [...research.money].some(v=>WIZ_GROUPS.money.test(r, v)));
+    if (research.round.size) rows = rows.filter(r => {
+      const n = parseInt(r.round,10); if (!Number.isFinite(n)) return false;
+      return research.round.has(n>=11 ? "11+" : String(n)); });
+    if (research.ageLo>16 || research.ageHi<25) rows = rows.filter(r=>{ const a=wizAgeOf(r); return a!=null && a>=research.ageLo && a<=research.ageHi; });
+    if (research.bnLo>0) rows = rows.filter(r=>r.bonus!=null && r.bonus>=research.bnLo);
+    if (research.bnHi<BN_MAX) rows = rows.filter(r=>r.bonus!=null && r.bonus<=research.bnHi);
+    // full-set sort — the cap applies after, so any column sort surfaces the true top
+    const k = research.sortKey, dir = research.sortDir;
+    const val = r => k==="player" ? (r.last+" "+r.first).toLowerCase()
+      : k==="pos" ? posDisp(r) : k==="team" ? teamAbbrevOf(r.team)
+      : k==="year" ? r.year : k==="overall" ? r.overall
+      : k==="bonus" ? (r.bonus!=null?r.bonus:-1) : (r.diff!=null?r.diff:-Infinity);
+    return [...rows].sort((a,b)=>{ const x=val(a), y=val(b);
+      return (x<y?-1:x>y?1:0)*dir || (b.year-a.year) || (a.overall-b.overall); });
+  }
+  function renderResearchResults() {
+    const out = $("resTable"), sum = $("resSum"); if (!out) return;
+    if (!DATA.slotHistory.length) { sum.innerHTML=""; out.innerHTML = `<div class="placeholder">Loading historical signings…</div>`; return; }
+    const rows = researchRows();
     const signed = rows.filter(r=>r.diff!=null && r.bonus!=null);
     const avgB = signed.length ? signed.reduce((s,r)=>s+r.bonus,0)/signed.length : null;
-    const avgD = signed.length ? signed.reduce((s,r)=>s+r.diff,0)/signed.length : null;
     const overN = signed.filter(r=>r.diff>0).length;
-    h += `<div class="tc-wizsum"><span><b>${rows.length} matches</b>${signed.length?` · avg ${fmtM(avgB)} · ${Math.round(100*overN/signed.length)}% over slot`:""}</span></div>`;
-    if (!rows.length) return h + `<div class="placeholder">No precedents match those lenses.</div></div>`;
-    const CAP = 12;
-    h += `<table class="tc-upc"><thead><tr><th>Yr</th><th>Player</th><th>Pos</th><th>Pick</th><th>Team</th><th>Bonus</th><th>vs Slot</th></tr></thead><tbody>`;
-    h += rows.slice(0,CAP).map(r=>{
-      const mine = (NAME_FWD[r.team]||r.team) === (pk.teamName||"");
-      return `<tr${mine?' style="background:#fff5f6"':''}>
-        <td>'${String(r.year).slice(2)}</td>
-        <td class="pl">${r.first?r.first[0]+". ":""}${r.last}</td>
-        <td style="color:var(--muted)">${posDisp(r)}</td>
-        <td>#${r.overall}</td>
-        <td style="color:var(--muted)${mine?';color:var(--red);font-weight:800':''}">${teamAbbrevOf(r.team)}</td>
-        <td>${r.bonus!=null?fmtM(r.bonus):`<span style="color:var(--muted);font-weight:600;font-size:11px">unsigned</span>`}</td>
-        <td>${r.diff!=null?`<span class="tg ${r.diff>0?'over':r.diff<0?'under':'fit'}" style="font-size:9px">${r.diff>0?"+":""}${fmtM(r.diff)}</span>`:"—"}</td></tr>`;
+    sum.innerHTML = `<span><b>${rows.length} matches</b>${signed.length?` · avg ${fmtM(avgB)} · ${Math.round(100*overN/signed.length)}% over slot`:""}</span>`;
+    if (!rows.length) { out.innerHTML = `<div class="placeholder">No signings match those lenses.</div>`; return; }
+    const arrow = k => research.sortKey===k ? (research.sortDir>0?" ▲":" ▼") : "";
+    const th = (k, lbl) => `<th class="sortable" onclick="resSort('${k}')">${lbl}${arrow(k)}</th>`;
+    const CAP = 50;
+    let h = `<table class="tc-upc"><thead><tr>${th("year","Yr")}${th("player","Player")}${th("pos","Pos")}${th("overall","Pick")}${th("team","Team")}${th("bonus","Bonus")}${th("diff","vs Slot")}</tr></thead><tbody>`;
+    h += rows.slice(0,CAP).map(r=>`<tr>
+      <td>'${String(r.year).slice(2)}</td>
+      <td class="pl">${r.first?r.first[0]+". ":""}${r.last} ${lvlTag(r)}</td>
+      <td style="color:var(--muted)">${posDispB(r)}</td>
+      <td>#${r.overall}</td>
+      <td style="color:var(--muted)">${teamAbbrevOf(r.team)}</td>
+      <td>${r.bonus!=null?fmtM(r.bonus):`<span style="color:var(--muted);font-weight:600;font-size:11px">unsigned</span>`}</td>
+      <td>${r.diff!=null?`<span class="vsv ${r.diff>50000?'over':r.diff<-50000?'under':'even'}">${r.diff>0?"+":""}${fmtM(r.diff)}</span>`:"—"}</td></tr>`).join("");
+    h += `</tbody></table>`;
+    if (rows.length > CAP) h += `<div class="tc-feed-more">+ ${rows.length-CAP} more matches — tighten the lenses (sorting covers the full set)</div>`;
+    out.innerHTML = h;
+  }
+  function renderResearch() {
+    const el = $("resFilters"); if (!el) return;
+    researchDrawn = true;
+    loadSlotHistory();   // lazy — repaints this view when the CSV lands
+    const anyOn = research.pos.size||research.cls.size||research.lvl.size||research.money.size||research.round.size
+      || research.ageLo>16||research.ageHi<25||research.bnLo>0||research.bnHi<BN_MAX;
+    const chipRow = (g, label, opts) => `<div class="tc-wizgrp"><span class="tc-wizlab">${label}</span>${opts.map(v=>
+      `<button class="tc-chip${research[g].has(v)?' on':''}" onclick="resChip('${g}','${v}')">${v}</button>`).join("")}</div>`;
+    // position dropdown: group headers select their whole family; tokens toggle solo
+    const posMenu = !resPosOpen ? "" : `<div class="res-posmenu" onclick="event.stopPropagation()">${Object.entries(POS_TREE).map(([g,toks])=>{
+      const all = toks.every(t=>research.pos.has(t));
+      return `<div class="res-posrow"><button class="tc-chip grp${all?' on':''}" onclick="resPosGrp('${g}',event)">${g} · all</button>${toks.map(t=>
+        `<button class="tc-chip${research.pos.has(t)?' on':''}" onclick="resPosTok('${t}',event)">${t}</button>`).join("")}</div>`;}).join("")}</div>`;
+    const posBtn = `<div class="tc-wizgrp res-pdrop"><span class="tc-wizlab">Position</span>
+      <button class="tc-chip${research.pos.size?' on':''}" onclick="toggleResPos(event)">${research.pos.size?[...research.pos].join(" "):"Any"} ▾</button>${posMenu}</div>`;
+    // SV clients — one tap preloads level/class/positions/age±1 as comp lenses;
+    // lives in its own collapsible box beneath the filters.
+    const clients = DATA.clientList.filter(c=>c.comp);
+    const cBox = clients.length ? `<div class="res-box res-cbox">
+      <div class="res-chead" onclick="toggleResClients()">SV Clients${research.client?` · ${tcInitialName((clients.find(c=>c.key===research.client)||{}).name||"")}`:""}<span>${resClientsOpen?"▾":"▸"}</span></div>
+      ${resClientsOpen?`<div class="tc-wizgrp" style="flex-wrap:wrap;margin-top:8px">${clients.map(c=>
+        `<button class="tc-chip match${research.client===c.key?' on':''}" onclick="resClient('${c.key.replace(/'/g,"\\'")}')">${tcInitialName(c.name)}</button>`).join("")}</div>`:""}
+    </div>` : "";
+    el.innerHTML = `<div class="res-box"><div class="tc-wiz">
+      ${chipRow("round", "Round", RES_ROUNDS)}
+      ${posBtn}
+      ${chipRow("cls", "Class", WIZ_GROUPS.cls.opts)}
+      ${chipRow("lvl", "Level", WIZ_GROUPS.lvl.opts)}
+      ${chipRow("money", "Money", WIZ_GROUPS.money.opts)}
+      <div class="res-slider"><span class="tc-wizlab">Age</span><span class="res-slab" id="resAgeLab"></span>
+        <div class="dual"><input type="range" id="resAgeLo" min="16" max="25" step="0.1" value="${research.ageLo}" oninput="resSlide()">
+        <input type="range" id="resAgeHi" min="16" max="25" step="0.1" value="${research.ageHi}" oninput="resSlide()"></div></div>
+      <div class="res-slider"><span class="tc-wizlab">Bonus</span><span class="res-slab" id="resBnLab"></span>
+        <div class="dual"><input type="range" id="resBnLo" min="0" max="${BN_MAX}" step="50000" value="${research.bnLo}" oninput="resSlide()">
+        <input type="range" id="resBnHi" min="0" max="${BN_MAX}" step="50000" value="${research.bnHi}" oninput="resSlide()"></div></div>
+      ${anyOn?`<div class="tc-wizgrp"><button class="tc-chip clear" onclick="resReset()">✕ clear all</button></div>`:""}
+    </div></div>${cBox}`;
+    $("resAgeLab").textContent = `${research.ageLo.toFixed(1)} – ${research.ageHi.toFixed(1)}`;
+    $("resBnLab").textContent = `${fmtM(research.bnLo)} – ${research.bnHi>=BN_MAX?"$10M+":fmtM(research.bnHi)}`;
+    renderResearchResults();
+  }
+  // Panel 4 — Top 30 Organizational Prospects (Org Review's MLB.com T30 bake). Player
+  // mode: prospects at the selected player's position group get the highlight — the
+  // depth he'd be walking into with this org.
+  function renderTcProspects(team, sel) {
+    let h = `<div class="tc-panel" data-q="prospects"><h4><span class="n">4</span> Top 30 Org Prospects</h4>`;
+    h += `<div class="tc-sub">MLB.com T30 · Org Review</div>`;
+    const rows = (DATA.prospects && DATA.prospects[teamAlias(team)]) || [];
+    if (!rows.length) return h + `<div class="placeholder">No prospect list for ${team}.</div></div>`;
+    const selGrp = sel && sel.c.comp ? (sel.c.comp.posGroup || posGroupOf(sel.c.comp.pos)) : null;
+    h += `<table class="tc-upc"><thead><tr><th>#</th><th>Player</th><th>Pos</th><th>Lvl</th><th>Age</th><th>ETA</th></tr></thead><tbody>`;
+    h += rows.slice(0,30).map(r=>{
+      const match = selGrp && posGroupOf(r.pos)===selGrp;
+      return `<tr${match?' style="background:#fff5f6"':''}>
+        <td style="color:var(--muted)">${r.rank}</td>
+        <td class="pl">${r.name}</td>
+        <td style="${match?'color:var(--red);font-weight:800':'color:var(--muted)'}">${r.pos}</td>
+        <td style="color:var(--muted)">${r.level||"—"}</td>
+        <td>${r.age!=null?r.age:"—"}</td>
+        <td>${r.eta!=null?"'"+String(r.eta).slice(2):"—"}</td></tr>`;
     }).join("");
     h += `</tbody></table>`;
-    if (rows.length > CAP) h += `<div class="tc-feed-more">+ ${rows.length-CAP} more matches</div>`;
+    if (selGrp) {
+      const nm = rows.filter(r=>posGroupOf(r.pos)===selGrp).length;
+      const last = tcInitialName(sel.c.name).split(" ").slice(-1)[0];
+      h += `<div class="tc-feed-more">${nm} of ${rows.length} in ${last}'s position group</div>`;
+    }
     return h + `</div>`;
   }
 
@@ -3181,7 +3312,7 @@
     tickerShowing = true;
     const p = tickerQueue.shift();
     const key = normName(p.player||""), ours = DATA.clients.has(key), comp = DATA.compByName.get(key);
-    const meta = comp ? `${comp.pos} · ${levelClass(comp).replace("College-","Col ")}` : (p.pos||"");
+    const meta = comp ? `${pickPos(p, comp)} · ${levelClass(comp).replace("College-","Col ")}` : pickPos(p, null);
     const agency = comp && comp.agent ? comp.agent : "";
     // No money on the flash ticker — the announcement is pick/player only; bonus lives
     // on the board tile's chip and in the pool math.
@@ -3251,7 +3382,8 @@
     window.addEventListener("pointercancel", up);
   })();
   const VIEWS = [["tabClients","viewClients","clients"],["tabBoard","viewBoard","board"],
-                 ["tabPools","viewPools","pools"],["tabBest","viewBest","best"]];
+                 ["tabPools","viewPools","pools"],["tabBest","viewBest","best"],
+                 ["tabResearch","viewResearch","research"]];
   function renderActive() {
     if (!currentState) return;
     // refresh the open team card on live data ticks, but don't wipe an in-progress capture form
@@ -3271,6 +3403,7 @@
       if (armed && ae && (ae.tagName==="INPUT" || ae.tagName==="SELECT")) return;
       renderBoard(currentState);
     }
+    else if (VIEW==="research") { if (!researchDrawn) renderResearch(); }  // static data — no tick re-render (sliders!)
     else renderBest();
   }
   function setView(v) { selected=null; VIEW=v; applyViewVis(); renderActive(); }
@@ -3287,7 +3420,7 @@
         mock.picks = lastLive.picks.map(p => ({...p}));
       } else {
         // Pre-draft or no live data: blank skeleton
-        mock.picks = o.picks.map(p => ({ ...p, isDrafted:false, isPass:false, player:null, playerId:null, school:null, schoolClass:null, bucket:"UNK", bonus:null, rank:null }));
+        mock.picks = o.picks.map(p => ({ ...p, isDrafted:false, isPass:false, player:null, playerId:null, school:null, schoolClass:null, bucket:"UNK", bonus:null, bonusUser:false, bonusV:false, rank:null }));
       }
     } catch (e) { $("mockNote").textContent = "Couldn't load board — serve via a web server (vercel dev / python3 -m http.server)"; }
     mock.seeding = false;
