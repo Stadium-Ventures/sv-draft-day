@@ -108,8 +108,7 @@
                       100% { box-shadow:0 0 0 0 rgba(255,42,34,0);     transform:scale(1); } }
   @keyframes bcLandSv { 0% { box-shadow:0 0 0 3px rgba(26,127,55,.7);  transform:scale(1.06); }
                       100% { box-shadow:0 0 0 0 rgba(26,127,55,0);     transform:scale(1); } }
-  .grade { font-size:12px; font-weight:800; color:#fff; border-radius:6px; padding:2px 7px; }
-  .grade[data-org] { cursor:help; }
+  .tm[data-org] { cursor:help; }
   #orgTip { position:fixed; z-index:60; max-width:270px; background:#141414; color:#fff; border-radius:10px;
             padding:11px 13px; font-size:12px; line-height:1.5; box-shadow:0 8px 24px rgba(0,0,0,.28); pointer-events:none; display:none; }
   #orgTip .ot-h { font-weight:900; font-size:13px; margin-bottom:5px; }
@@ -118,9 +117,14 @@
   #orgTip .ot-row span { color:#aaa; } #orgTip .ot-row b { font-variant-numeric:tabular-nums; }
 
   /* clients view */
-  .summary { display:flex; gap:18px; flex-wrap:wrap; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 18px; margin-bottom:14px; }
-  .summary .k { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; }
-  .summary .v { font-size:24px; font-weight:900; font-variant-numeric:tabular-nums; }
+  /* clients summary: same stat-band language as the player/team cards — evenly
+     distributed tiles with hairline dividers, not a loose left-bunched row */
+  .summary { display:flex; flex-wrap:wrap; gap:2px 0; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 18px; margin-bottom:14px; }
+  .summary > div { flex:1 1 150px; min-width:130px; padding:2px 16px; border-left:1px solid var(--line); }
+  .summary > div:first-child { border-left:none; padding-left:0; }
+  .summary .k { font-size:10px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; }
+  .summary .v { font-size:22px; font-weight:900; font-variant-numeric:tabular-nums; margin-top:2px; }
+  .summary .sub { font-size:10px; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.3px; }
   .cc { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; }
   /* our-clients roster list */
   table.cl-table td { vertical-align:middle; }
@@ -176,8 +180,12 @@
   .ba-filters select, .ba-filters input { font:inherit; padding:6px 9px; border:1px solid var(--line); border-radius:8px; }
   .ba-filters label { font-size:12px; font-weight:700; color:var(--muted); display:inline-flex; align-items:center; gap:5px; }
   .ba-filters .count { margin-left:auto; color:var(--muted); font-size:13px; font-weight:700; }
-  table.ba { width:100%; border-collapse:collapse; background:#fff; border:1px solid var(--line); border-radius:10px; overflow:hidden; }
-  table.ba th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); padding:8px 10px; border-bottom:1px solid var(--line); background:#fafafa; }
+  /* border-collapse:separate + no overflow:hidden — both break position:sticky on the thead */
+  table.ba { width:100%; border-collapse:separate; border-spacing:0; background:#fff; border:1px solid var(--line); border-radius:10px; }
+  table.ba th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); padding:8px 10px; border-bottom:1px solid var(--line); background:#fafafa;
+    position:sticky; top:var(--theadTop, 128px); z-index:2; }
+  table.ba thead th:first-child { border-top-left-radius:9px; }
+  table.ba thead th:last-child { border-top-right-radius:9px; }
   table.ba td { padding:7px 10px; border-bottom:1px solid #f0f1f3; font-size:14px; }
   table.ba tr.sv { background:#fff5f6; }
   table.ba tbody tr.clickrow:hover { background:#f6f7f9; cursor:pointer; }
@@ -186,6 +194,7 @@
   .ba-draft-btn:hover { background:var(--red); color:#fff; }
   table.ba .rk { font-weight:800; color:var(--red); }
   .lvl { font-size:11px; font-weight:700; border-radius:4px; padding:1px 6px; }
+  .lvl.lvl-tile { display:inline-block; font-size:14px; font-weight:800; border-radius:6px; padding:3px 10px; }
   .lvl.HS { background:#eef2ff; color:#3949ab; } .lvl.College { background:#e8f5e9; color:#2e7d32; }
   .lvl.JUCO { background:#fff3e0; color:#e65100; } .lvl.Unk { background:#f1f3f5; color:#6b7280; }
   .svtag { font-size:10px; font-weight:800; color:#fff; background:var(--red); border-radius:4px; padding:1px 5px; }
@@ -281,7 +290,6 @@
   .bcard.bc-heat .bc-no, .bcard.bc-heat .bc-team, .bcard.bc-heat .bc-slot, .bcard.bc-heat .bc-player { color:inherit; }
   .bcard.bc-heat .bc-no, .bcard.bc-heat .bc-slot { opacity:.8; }
   .bc-heatlab { display:flex; align-items:center; gap:4px; flex-wrap:wrap; margin-top:auto; padding-top:5px; }
-  .bc-heatlab .grade { font-size:11px; padding:1px 6px; }
   /* keep PDW/CMB legible on any heat-fill color */
   .bc-heatlab .pdw { background:rgba(255,255,255,.92); color:#b3122b; border-color:transparent; }
   .bc-heatlab .pdw.cmb { color:#2a3aa0; }
@@ -452,8 +460,6 @@
   .tc-toggle { display:inline-flex; gap:4px; margin:2px 0 9px; }
   .tc-toggle button { font:inherit; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.3px; border:1px solid var(--line); background:#fff; border-radius:6px; padding:3px 9px; cursor:pointer; color:var(--muted); }
   .tc-toggle button.on { background:var(--red); color:#fff; border-color:var(--red); }
-  /* neutral fit-grade badge — teamintel colors are the only player-tied chroma on the board */
-  .grade.gradeN { background:#fff; color:var(--ink); border:1px solid var(--line); }
   .fr-src { font-size:9px; font-weight:800; text-transform:uppercase; color:var(--muted); }
   /* ── recent draft comparisons (player page panel) ── */
   .cmp-table { width:100%; border-collapse:collapse; }
@@ -682,13 +688,16 @@
   body.mob table.cl-table th:nth-child(10), body.mob table.cl-table td:nth-child(10) { display:none; }
   body.mob table.ba th, body.mob table.ba td { padding:8px 6px; font-size:13px; }
   body.mob .summary { display:grid; grid-template-columns:1fr 1fr; gap:10px 14px; }
+  body.mob .summary > div { border-left:none; padding:0; }
   body.mob .summary .v { font-size:20px; }
   /* Bonus Pools + Best Available: trim to the columns that fit a phone instead of a
      sideways-scrolling table — everything dropped here lives in the team card / player
      dossier. Desktop keeps the full tables (all rules key off body.mob). */
-  /* pools: Team / Spent / Over-Under / Room / % — Pool(2) + Overage(8) go; Picks/Committed are hide-sm */
-  body.mob #viewPools th:nth-child(2), body.mob #viewPools td:nth-child(2),
-  body.mob #viewPools th:nth-child(8), body.mob #viewPools td:nth-child(8) { display:none; }
+  /* pools: Team / Picks / Pool / Overage / Room (the priority columns, in Mike's order) —
+     Spent(7) / Over-Under(8) / %(9) go; Committed is hide-sm */
+  body.mob #viewPools th:nth-child(7), body.mob #viewPools td:nth-child(7),
+  body.mob #viewPools th:nth-child(8), body.mob #viewPools td:nth-child(8),
+  body.mob #viewPools th:nth-child(9), body.mob #viewPools td:nth-child(9) { display:none; }
   /* best available: # / Player / Pos / Lvl / B/T (+ Draft in a paused mock) —
      School/Commit/Agency/Age/Ranks/Trend are all hide-sm (per-publication ranks are a
      hover chip on desktop; on a phone they live on the player page, one tap away).
@@ -821,7 +830,8 @@
 <script>
   const $ = (id) => document.getElementById(id);
   const fmt$ = (n) => n == null ? "—" : "$" + Math.round(n).toLocaleString();
-  const fmtAge = (a) => { if (a==null||a==="") return ""; const n=parseFloat(a); return Number.isFinite(n) ? String(n).replace(/\.0$/,"") : String(a); };
+  // Ages always show one decimal (20.0, not 20) — everywhere an age renders.
+  const fmtAge = (a) => { if (a==null||a==="") return ""; const n=parseFloat(a); return Number.isFinite(n) ? n.toFixed(1) : String(a); };
   const fmtM = (n) => n == null ? "—" : "$" + (n/1e6).toFixed(2) + "M";
   const DRAFT_START = Date.UTC(2026, 6, 11, 17, 30, 0);   // Jul 11 2026, 1:30 PM ET (EDT = UTC-4)
   function fmtCountdown(ms) {
@@ -1106,6 +1116,20 @@
   // Mobile companion mode: body.mob mirrors the ≤640px query and drives the stacked
   // PWA layout. On a phone the board IS the app, so it becomes the launch tab.
   const MOBILE = matchMedia("(max-width:640px)");
+  // Table headers stick just below whichever chrome bars are visible (header / tabs /
+  // mock bar / countdown banner) — measured live, since the set changes by mode + viewport.
+  const setTheadTop = () => {
+    let t = 0;
+    document.querySelectorAll("header, nav.tabs, #mockBar, #preBanner").forEach(el => {
+      if (!el.offsetParent) return;
+      const r = el.getBoundingClientRect();
+      if (r.top <= t + 2 && r.bottom > t) t = r.bottom;
+    });
+    document.documentElement.style.setProperty("--theadTop", `${Math.round(t)}px`);
+  };
+  addEventListener("resize", setTheadTop);
+  new ResizeObserver(setTheadTop).observe(document.body);
+  setTheadTop();
   const applyMobile = () => document.body.classList.toggle("mob", MOBILE.matches);
   applyMobile();
   // re-render on crossover: board tiles emit different markup per form factor
@@ -1388,15 +1412,11 @@
     }
     const pool = state.poolsMap[team];
     const moneyN = pool && pool.ceiling ? Math.max(0, Math.min(1, pool.room/pool.ceiling)) : 0.5;
-    const gradeOf = (s)=> s>=85?"A+":s>=75?"A":s>=66?"B+":s>=56?"B":s>=46?"C":"D";
-    const colorOf = (s)=> s>=75?"#1a7f37":s>=56?"#3949ab":s>=46?"#e8820e":"#9aa0a6";
     const score = Math.round(100*(0.45*interestN + 0.20*devN + 0.15*typeN + 0.20*moneyN));
     // org fit = interest/dev/type only (money excluded), renormalized — lets a strong intel/org
     // fit surface at a slot even when the team's money doesn't work.
     const orgScore = Math.round(100*(0.45*interestN + 0.20*devN + 0.15*typeN)/0.80);
-    return { score, grade:gradeOf(score), color:colorOf(score),
-             orgScore, orgGrade:gradeOf(orgScore), color2:colorOf(orgScore),
-             interestN, devN, typeN, moneyN };
+    return { score, orgScore, interestN, devN, typeN, moneyN };
   }
 
   // ---------- VIEW: OUR CLIENTS ----------
@@ -1406,11 +1426,11 @@
     const dCount = DATA.clientList.filter(c => drafted.has(c.key)).length;
     const secured = DATA.clientList.reduce((s,c)=>{ const pk = drafted.get(c.key); return s + (pk?.slot || 0); }, 0);
     $("clientSummary").innerHTML = [
-      ["Clients tracked", DATA.clientList.length],
-      ["Drafted", dCount],
-      ["Still on board", DATA.clientList.length - dCount],
-      ["Slot $ secured", fmtM(secured)],
-    ].map(([k,v]) => `<div><div class="k">${k}</div><div class="v">${v}</div></div>`).join("");
+      ["Clients tracked", DATA.clientList.length, ""],
+      ["Drafted", dCount, ""],
+      ["Still on board", DATA.clientList.length - dCount, ""],
+      ["Slot $ secured", secured ? fmtM(secured) : "$0", "sum of drafted slot values"],
+    ].map(([k,v,sub]) => `<div><div class="k">${k}</div><div class="v">${v}</div>${sub?`<div class="sub">${sub}</div>`:""}</div>`).join("");
 
     if (!DATA.clientList.length) { $("clientRows").innerHTML = `<tr><td colspan="10"><div class="placeholder">No client data — is sv-teamintel reachable?</div></td></tr>`; return; }
 
@@ -1879,10 +1899,9 @@
         if (rank>=5 && inPlay) { cardCls += " bc-dim"; body = onclock ? "⏱ OTC" : "—"; }
         else {
           const hex = inPlay ? intelColorHex(single, team) : COLOR_HEX.red, txt = textOn(hex);
-          const f = singleC && singleC.comp ? fit(singleC.comp, team, single, state) : null;
           cardCls += " bc-heat"; cardStyle = ` style="background:${hex};color:${txt}"`;
           body = onclock ? "⏱ OTC" : "";
-          dotsHtml = `<div class="bc-heatlab">${f?`<span class="grade" data-org="${team}" style="background:rgba(255,255,255,.9);color:#111">${f.grade}</span>`:""}${contactBadges(single,team)}</div>`;
+          dotsHtml = `<div class="bc-heatlab">${contactBadges(single,team)}</div>`;
         }
       } else {
         const entries = pickDots(p, state), shown = entries.slice(0, CAP);
@@ -1939,8 +1958,8 @@
 
   function jumpCurrent() { document.getElementById("ocRow")?.scrollIntoView({ block:"center", behavior:"smooth" }); }
   // ---------- VIEW: BONUS POOLS ----------
-  const POOL_COLS = [["team","Team"],["pool","Pool"],["picksMade","Picks"],["committedSlot","Committed slot"],
-                     ["poolCharge","Spent"],["overUnder","Over/Under"],["room","Room"],["overage","Overage"],["pctNum","%"]];
+  const POOL_COLS = [["team","Team"],["picksMade","Picks"],["pool","Pool"],["overage","Overage"],["room","Room"],
+                     ["committedSlot","Committed slot"],["poolCharge","Spent"],["overUnder","Over/Under"],["pctNum","%"]];
   let poolSort = { key:"pctNum", dir:-1 };   // dir: -1 desc, 1 asc
   window.sortPools = (key) => {
     if (poolSort.key === key) poolSort.dir *= -1;
@@ -1951,7 +1970,7 @@
     if (!currentState) return;
     $("poolHead").innerHTML = "<tr>" + POOL_COLS.map(([k,label]) => {
       const arrow = poolSort.key===k ? (poolSort.dir<0 ? " ▾" : " ▴") : "";
-      const cls = (k==="picksMade"||k==="committedSlot") ? "hide-sm" : "";
+      const cls = k==="committedSlot" ? "hide-sm" : "";
       return `<th class="sortable ${cls}" onclick="sortPools('${k}')">${label}${arrow}</th>`;
     }).join("") + "</tr>";
     const { key, dir } = poolSort;
@@ -1968,13 +1987,13 @@
       const pctCls = t.pctNum>=4.8 ? "over" : t.pctNum<0 ? "under" : "atslot";
       return `<tr class="clickable" onclick="openTeam('${t.team}')">
         <td><b>${t.team}</b></td>
+        <td>${t.picksMade}/${t.picksTotal}</td>
         <td>${money(t.pool)}</td>
-        <td class="hide-sm">${t.picksMade}/${t.picksTotal}</td>
+        <td>${money(t.overage)}</td>
+        <td>${money(t.room)}</td>
         <td class="hide-sm">${money(t.committedSlot)}</td>
         <td>${money(t.poolCharge)}${t.hasEst?' <span class="outag est atslot">est</span>':""}</td>
         <td><span class="outag ${ouCls}">${ou(t.overUnder)}</span></td>
-        <td>${money(t.room)}</td>
-        <td>${money(t.overage)}</td>
         <td><span class="outag ${pctCls}">${t.pctNum>=0?"+":""}${t.pctNum.toFixed(1)}%</span></td>
       </tr>`;
     }).join("");
@@ -2354,8 +2373,8 @@
     if (!sel) return h + `<div class="placeholder">Select a player to view interest intel.</div></div>`;
     const key = sel.c.key, f = sel.f, comp = sel.c.comp;
     h += `<div class="tc-fitline">
-        <span class="tc-fitscore"><b>${f.score}</b><small>Landing · ${f.grade}</small></span>
-        <span class="tc-fitscore"><b>${f.orgScore}</b><small>Org · ${f.orgGrade}</small></span>
+        <span class="tc-fitscore"><b>${f.score}</b><small>Landing fit</small></span>
+        <span class="tc-fitscore"><b>${f.orgScore}</b><small>Org fit</small></span>
         ${tcDrivers(f)}</div>`;
     const ti = teamInterest(key, team);
     const recs = DATA.intel.filter(r => teamAlias(r.team)===team && normName(r.player)===key)
@@ -2445,7 +2464,7 @@
       } else {
         const cand0 = tiClientsAt(p, state)[0];
         const cand = cand0 ? { c: cand0, f: fit(cand0.comp, team, cand0.key, state) } : null;
-        lastCol = cand ? `<span class="tc-cdot" style="background:${intelColorHex(cand.c.key, team)};display:inline-block;vertical-align:middle;margin-right:4px"></span>${tcInitialName(cand.c.name).split(" ").slice(-1)[0]} <span style="color:var(--muted)">${cand.f.orgGrade}</span>` : "—";
+        lastCol = cand ? `<span class="tc-cdot" style="background:${intelColorHex(cand.c.key, team)};display:inline-block;vertical-align:middle;margin-right:4px"></span>${tcInitialName(cand.c.name).split(" ").slice(-1)[0]}` : "—";
       }
       return `<tr>
         <td class="${cur?'cur':''}">#${p.overall}${cur?'<span class="tc-cur-tag">Now</span>':''}</td>
@@ -2469,7 +2488,7 @@
       const land = teamUpcoming(state, team).find(p=>tcPickFit(x.c.comp, p, state).reachOk);
       return `<tr>
         <td style="font-size:12px">${intelDot(x.c.key, team)} ${tcInitialName(x.c.name)}${x.inPlay?'<span class="tc-inplay">IN PLAY</span>':''}</td>
-        <td><span class="grade gradeN" data-org="${team}">${x.f.orgGrade}</span></td>
+        <td>${x.f.orgScore}</td>
         <td>${(ti.strength*10).toFixed(1)}</td>
         <td>${land?`#${land.overall}`:'—'}</td></tr>`;
     }).join("");
@@ -2692,13 +2711,6 @@
       offer_type: $("bvKind")?.value || "reported", amount:amt, note: $("bvNote")?.value || null, status:"active" });
   };
 
-  // Jump from the header's Range tile to the range editor in the player-settings foot.
-  window.ppEditRange = () => {
-    const el = $("rgLo"); if (!el) return;
-    el.scrollIntoView({ block:"center", behavior:"smooth" });
-    setTimeout(() => el.focus({ preventScroll:true }), 350);
-  };
-
   function renderPlayerDetail(state) {
     const cp0 = DATA.compByName.get(selected.id);
     const c = DATA.clientList.find(x => x.key===selected.id) || { name:(cp0&&cp0.name)||selected.id, key:selected.id, comp:cp0 };
@@ -2712,19 +2724,21 @@
     const dem = demandFor(comp);
     const pk = state.picks.find(p => p.isDrafted && normName(p.player)===c.key);
     const ms = medicalOf(comp || c);
-    const rg = comp ? rangeOf(comp) : null, hasRg = !!(rg && (rg.lo || rg.hi));
     const eb = pk ? effectiveBonus(pk) : null;
     const knownB = eb && eb.bonus!=null && (pk.bonus!=null || eb.src);
 
     // ── header: name + team-card-style stat band ──
+    // Pitchers skip Bats/Throws — the position (LHP/RHP) already says it; hitters get each
+    // as its own tile. HS/College is loud as its own Level tile.
+    const isP = comp?.posGroup === "P";
     const stats = [
       ["Status", pk?`<span style="color:var(--good)">DRAFTED #${pk.overall}</span>`:"ON BOARD", pk?(pk.teamName||pk.team):"awaiting selection"],
+      comp ? ["Level", `<span class="lvl lvl-tile ${comp.level}">${comp.level==="HS"?"High School":comp.level==="College"?"College":comp.level||"—"}</span>`, ""] : null,
       pk ? ["Pick slot", pk.slot>0?fmtM(pk.slot):"—", "slot value"] : null,
       pk ? ["Signing bonus", knownB?fmt$(eb.bonus):"—", knownB?(eb.src||"official"):"not yet known"]
          : ["Est. market value", dem!=null?fmt$(dem):"—", comp?`${levelClass(comp).replace("College-","Col ")} ${comp.posGroup||comp.pos}`:""],
-      comp ? ["B/T", fmtBT(comp), comp.ht&&comp.wt?fmtHtWt(comp):""] : null,
-      ["Medical", ms==="yes"?"✓ Yes":ms==="no"?"✗ No":"? Unknown", ms==="yes"?"≥75% slot floor":"combine consent"],
-      ["Range", `<span class="tlink" title="edit the landing window (player settings below)" onclick="ppEditRange()">${hasRg?`🔒 #${rg.lo||"?"}–${rg.hi||"?"}`:(comp?`~#${Math.max(1,comp.rank-7)}–${Math.min(state.picks.length||(comp.rank+45), comp.rank+45)}`:"—")}</span>`, hasRg?"your intel · hard lock ✎":"engine window · click to set ✎"],
+      (comp && !isP) ? ["Bats", (comp.bats||"—").replace("B","S"), (comp.bats==="B"||comp.bats==="S")?"switch hitter":""] : null,
+      (comp && !isP) ? ["Throws", comp.throws||"—", ""] : null,
       ["School", schoolShort(comp?.school)||"—", ""],
       (comp && (comp.level==="HS" || comp.commit)) ? ["Commit", comp.commit||"—", comp.commit?"college commitment":"none listed"] : null,
       comp ? ["Agency", comp.agent||"—", comp.agent?"representation":"none listed"] : null,
@@ -2735,7 +2749,7 @@
     }).join("") : "";
     let h = `<div class="cc">
       <div class="detail-head">${pk?teamLogo(pk.team,30):""}<span class="rk" style="font-size:20px">${comp?"#"+comp.rank:"NR"}</span>
-        <span class="big">${c.name}</span><span class="pl">${comp?`${comp.pos} · ${levelClass(comp).replace("College-","Col ")}${comp.age?" · age "+fmtAge(comp.age):""}`:"unranked"}</span></div>
+        <span class="big">${c.name}</span><span class="pl">${comp?`${comp.pos} · ${levelClass(comp).replace("College-","Col ")}${comp.age?" · age "+fmtAge(comp.age):""}${comp.ht&&comp.wt?` · ${fmtHtWt(comp)}`:""}`:"unranked"}</span></div>
       <div class="tc-stats pp-stats">${stats.map(([k,v,sub])=>`<div class="tc-stat"><div class="k">${k}</div><div class="v">${v}</div>${sub?`<div class="sub">${sub}</div>`:""}</div>`).join("")}</div>
       ${comp?`<div class="pp-ranks"><span class="pp-rk-t">Source ranks</span>${rkChips}${trendCell(comp)}</div>`:""}
     </div>`;
@@ -2773,15 +2787,14 @@
         .map(t => ({ t, rec:latestIntel(c.key,t), f:fit(comp,t,c.key,state), nx:teamNextPick(state,t) }))
         .sort((a,b) => (!!a.nx !== !!b.nx) ? (a.nx?-1:1) : (a.nx ? a.nx.overall-b.nx.overall : b.f.score-a.f.score));
       p2 = `<div class="tc-panel"><h4><span class="n">2</span> How Each Org Views Him</h4>
-        <div class="tc-fitline sm"><span>sorted by their next pick · dot = interest, grade = fit</span></div>`;
+        <div class="tc-fitline sm"><span>sorted by their next pick · dot = latest interest</span></div>`;
       p2 += teams.length ? teams.map(x => {
         const pool = state.poolsMap[x.t];
         const ou = (comp && x.nx) ? negBonus(comp, x.nx.slot, x.nx.overall) - x.nx.slot : null;
         return `<div class="ct">
           <span class="ov" style="min-width:44px;color:var(--red);font-weight:800">${x.nx?`#${x.nx.overall}`:"—"}</span>
           ${intelDot(c.key, x.t)}
-          <span class="tm">${teamLink(x.t)}</span>
-          <span class="grade" data-org="${x.t}" style="background:${x.f.color}">${x.f.grade}</span>${contactBadges(c.key, x.t)}
+          <span class="tm" data-org="${x.t}">${teamLink(x.t)}</span>${contactBadges(c.key, x.t)}
           <span class="nx">${x.nx?`${fmtM(x.nx.slot)}${ou!=null?` · ${ouTag(ou,true)}`:""}${pool?` · ammo ${fmtM(pool.room)}`:""}`:"no picks left"}</span></div>`;
       }).join("") : `<div class="placeholder">No logged team interest.</div>`;
       p2 += `</div>`;
@@ -2858,8 +2871,7 @@
     h += clients.length ? clients.map(x => {
       const nx=teamNextPick(state,t); const ou=(x.c.comp&&nx)?negBonus(x.c.comp,nx.slot,nx.overall)-nx.slot:null;
       return `<div class="ct">${intelDot(x.c.key, t)}
-        <span class="nm">${playerLink(x.c.name)}</span>
-        <span class="grade" data-org="${t}" style="background:${x.f.color}">${x.f.grade}</span>${contactBadges(x.c.key, t)}
+        <span class="nm">${playerLink(x.c.name)}</span>${contactBadges(x.c.key, t)}
         <span class="nx">${x.dr?`drafted #${x.dr.overall}`:(ou!=null?ouTag(ou,true):"")}</span></div>`;
     }).join("") : `<div class="placeholder">None on file.</div>`;
     h += `</div></div>`;
@@ -3267,7 +3279,7 @@
     } else { pollLive(); }
   }
 
-  // ---------- org-review hover tooltip (on fit grades) ----------
+  // ---------- org-review hover tooltip (on team names in the org-interest lists) ----------
   function orgTipHtml(team) {
     const o = DATA.orgs[team];
     if (!o) return `<div class="ot-h">${team}</div><div style="color:#aaa">No org-review data.</div>`;
