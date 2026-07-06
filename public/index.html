@@ -487,9 +487,19 @@
   .tg.lvl-hs { background:#fef3c7; color:#92400e; font-size:8px; padding:0 4px; vertical-align:1px; }
   .tg.lvl-col { background:#e0e7ff; color:#3730a3; font-size:8px; padding:0 4px; vertical-align:1px; }
   /* Research tab: filters left, results right; dual-thumb range sliders */
-  .res-grid { display:grid; grid-template-columns:300px minmax(0,1fr); gap:18px; align-items:start; }
+  .res-grid { display:grid; grid-template-columns:440px minmax(0,1fr); gap:18px; align-items:start; }
   .res-filters { border:1px solid #c9c9c7; border-radius:12px; padding:12px 13px; position:sticky; top:76px; }
   .res-filters .tc-wizgrp { margin-bottom:7px; }
+  .res-filters .tc-chip { padding:2px 7px; }
+  .res-pdrop { position:relative; }
+  .res-pdrop > .tc-chip { max-width:320px; overflow:hidden; text-overflow:ellipsis; }
+  .res-posmenu { position:absolute; left:52px; top:26px; z-index:30; background:#fff; border:1px solid #c9c9c7; border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,.15); padding:9px 10px; min-width:300px; }
+  .res-posrow { display:flex; gap:4px; align-items:center; margin-bottom:5px; flex-wrap:wrap; }
+  .res-posrow:last-child { margin-bottom:0; }
+  .res-posrow .tc-chip.grp { border-style:dashed; font-weight:900; }
+  .tc-upc th.sortable { cursor:pointer; user-select:none; white-space:nowrap; }
+  .tc-upc th.sortable:hover { color:var(--ink); }
+  .posb { font-size:8px; font-weight:800; color:#9aa2ae; vertical-align:1px; }
   .res-out { min-width:0; }
   .res-slider { display:flex; align-items:center; gap:4px; flex-wrap:wrap; margin-bottom:7px; }
   .res-slab { font-size:11px; font-weight:800; font-variant-numeric:tabular-nums; }
@@ -1094,6 +1104,22 @@
     const m = p.match(/[LR]HP/); if (m) return m[0];
     return r.throws==="L" ? "LHP" : r.throws==="R" ? "RHP" : "P";
   }
+  // Table-cell variant: hitters also carry their bat side (S for switch) as a small mark.
+  function posDispB(r) {
+    if (r.group === "P") return posDisp(r);
+    const b = (r.bats||"").toUpperCase().replace("B","S");
+    return posDisp(r) + (b ? ` <span class="posb">${b}</span>` : "");
+  }
+  // Position display for live/mock feed picks (p.pos + composite record): pitchers get
+  // handedness from the comp's throws, hitters get their bat side.
+  function pickPos(p, comp) {
+    const raw = String(p.pos || (comp && comp.pos) || "").toUpperCase();
+    if (!raw) return "";
+    const m = raw.match(/[LR]HP/); if (m) return m[0];
+    if (isPitcher(raw)) return comp && comp.throws ? (comp.throws==="L" ? "LHP" : "RHP") : raw;
+    const b = comp && comp.bats ? String(comp.bats).toUpperCase().replace("B","S") : "";
+    return raw + (b ? ` <span class="posb">${b}</span>` : "");
+  }
   // Tracker rows carry full team names; map to the feed's abbrevs (built lazily from the
   // live pick list), falling back to the nickname for any unmapped name.
   function teamAbbrevOf(fullName) {
@@ -1180,8 +1206,8 @@
   let tcNavMenu = null;        // header round/pick dropdown: null | 'round' | 'pick'
   let tcAdvance = null;        // { pick, timer } — open card's pick just got made; auto-advance pending
   let tcScrollDraft = false;   // one-shot: center the open pick in The Draft flow on open/nav
-  // Research tab filters: chips (single-select per group) + age/bonus ranges
-  let research = { pos:null, cls:null, lvl:null, money:null, round:null, ageLo:16, ageHi:25, bnLo:0, bnHi:10000000 };
+  // Research tab filters — initialized to RES_DEF() in the Research section below
+  let research;
   // Mobile card modules: which are expanded (survives re-renders + pick nav; per-device).
   let mPanelOpen = { draft:true };
   try { mPanelOpen = JSON.parse(localStorage.getItem("dd:mPanels")) || mPanelOpen; } catch (e) {}
@@ -1986,6 +2012,7 @@
   document.addEventListener("click", (e) => {
     if (playerMenuOpen && !(e.target.closest && e.target.closest(".pdrop"))) { playerMenuOpen = false; renderBoardPlayers(currentState); }
     if (bonusEdit!=null && !(e.target.closest && e.target.closest(".bc-bform"))) { bonusEdit = null; renderBoard(currentState); }
+    if (resPosOpen && !(e.target.closest && e.target.closest(".res-pdrop"))) { resPosOpen = false; renderResearch(); }
   });
   window.toggleBoardClient = (key, e) => {
     if (e) e.stopPropagation();
@@ -2061,7 +2088,7 @@
         const comp = DATA.compByName.get(normName(p.player||""));
         const eb = effectiveBonus(p);
         // mobile tiles are rows, not columns — meta joins onto one line, money onto another
-        const metaParts = [p.pos, schoolShort(comp?.school || p.school), comp?.agent].filter(Boolean);
+        const metaParts = [pickPos(p, comp), schoolShort(comp?.school || p.school), comp?.agent].filter(Boolean);
         const lines = MOBILE.matches
           ? (metaParts.length ? [`<div class="bc-meta">${metaParts.join(" · ")}</div>`] : [])
           : metaParts.map(v=>`<div class="bc-meta">${v}</div>`);
@@ -2141,7 +2168,7 @@
       let cls = "feed-row", who, sub;
       if (p.isDrafted) {
         who = p.player || "—";
-        sub = [p.pos, comp?.agent, schoolShort(comp?.school || p.school)].filter(Boolean).join(" · ");
+        sub = [pickPos(p, comp), comp?.agent, schoolShort(comp?.school || p.school)].filter(Boolean).join(" · ");
         if (ours) cls += " sv";
       } else if (onclock) { cls += " oc"; who = "On the clock"; sub = "● NOW"; }
       else { cls += " up"; who = "Upcoming"; sub = ""; }
@@ -2626,7 +2653,7 @@
         // same display rule as board tiles: entered/official money only, else $—
         const known = MODE==="mock" ? !!p.bonusUser : (eb.bonus!=null && (p.bonus!=null || eb.src));
         const comp = DATA.compByName.get(normName(p.player||""));
-        const sub = [p.pos, schoolShort(comp?.school || p.school)].filter(Boolean).join(" · ");
+        const sub = [pickPos(p, comp), schoolShort(comp?.school || p.school)].filter(Boolean).join(" · ");
         main = `<div class="tc-dfwho">${p.player||"—"}${DATA.clients.has(normName(p.player||""))?' <span class="svtag">SV</span>':''}${sub?`<span class="tc-dfsub">${sub}</span>`:""}</div>`;
         val = known ? `${fmtM(eb.bonus)}${eb.src?` <span class="bc-src">${eb.src==="confirmed"?"✓":eb.src.slice(0,3)}</span>`:""}` : "$—";
         onclick = `openPlayer('${normName(p.player||"").replace(/'/g,"\\'")}')`;
@@ -2697,7 +2724,7 @@
       h += rdRows.map(r=>`<tr>
           <td>'${String(r.year).slice(2)}</td>
           <td class="pl">${r.first?r.first[0]+". ":""}${r.last} ${lvlTag(r)}</td>
-          <td style="color:var(--muted)">${posDisp(r)}</td>
+          <td style="color:var(--muted)">${posDispB(r)}</td>
           <td>#${r.overall}</td>
           <td>${r.bonus!=null?fmtM(r.bonus):`<span style="color:var(--muted);font-weight:600;font-size:11px">unsigned</span>`}</td>
           <td>${r.diff!=null?`<span class="vsv ${r.diff>50000?'over':r.diff<-50000?'under':'even'}">${r.diff>0?"+":""}${fmtM(r.diff)}</span>`:"—"}</td></tr>`).join("");
@@ -2736,7 +2763,7 @@
     h += rows.map(r=>`<tr>
       <td>'${String(r.year).slice(2)}</td>
       <td class="pl">${r.first?r.first[0]+". ":""}${r.last} ${lvlTag(r)}</td>
-      <td style="color:var(--muted)">${posDisp(r)}</td>
+      <td style="color:var(--muted)">${posDispB(r)}</td>
       <td style="color:var(--muted)">${teamAbbrevOf(r.team)}</td>
       <td>${r.bonus!=null?fmtM(r.bonus):`<span style="color:var(--muted);font-weight:600;font-size:11px">unsigned</span>`}</td>
       <td>${r.diff!=null?`<span class="vsv ${r.diff>50000?'over':r.diff<-50000?'under':'even'}">${r.diff>0?"+":""}${fmtM(r.diff)}</span>`:"—"}</td></tr>`).join("");
@@ -2766,39 +2793,74 @@
   const lvlTag = (r) => r.level==="HS" ? '<span class="tg lvl-hs">HS</span>' : '<span class="tg lvl-col">COL</span>';
 
   // ---------- VIEW: RESEARCH — the precedent wizard over the whole tracker ----------
-  // Chips (single-select per group, AND across groups) + dual-thumb Age and Bonus range
-  // sliders. Age chips are superseded by the slider here. Sliders repaint ONLY the
-  // results (no full re-render mid-drag); the view never re-renders on live ticks.
-  let researchDrawn = false;
-  const RES_DEF = { pos:null, cls:null, lvl:null, money:null, round:null, ageLo:16, ageHi:25, bnLo:0, bnHi:10000000 };
-  const RES_ROUND = { label:"Round", opts:["1","2","3","4","5","6–10","11+"], test:(r,v)=>{
-    const n = parseInt(r.round,10); if (!Number.isFinite(n)) return false;
-    return v==="6–10" ? (n>=6&&n<=10) : v==="11+" ? n>=11 : String(n)===v; } };
+  // Multi-select chips (OR within a category, AND across categories), a position
+  // dropdown with group-selects, dual-thumb Age and Bonus range sliders, and a fully
+  // sortable results table. Sliders repaint ONLY the results (no full re-render
+  // mid-drag); the view never re-renders on live ticks.
+  let researchDrawn = false, resPosOpen = false;
   const BN_MAX = 10000000;
-  window.resChip = (g, v) => {
-    if (g==="round") research.round = research.round===v ? null : v;
-    else research[g] = research[g]===v ? null : v;
-    renderResearch();
-  };
-  window.resReset = () => { research = { ...RES_DEF }; renderResearch(); };
+  const RES_DEF = () => ({ pos:new Set(), cls:new Set(), lvl:new Set(), money:new Set(), round:new Set(),
+                           ageLo:16, ageHi:25, bnLo:0, bnHi:BN_MAX, client:null, sortKey:"year", sortDir:-1 });
+  research = RES_DEF();
+  const RES_ROUNDS = ["1","2","3","4","5","6","7","8","9","10","11+"];
+  const POS_TREE = { P:["RHP","LHP"], C:["C"], IF:["1B","2B","3B","SS"], OF:["OF","CF","LF","RF"] };
+  // a row can carry multiple positions ("RF-C"); pitchers resolve to handedness
+  const rowPosTokens = (r) => r.group==="P" ? [posDisp(r)] : String(r.pos||"").toUpperCase().split(/[-\/,\s]+/).filter(Boolean);
+  const setTog = (set, v) => { if (set.has(v)) set.delete(v); else set.add(v); };
+  window.resChip = (g, v) => { setTog(research[g], v); research.client = null; renderResearch(); };
+  window.resReset = () => { research = RES_DEF(); resPosOpen = false; renderResearch(); };
+  window.toggleResPos = (e) => { if (e) e.stopPropagation(); resPosOpen = !resPosOpen; renderResearch(); };
+  window.resPosTok = (t, e) => { if (e) e.stopPropagation(); setTog(research.pos, t); research.client = null; renderResearch(); };
+  window.resPosGrp = (g, e) => { if (e) e.stopPropagation();
+    const toks = POS_TREE[g], all = toks.every(t=>research.pos.has(t));
+    toks.forEach(t => all ? research.pos.delete(t) : research.pos.add(t));
+    research.client = null; renderResearch(); };
+  window.resSort = (k) => {
+    if (research.sortKey === k) research.sortDir *= -1;
+    else { research.sortKey = k; research.sortDir = (k==="player"||k==="pos"||k==="team") ? 1 : -1; }
+    renderResearchResults(); };
+  // Preload a client's comp profile: level, class proxy, positions, age ±1
+  window.resClient = (key) => {
+    const c = (DATA.clientList.find(x=>x.key===key) || {}).comp; if (!c) return;
+    research = RES_DEF(); research.client = key;
+    research.lvl.add(c.level==="HS" ? "HS" : "College");
+    const lc = levelClass(c);
+    research.cls.add(c.level==="HS" ? "Prep" : lc.endsWith("SR") ? "SR+" : lc.endsWith("JR") ? "JR" : "Early col");
+    if (isPitcher(c.pos)) research.pos.add(c.throws==="L" ? "LHP" : "RHP");
+    else String(c.pos||"").toUpperCase().split(/[-\/,\s]+/).filter(Boolean).forEach(t=>research.pos.add(t));
+    const a = parseFloat(compAge(c.born, 2026));
+    if (Number.isFinite(a)) { research.ageLo = Math.max(16, Math.round((a-1)*10)/10); research.ageHi = Math.min(25, Math.round((a+1)*10)/10); }
+    renderResearch(); };
   window.resSlide = () => {
     let aLo = parseFloat($("resAgeLo").value), aHi = parseFloat($("resAgeHi").value);
     if (aLo > aHi) [aLo, aHi] = [aHi, aLo];
     let bLo = parseInt($("resBnLo").value,10), bHi = parseInt($("resBnHi").value,10);
     if (bLo > bHi) [bLo, bHi] = [bHi, bLo];
-    Object.assign(research, { ageLo:aLo, ageHi:aHi, bnLo:bLo, bnHi:bHi });
+    Object.assign(research, { ageLo:aLo, ageHi:aHi, bnLo:bLo, bnHi:bHi, client:null });
     $("resAgeLab").textContent = `${aLo.toFixed(1)} – ${aHi.toFixed(1)}`;
     $("resBnLab").textContent = `${fmtM(bLo)} – ${bHi>=BN_MAX?"$10M+":fmtM(bHi)}`;
     renderResearchResults();
   };
   function researchRows() {
     let rows = DATA.slotHistory;
-    for (const g of ["pos","cls","lvl","money"]) if (research[g]) rows = rows.filter(r=>WIZ_GROUPS[g].test(r, research[g]));
-    if (research.round) rows = rows.filter(r=>RES_ROUND.test(r, research.round));
+    if (research.pos.size)   rows = rows.filter(r => rowPosTokens(r).some(t=>research.pos.has(t)));
+    if (research.cls.size)   rows = rows.filter(r => research.cls.has(wizClsOf(r)));
+    if (research.lvl.size)   rows = rows.filter(r => research.lvl.has(r.level));
+    if (research.money.size) rows = rows.filter(r => [...research.money].some(v=>WIZ_GROUPS.money.test(r, v)));
+    if (research.round.size) rows = rows.filter(r => {
+      const n = parseInt(r.round,10); if (!Number.isFinite(n)) return false;
+      return research.round.has(n>=11 ? "11+" : String(n)); });
     if (research.ageLo>16 || research.ageHi<25) rows = rows.filter(r=>{ const a=wizAgeOf(r); return a!=null && a>=research.ageLo && a<=research.ageHi; });
     if (research.bnLo>0) rows = rows.filter(r=>r.bonus!=null && r.bonus>=research.bnLo);
     if (research.bnHi<BN_MAX) rows = rows.filter(r=>r.bonus!=null && r.bonus<=research.bnHi);
-    return [...rows].sort((a,b)=> (b.year-a.year) || (a.overall-b.overall));
+    // full-set sort — the cap applies after, so any column sort surfaces the true top
+    const k = research.sortKey, dir = research.sortDir;
+    const val = r => k==="player" ? (r.last+" "+r.first).toLowerCase()
+      : k==="pos" ? posDisp(r) : k==="team" ? teamAbbrevOf(r.team)
+      : k==="year" ? r.year : k==="overall" ? r.overall
+      : k==="bonus" ? (r.bonus!=null?r.bonus:-1) : (r.diff!=null?r.diff:-Infinity);
+    return [...rows].sort((a,b)=>{ const x=val(a), y=val(b);
+      return (x<y?-1:x>y?1:0)*dir || (b.year-a.year) || (a.overall-b.overall); });
   }
   function renderResearchResults() {
     const out = $("resTable"), sum = $("resSum"); if (!out) return;
@@ -2809,37 +2871,55 @@
     const overN = signed.filter(r=>r.diff>0).length;
     sum.innerHTML = `<span><b>${rows.length} matches</b>${signed.length?` · avg ${fmtM(avgB)} · ${Math.round(100*overN/signed.length)}% over slot`:""}</span>`;
     if (!rows.length) { out.innerHTML = `<div class="placeholder">No signings match those lenses.</div>`; return; }
+    const arrow = k => research.sortKey===k ? (research.sortDir>0?" ▲":" ▼") : "";
+    const th = (k, lbl) => `<th class="sortable" onclick="resSort('${k}')">${lbl}${arrow(k)}</th>`;
     const CAP = 50;
-    let h = `<table class="tc-upc"><thead><tr><th>Yr</th><th>Player</th><th>Pos</th><th>Pick</th><th>Team</th><th>Bonus</th><th>vs Slot</th></tr></thead><tbody>`;
+    let h = `<table class="tc-upc"><thead><tr>${th("year","Yr")}${th("player","Player")}${th("pos","Pos")}${th("overall","Pick")}${th("team","Team")}${th("bonus","Bonus")}${th("diff","vs Slot")}</tr></thead><tbody>`;
     h += rows.slice(0,CAP).map(r=>`<tr>
       <td>'${String(r.year).slice(2)}</td>
       <td class="pl">${r.first?r.first[0]+". ":""}${r.last} ${lvlTag(r)}</td>
-      <td style="color:var(--muted)">${posDisp(r)}</td>
+      <td style="color:var(--muted)">${posDispB(r)}</td>
       <td>#${r.overall}</td>
       <td style="color:var(--muted)">${teamAbbrevOf(r.team)}</td>
       <td>${r.bonus!=null?fmtM(r.bonus):`<span style="color:var(--muted);font-weight:600;font-size:11px">unsigned</span>`}</td>
       <td>${r.diff!=null?`<span class="vsv ${r.diff>50000?'over':r.diff<-50000?'under':'even'}">${r.diff>0?"+":""}${fmtM(r.diff)}</span>`:"—"}</td></tr>`).join("");
     h += `</tbody></table>`;
-    if (rows.length > CAP) h += `<div class="tc-feed-more">+ ${rows.length-CAP} more matches — tighten the lenses</div>`;
+    if (rows.length > CAP) h += `<div class="tc-feed-more">+ ${rows.length-CAP} more matches — tighten the lenses (sorting covers the full set)</div>`;
     out.innerHTML = h;
   }
   function renderResearch() {
     const el = $("resFilters"); if (!el) return;
     researchDrawn = true;
     loadSlotHistory();   // lazy — repaints this view when the CSV lands
-    const anyChip = research.pos||research.cls||research.lvl||research.money||research.round;
-    const anySlide = research.ageLo>16||research.ageHi<25||research.bnLo>0||research.bnHi<BN_MAX;
-    const grp = (g, def) => `<div class="tc-wizgrp"><span class="tc-wizlab">${def.label}</span>${def.opts.map(v=>
-      `<button class="tc-chip${(g==="round"?research.round:research[g])===v?' on':''}" onclick="resChip('${g}','${v}')">${v}</button>`).join("")}</div>`;
+    const anyOn = research.pos.size||research.cls.size||research.lvl.size||research.money.size||research.round.size
+      || research.ageLo>16||research.ageHi<25||research.bnLo>0||research.bnHi<BN_MAX;
+    const chipRow = (g, label, opts) => `<div class="tc-wizgrp"><span class="tc-wizlab">${label}</span>${opts.map(v=>
+      `<button class="tc-chip${research[g].has(v)?' on':''}" onclick="resChip('${g}','${v}')">${v}</button>`).join("")}</div>`;
+    // position dropdown: group headers select their whole family; tokens toggle solo
+    const posMenu = !resPosOpen ? "" : `<div class="res-posmenu" onclick="event.stopPropagation()">${Object.entries(POS_TREE).map(([g,toks])=>{
+      const all = toks.every(t=>research.pos.has(t));
+      return `<div class="res-posrow"><button class="tc-chip grp${all?' on':''}" onclick="resPosGrp('${g}',event)">${g} · all</button>${toks.map(t=>
+        `<button class="tc-chip${research.pos.has(t)?' on':''}" onclick="resPosTok('${t}',event)">${t}</button>`).join("")}</div>`;}).join("")}</div>`;
+    const posBtn = `<div class="tc-wizgrp res-pdrop"><span class="tc-wizlab">Position</span>
+      <button class="tc-chip${research.pos.size?' on':''}" onclick="toggleResPos(event)">${research.pos.size?[...research.pos].join(" "):"Any"} ▾</button>${posMenu}</div>`;
+    // our clients — one tap preloads level/class/positions/age±1 as comp lenses
+    const clients = DATA.clientList.filter(c=>c.comp);
+    const cRow = clients.length ? `<div class="tc-wizgrp"><span class="tc-wizlab">Our guys</span>${clients.map(c=>
+      `<button class="tc-chip match${research.client===c.key?' on':''}" onclick="resClient('${c.key.replace(/'/g,"\\'")}')">${tcInitialName(c.name)}</button>`).join("")}</div>` : "";
     el.innerHTML = `<div class="tc-wiz">
-      ${grp("round", RES_ROUND)}${grp("pos", WIZ_GROUPS.pos)}${grp("cls", WIZ_GROUPS.cls)}${grp("lvl", WIZ_GROUPS.lvl)}${grp("money", WIZ_GROUPS.money)}
+      ${cRow}
+      ${chipRow("round", "Round", RES_ROUNDS)}
+      ${posBtn}
+      ${chipRow("cls", "Class", WIZ_GROUPS.cls.opts)}
+      ${chipRow("lvl", "Level", WIZ_GROUPS.lvl.opts)}
+      ${chipRow("money", "Money", WIZ_GROUPS.money.opts)}
       <div class="res-slider"><span class="tc-wizlab">Age</span><span class="res-slab" id="resAgeLab"></span>
         <div class="dual"><input type="range" id="resAgeLo" min="16" max="25" step="0.1" value="${research.ageLo}" oninput="resSlide()">
         <input type="range" id="resAgeHi" min="16" max="25" step="0.1" value="${research.ageHi}" oninput="resSlide()"></div></div>
       <div class="res-slider"><span class="tc-wizlab">Bonus</span><span class="res-slab" id="resBnLab"></span>
         <div class="dual"><input type="range" id="resBnLo" min="0" max="${BN_MAX}" step="50000" value="${research.bnLo}" oninput="resSlide()">
         <input type="range" id="resBnHi" min="0" max="${BN_MAX}" step="50000" value="${research.bnHi}" oninput="resSlide()"></div></div>
-      ${(anyChip||anySlide)?`<div class="tc-wizgrp"><button class="tc-chip clear" onclick="resReset()">✕ clear all</button></div>`:""}
+      ${anyOn?`<div class="tc-wizgrp"><button class="tc-chip clear" onclick="resReset()">✕ clear all</button></div>`:""}
     </div>`;
     $("resAgeLab").textContent = `${research.ageLo.toFixed(1)} – ${research.ageHi.toFixed(1)}`;
     $("resBnLab").textContent = `${fmtM(research.bnLo)} – ${research.bnHi>=BN_MAX?"$10M+":fmtM(research.bnHi)}`;
@@ -3222,7 +3302,7 @@
     tickerShowing = true;
     const p = tickerQueue.shift();
     const key = normName(p.player||""), ours = DATA.clients.has(key), comp = DATA.compByName.get(key);
-    const meta = comp ? `${comp.pos} · ${levelClass(comp).replace("College-","Col ")}` : (p.pos||"");
+    const meta = comp ? `${pickPos(p, comp)} · ${levelClass(comp).replace("College-","Col ")}` : pickPos(p, null);
     const agency = comp && comp.agent ? comp.agent : "";
     // No money on the flash ticker — the announcement is pick/player only; bonus lives
     // on the board tile's chip and in the pool math.
