@@ -281,7 +281,7 @@
   .bc-chip.val { color:#155724; border-color:#a8d5b3; background:#f5fff7; }
   .bc-chip.val .bc-ck { background:#1a7f37; border-color:#1a7f37; }
   .bc-bform { display:flex; align-items:center; gap:4px; margin-top:2px; flex-wrap:wrap; font-size:10px; font-weight:700; }
-  .bc-bform input[type=number] { width:70px; font:inherit; padding:1px 3px; border:1px solid var(--line); border-radius:4px; }
+  .bc-bform input[type=text] { width:84px; font:inherit; font-variant-numeric:tabular-nums; padding:1px 3px; border:1px solid var(--line); border-radius:4px; }
   .bc-bform label { display:inline-flex; align-items:center; gap:2px; color:var(--muted); cursor:pointer; white-space:nowrap; }
   .bc-bform button { font:inherit; border:1px solid var(--line); border-radius:4px; background:#fff; cursor:pointer; padding:1px 5px; }
   .bc-bform button.ok { background:#1a7f37; border-color:#1a7f37; color:#fff; }
@@ -1878,9 +1878,17 @@
     const a = $("bxAmt"); if (a) { a.focus(); a.select(); }
   };
   window.closeBonusChip = (e) => { if (e) e.stopPropagation(); bonusEdit = null; renderBoard(currentState); };
+  // Comma-group the bonus amount as it's typed, keeping the caret with its digit.
+  window.fmtBonusInput = (el) => {
+    const digitsBefore = el.value.slice(0, el.selectionStart).replace(/\D/g,"").length;
+    el.value = el.value.replace(/\D/g,"").replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    let pos = 0, seen = 0;
+    while (pos < el.value.length && seen < digitsBefore) { if (/\d/.test(el.value[pos])) seen++; pos++; }
+    el.setSelectionRange(pos, pos);
+  };
   window.saveBonusChip = (ov, e) => {
     if (e) e.stopPropagation();
-    const amt = parseFloat($("bxAmt")?.value), val = !!($("bxVal")?.checked);
+    const amt = parseFloat(($("bxAmt")?.value||"").replace(/[^\d.]/g,"")), val = !!($("bxVal")?.checked);
     if (!Number.isFinite(amt) || amt<=0) { alert("Enter a bonus amount."); return; }
     const p = (currentState?.picks||[]).find(x=>x.overall===ov); if (!p) return;
     bonusEdit = null;
@@ -1925,7 +1933,7 @@
         if (bonusEdit === p.overall) {
           const cur = Math.round(logged ? eb.bonus : suggestBonus(p));
           lines.push(`<div class="bc-bform" onclick="event.stopPropagation()">
-            $<input id="bxAmt" type="number" value="${cur}" onkeydown="if(event.key==='Enter')saveBonusChip(${p.overall},event)">
+            $<input id="bxAmt" type="text" inputmode="numeric" value="${cur.toLocaleString("en-US")}" oninput="fmtBonusInput(this)" onkeydown="if(event.key==='Enter')saveBonusChip(${p.overall},event)">
             <label><input id="bxVal" type="checkbox"${validated?" checked":""}>validated</label>
             <button class="ok" onclick="saveBonusChip(${p.overall},event)">Save</button>
             <button onclick="closeBonusChip(event)">✕</button></div>`);
