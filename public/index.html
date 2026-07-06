@@ -2808,7 +2808,7 @@
                            ageLo:16, ageHi:25, bnLo:0, bnHi:BN_MAX, client:null, sortKey:"year", sortDir:-1 });
   research = RES_DEF();
   const RES_ROUNDS = ["1","2","3","4","5","6","7","8","9","10","11+"];
-  const POS_TREE = { P:["RHP","LHP"], C:["C"], IF:["1B","2B","3B","SS"], OF:["OF","CF","LF","RF"] };
+  const POS_TREE = { P:["RHP","LHP"], C:["C"], IF:["1B","2B","3B","SS"], OF:["OF","CF","LF","RF"], DH:["DH"] };
   // a row can carry multiple positions ("RF-C"); pitchers resolve to handedness
   const rowPosTokens = (r) => r.group==="P" ? [posDisp(r)] : String(r.pos||"").toUpperCase().split(/[-\/,\s]+/).filter(Boolean);
   const setTog = (set, v) => { if (set.has(v)) set.delete(v); else set.add(v); };
@@ -2905,7 +2905,8 @@
     // position dropdown: group headers select their whole family; tokens toggle solo
     const posMenu = !resPosOpen ? "" : `<div class="res-posmenu" onclick="event.stopPropagation()">${Object.entries(POS_TREE).map(([g,toks])=>{
       const all = toks.every(t=>research.pos.has(t));
-      return `<div class="res-posrow"><button class="tc-chip grp${all?' on':''}" onclick="resPosGrp('${g}',event)">${g} · all</button>${toks.map(t=>
+      const grpBtn = toks.length>1 ? `<button class="tc-chip grp${all?' on':''}" onclick="resPosGrp('${g}',event)">${g} · all</button>` : "";
+      return `<div class="res-posrow">${grpBtn}${toks.map(t=>
         `<button class="tc-chip${research.pos.has(t)?' on':''}" onclick="resPosTok('${t}',event)">${t}</button>`).join("")}</div>`;}).join("")}</div>`;
     const posBtn = `<div class="tc-wizgrp res-pdrop"><span class="tc-wizlab">Position</span>
       <button class="tc-chip${research.pos.size?' on':''}" onclick="toggleResPos(event)">${research.pos.size?[...research.pos].join(" "):"Any"} ▾</button>${posMenu}</div>`;
