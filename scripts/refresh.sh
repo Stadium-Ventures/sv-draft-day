@@ -6,6 +6,7 @@ cd "$(dirname "$0")/.."
 echo "▸ rebuilding data…"
 python3 scripts/build_data.py
 python3 scripts/build_homegrown.py
+python3 scripts/build_prospects.py
 if git diff --quiet public/data; then
   echo "✓ no data changes — nothing to deploy."
   exit 0
