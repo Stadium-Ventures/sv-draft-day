@@ -477,6 +477,9 @@
   .tc-chip.on { background:var(--red); color:#fff; border-color:var(--red); }
   .tc-chip.match { border-color:#1a7f37; color:#1a7f37; }
   .tc-chip.clear { border-style:dashed; }
+  .tc-wizsum { display:flex; justify-content:space-between; align-items:baseline; gap:4px 10px; flex-wrap:wrap; font-size:11px; margin:4px 0 6px; border-top:1px solid var(--line); padding-top:7px; }
+  .tc-wizsum > span:first-child { font-weight:700; font-variant-numeric:tabular-nums; }
+  .tc-wizscope { color:var(--muted); font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:.3px; white-space:nowrap; }
   .tc-draftflow { position:relative; max-height:420px; overflow-y:auto; margin:2px -6px 4px; padding:0 6px; }
   .tc-dfrow { position:relative; display:flex; align-items:center; gap:7px; padding:5px 6px; border-bottom:1px solid var(--line); font-size:12px; cursor:pointer; border-radius:6px; }
   .tc-dfrow:hover { background:#f7f8fa; }
@@ -2788,7 +2791,7 @@
     const avgB = signed.length ? signed.reduce((s,r)=>s+r.bonus,0)/signed.length : null;
     const avgD = signed.length ? signed.reduce((s,r)=>s+r.diff,0)/signed.length : null;
     const overN = signed.filter(r=>r.diff>0).length;
-    h += `<div class="tc-kv"><span class="k">Round ${rd} · league-wide${anyOn?" · filtered":""}</span><span class="v">${rows.length} matches${signed.length?` · avg ${fmtM(avgB)} · ${sgn$(avgD)} vs slot · ${Math.round(100*overN/signed.length)}% over`:""}</span></div>`;
+    h += `<div class="tc-wizsum"><span><b>${rows.length} matches</b>${signed.length?` · avg ${fmtM(avgB)} · ${Math.round(100*overN/signed.length)}% over slot`:""}</span></div>`;
     if (!rows.length) return h + `<div class="placeholder">No precedents match those lenses.</div></div>`;
     const CAP = 12;
     h += `<table class="tc-upc"><thead><tr><th>Yr</th><th>Player</th><th>Pos</th><th>Pick</th><th>Team</th><th>Bonus</th><th>vs Slot</th></tr></thead><tbody>`;
