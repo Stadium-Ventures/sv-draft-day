@@ -406,7 +406,7 @@
   .tc-pdrop .pdrop-menu { min-width:340px; max-height:300px; }
   .tc-pdrop .pdrop-item .pi-nm { display:flex; align-items:center; }
   .tc-panels { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:14px; padding:14px 22px; flex:1 1 auto; min-height:0; }
-  .tc-panel { border:1px solid var(--line); border-radius:12px; padding:15px 16px; overflow-y:auto; min-height:0; }
+  .tc-panel { border:1px solid #c9c9c7; border-radius:12px; padding:15px 16px; overflow-y:auto; min-height:0; }
   .tc-panel h4 { margin:0 0 12px; font-size:12px; font-weight:900; text-transform:uppercase; letter-spacing:.5px; color:var(--ink); display:flex; align-items:center; gap:8px; }
   .tc-panel h4 .n { color:var(--muted); font-weight:900; }
   .tc-intel-grid { display:grid; grid-template-columns:auto 1fr; gap:14px; }
@@ -2502,7 +2502,21 @@
       <button class="ctl primary" onclick="closeTeamCard()">Close</button></div>`;
     h += `<div id="tcArmed">${(armed && sel && armed.key===sel.c.key)?renderArmedForm(team, pk):""}</div>`;
     h += `</div>`;
+    // Preserve scroll positions across the wholesale innerHTML rebuild — poll ticks
+    // re-render the open card every few seconds, and without this every scrollable
+    // (panels, The Draft flow, the card itself) snaps back to the top.
+    const keepScroll = [];
+    bd.querySelectorAll(".tc-card, .tc-panel[data-q], .tc-draftflow").forEach(el => {
+      if (!el.scrollTop) return;
+      const selr = el.classList.contains("tc-draftflow") ? ".tc-draftflow"
+                 : el.classList.contains("tc-card") ? ".tc-card"
+                 : `.tc-panel[data-q="${el.dataset.q}"]`;
+      keepScroll.push([selr, el.scrollTop]);
+    });
+    const bdTop = bd.scrollTop;
     bd.innerHTML = h;
+    bd.scrollTop = bdTop;
+    for (const [selr, top] of keepScroll) { const el = bd.querySelector(selr); if (el) el.scrollTop = top; }
     // Center the open pick in The Draft flow when the card opens or navigates —
     // not on every poll re-render, so a hand-scrolled flow stays put.
     if (tcScrollDraft) { tcScrollDraft = false;
