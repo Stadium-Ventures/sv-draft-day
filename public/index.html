@@ -274,6 +274,18 @@
   .bcard .bc-bonus { font-size:10px; font-weight:800; font-variant-numeric:tabular-nums; margin-top:2px; display:flex; align-items:center; gap:3px; flex-wrap:wrap; }
   .bcard .bc-bonus .tg { font-size:8px; padding:0 4px; }
   .bc-src { font-size:8px; font-weight:800; text-transform:uppercase; color:var(--muted); }
+  /* click-to-enter bonus chip: checked box = validated money, unchecked = our estimate */
+  .bc-chip { display:inline-flex; align-items:center; gap:4px; border:1px solid var(--line); border-radius:9px; padding:1px 6px 1px 3px; cursor:pointer; background:#f7f8fa; }
+  .bc-chip:hover { border-color:#9aa2ae; background:#eef0f3; }
+  .bc-chip.est { color:var(--muted); }
+  .bc-chip .bc-ck { width:10px; height:10px; border:1px solid #9aa2ae; border-radius:2px; display:inline-flex; align-items:center; justify-content:center; font-size:8px; line-height:1; background:#fff; color:#fff; flex-shrink:0; }
+  .bc-chip.val { color:#155724; border-color:#a8d5b3; background:#f5fff7; }
+  .bc-chip.val .bc-ck { background:#1a7f37; border-color:#1a7f37; }
+  .bc-bform { display:flex; align-items:center; gap:4px; margin-top:2px; flex-wrap:wrap; font-size:10px; font-weight:700; }
+  .bc-bform input[type=number] { width:70px; font:inherit; padding:1px 3px; border:1px solid var(--line); border-radius:4px; }
+  .bc-bform label { display:inline-flex; align-items:center; gap:2px; color:var(--muted); cursor:pointer; white-space:nowrap; }
+  .bc-bform button { font:inherit; border:1px solid var(--line); border-radius:4px; background:#fff; cursor:pointer; padding:1px 5px; }
+  .bc-bform button.ok { background:#1a7f37; border-color:#1a7f37; color:#fff; }
   .bcard .bc-ti { display:flex; flex-wrap:wrap; gap:2px; margin-top:auto; padding-top:3px; }
   .bcard .ti-pill { font-size:9px; font-weight:800; background:#f0f1f3; border-radius:3px; padding:1px 4px; color:#444; }
   .bcard .ti-Ap { background:#d4edda; color:#155724; }
@@ -491,6 +503,7 @@
   body.tv .bcard .bc-in { font-size:12px; }
   body.tv .bcard .bc-meta { font-size:11px; }
   body.tv .bcard .bc-bonus { font-size:13px; }
+  body.tv .bc-chip .bc-ck { width:13px; height:13px; font-size:10px; }
   body.tv .bcard .idot { width:14px; height:14px; }
   body.tv .bc-rnd { font-size:15px; }
   body.tv .feed-row .fr-no { font-size:13px; }
@@ -1834,6 +1847,7 @@
   window.togglePlayerMenu = (e) => { if(e) e.stopPropagation(); playerMenuOpen = !playerMenuOpen; renderBoardPlayers(currentState); };
   document.addEventListener("click", (e) => {
     if (playerMenuOpen && !(e.target.closest && e.target.closest(".pdrop"))) { playerMenuOpen = false; renderBoardPlayers(currentState); }
+    if (bonusEdit!=null && !(e.target.closest && e.target.closest(".bc-bform"))) { bonusEdit = null; renderBoard(currentState); }
   });
   window.toggleBoardClient = (key, e) => {
     if (e) e.stopPropagation();
@@ -1856,6 +1870,28 @@
       .map(mk);
     return entries.sort((a,b)=> a.rank-b.rank || a.name.localeCompare(b.name));
   }
+
+  // Which drafted tile has its bonus-entry form open (pick overall, or null).
+  let bonusEdit = null;
+  window.openBonusChip = (ov, e) => {
+    if (e) e.stopPropagation();
+    bonusEdit = ov; renderBoard(currentState);
+    const a = $("bxAmt"); if (a) { a.focus(); a.select(); }
+  };
+  window.closeBonusChip = (e) => { if (e) e.stopPropagation(); bonusEdit = null; renderBoard(currentState); };
+  window.saveBonusChip = (ov, e) => {
+    if (e) e.stopPropagation();
+    const amt = parseFloat($("bxAmt")?.value), val = !!($("bxVal")?.checked);
+    if (!Number.isFinite(amt) || amt<=0) { alert("Enter a bonus amount."); return; }
+    const p = (currentState?.picks||[]).find(x=>x.overall===ov); if (!p) return;
+    bonusEdit = null;
+    if (MODE==="mock") { p.bonus = amt; p.bonusV = val; pushMock(); }
+    else {
+      renderBoard(currentState);   // close the form now; loadIntel() re-renders with the logged number
+      postIntel({ kind:"bonus", player_name:p.player, team:p.team, pick_overall:ov,
+        offer_type: val?"confirmed":"estimated", amount:amt, status:"active", note:"board chip" });
+    }
+  };
 
   function renderBoardGrid(state) {
     const svOnly = $("bSv").checked, focus = boardSelClients.size>0, CAP = 6;
@@ -1883,12 +1919,25 @@
         const lines = MOBILE.matches
           ? (metaParts.length ? [`<div class="bc-meta">${metaParts.join(" · ")}</div>`] : [])
           : metaParts.map(v=>`<div class="bc-meta">${v}</div>`);
-        if (eb.bonus!=null && (p.bonus!=null || eb.src)) {   // facts only on tiles — no model estimates
-          const amt = `${fmtM(eb.bonus)}${eb.src?` <span class="bc-src">${eb.src==="confirmed"?"✓":eb.src.slice(0,3)}</span>`:""}`;
-          const ou = p.slot>0 ? eb.bonus-p.slot : null;
+        // Bonus = click-to-enter chip. Checked box = validated money (official/confirmed);
+        // unchecked = our estimate (model, mock engine, or an unvalidated log), shown ~$X.
+        const logged = eb.bonus!=null && (p.bonus!=null || eb.src);
+        const validated = MODE==="mock" ? !!p.bonusV : (p.bonus!=null || eb.src==="confirmed");
+        if (bonusEdit === p.overall) {
+          const cur = Math.round(logged ? eb.bonus : suggestBonus(p));
+          lines.push(`<div class="bc-bform" onclick="event.stopPropagation()">
+            $<input id="bxAmt" type="number" value="${cur}" onkeydown="if(event.key==='Enter')saveBonusChip(${p.overall},event)">
+            <label><input id="bxVal" type="checkbox"${validated?" checked":""}>validated</label>
+            <button class="ok" onclick="saveBonusChip(${p.overall},event)">Save</button>
+            <button onclick="closeBonusChip(event)">✕</button></div>`);
+        } else if (eb.bonus!=null) {
+          const est = MODE==="mock" ? !validated : !logged;
+          const src = eb.src && eb.src!=="confirmed" ? ` <span class="bc-src">${eb.src.slice(0,3)}</span>` : "";
+          const chip = `<span class="bc-chip${validated?" val":est?" est":""}" title="Click to enter signing bonus" onclick="openBonusChip(${p.overall},event)"><span class="bc-ck">${validated?"✓":""}</span>${est?"~":""}${fmtM(eb.bonus)}${src}</span>`;
+          const ou = p.slot>0 && (logged || MODE==="mock") ? eb.bonus-p.slot : null;
           const tag = ou!=null ? `<span class="tg ${ou>50000?'over':ou<-50000?'under':'fit'}">${ou>50000?"+":""}${Math.abs(ou)>50000?fmtM(ou)+" vs slot":"at slot"}</span>` : "";
-          if (MOBILE.matches) lines.push(`<div class="bc-bonus">${amt}${tag?` ${tag}`:""}</div>`);
-          else { lines.push(`<div class="bc-bonus">${amt}</div>`); if (tag) lines.push(`<div class="bc-bonus">${tag}</div>`); }
+          if (MOBILE.matches) lines.push(`<div class="bc-bonus">${chip}${tag?` ${tag}`:""}</div>`);
+          else { lines.push(`<div class="bc-bonus">${chip}</div>`); if (tag) lines.push(`<div class="bc-bonus">${tag}</div>`); }
         }
         dotsHtml = lines.join("");
       } else if (single) {
@@ -1921,7 +1970,15 @@
         <div class="bc-player">${body}</div>${dotsHtml}</div>`;
     }
     html += `</div>`;
+    // Carry the open bonus form's keystrokes across the live poll's wholesale re-render.
+    const prevAmt = bonusEdit!=null ? $("bxAmt") : null;
+    const keep = prevAmt ? { amt: prevAmt.value, val: !!($("bxVal")?.checked), foc: document.activeElement===prevAmt } : null;
     $("boardList").innerHTML = html === `<div class="board-grid"></div>` ? `<div class="placeholder">No picks.</div>` : html;
+    if (keep) {
+      const a = $("bxAmt"), v = $("bxVal");
+      if (a) { a.value = keep.amt; if (keep.foc) a.focus(); }
+      if (v) v.checked = keep.val;
+    }
   }
 
   // Right-hand running pick feed: every pick in order, live/upcoming state, click to focus.
