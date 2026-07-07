@@ -160,6 +160,9 @@
   .cc .status { margin:6px 0 10px; font-size:13px; font-weight:700; }
   .cc .status.av { color:var(--muted); } .cc .status.dr { color:var(--good); }
   .ct { display:flex; align-items:center; gap:8px; padding:5px 0; border-top:1px solid var(--line); font-size:13px; }
+  .int-grp { display:flex; align-items:center; gap:6px; padding:10px 0 3px; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.4px; color:#6b7280; }
+  .int-grp .idot { width:9px; height:9px; }
+  .int-grp + .ct { border-top:none; }
   .ct .tm { font-weight:800; min-width:38px; } .ct .nx { color:var(--muted); margin-left:auto; text-align:right; font-variant-numeric:tabular-nums; }
   .ct .ov { min-width:34px; color:var(--red); font-weight:800; font-variant-numeric:tabular-nums; }
 
@@ -1602,6 +1605,13 @@
                           .sort((a,b)=>(b.date||"").localeCompare(a.date||""))[0];
     return COLOR_RANK[(rec?.color||"").toLowerCase()] ?? 5;
   }
+  // Section header for interest-color grouping (green → red, colorless last) on the
+  // "How Each Org Views Him" and "Our clients they like" lists.
+  const INT_GROUP = [["Green",COLOR_HEX.green],["Light green",COLOR_HEX["light green"]],["Yellow",COLOR_HEX.yellow],["Orange",COLOR_HEX.orange],["Red",COLOR_HEX.red],["No color logged","#ccc"]];
+  function intGroupHdr(rank) {
+    const [label, hex] = INT_GROUP[Math.min(rank, 5)];
+    return `<div class="int-grp"><span class="idot" style="background:${hex}"></span>${label}</div>`;
+  }
   const _esc = (s) => (s||"").replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
   // The interest color dot, tagged so hovering it shows the latest teamintel message (below).
   function intelDot(clientKey, team) {
@@ -2670,15 +2680,17 @@
       </div>
       <button class="tc-x" onclick="closeTeamCard()">✕</button></div>`;
 
-    const next = state.picks.find(p=>!p.isDrafted && p.overall>pk.overall);
+    // this team's own next pick after the one being viewed — the draft-wide next pick
+    // is obvious from the board and doesn't belong in the lead stat slot
+    const teamNext = state.picks.find(p=>!p.isDrafted && p.team===team && p.overall>pk.overall);
     const clockMs = (onClockHere && timer.pick===pk.overall && timer.endsAt!=null) ? (timer.endsAt-Date.now()) : allotment(pk.round)*1000;
     const stats = [
-      ["Next pick", next?`#${next.overall} ${next.team}`:"—", ""],
       ["On the clock", `<span id="tcClock">${fmtCountdown(clockMs)}</span>`, onClockHere?"time remaining":"time allotted"],
       ["Available pool", pool?fmt$(pool.room):"—", "team bonus pool"],
       ["Pick slot value", pk.slot>0?fmtM(pk.slot):"—", "slot value"],
       ["Team spent", pool?fmt$(pool.poolCharge)+(pool.hasEst?" est":""):"—", "spent to date"],
       ["Over / under", pool?fmtOU(pool.overUnder):"—", "vs slot"],
+      ["Their next pick", teamNext?`#${teamNext.overall}`:"—", teamNext?`R${teamNext.round} · slot ${teamNext.slot>0?fmtM(teamNext.slot):"—"}`:"none after this"],
     ];
     // stats + player selector share one horizontal band (card fills the screen, no scrolling)
     let selHtml;
@@ -3415,14 +3427,16 @@
     let p2 = "";
     if (isClient) {
       const teams = [...new Set(DATA.intel.filter(r=>normName(r.player)===c.key).map(r=>teamAlias(r.team)))]
-        .map(t => ({ t, rec:latestIntel(c.key,t), f:fit(comp,t,c.key,state), nx:teamNextPick(state,t) }))
-        .sort((a,b) => (!!a.nx !== !!b.nx) ? (a.nx?-1:1) : (a.nx ? a.nx.overall-b.nx.overall : b.f.score-a.f.score));
+        .map(t => ({ t, rec:latestIntel(c.key,t), f:fit(comp,t,c.key,state), nx:teamNextPick(state,t), cr:intelColorRank(c.key,t) }))
+        .sort((a,b) => (a.cr-b.cr) || ((!!a.nx !== !!b.nx) ? (a.nx?-1:1) : (a.nx ? a.nx.overall-b.nx.overall : b.f.score-a.f.score)));
       p2 = `<div class="tc-panel" data-q="orgs"><h4><span class="n">2</span> How Each Org Views Him</h4>
-        <div class="tc-fitline sm"><span>sorted by their next pick · dot = latest interest</span></div>`;
+        <div class="tc-fitline sm"><span>grouped by latest interest · then their next pick</span></div>`;
+      let lastCr = -1;
       p2 += teams.length ? teams.map(x => {
+        const hdr = x.cr!==lastCr ? intGroupHdr(x.cr) : ""; lastCr = x.cr;
         const pool = state.poolsMap[x.t];
         const ou = (comp && x.nx) ? negBonus(comp, x.nx.slot, x.nx.overall) - x.nx.slot : null;
-        return `<div class="ct">
+        return `${hdr}<div class="ct">
           <span class="ov" style="min-width:44px;color:var(--red);font-weight:800">${x.nx?`#${x.nx.overall}`:"—"}</span>
           ${intelDot(c.key, x.t)}
           <span class="tm" data-org="${x.t}">${teamLink(x.t)}</span>${contactBadges(c.key, x.t)}
@@ -3485,6 +3499,14 @@
     ].map(([k,v])=>`<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("")}</div>`;
     h += `</div>`;
 
+    const up = teamUpcoming(state, t);
+    h += `<div class="panel" style="margin-top:14px"><h3>Upcoming picks (${up.length})</h3>`;
+    h += up.length ? `<div class="ba" style="gap:4px">${up.slice(0,16).map(p =>
+      `<div class="ct"><span class="ov" style="min-width:46px;color:var(--red);font-weight:800">#${p.overall}</span>
+       <span style="color:#6b7280">R${p.round}</span><span class="nx">slot ${p.slot>0?fmtM(p.slot):"—"}</span></div>`).join("")}</div>`
+      : `<div class="placeholder">No picks remaining.</div>`;
+    h += `</div>`;
+
     h += `<div class="cols" style="margin-top:14px"><div class="panel"><h3>Tendencies</h3>`;
     const chips = [];
     if (o.orgRank!=null) chips.push(["Org dev rank","#"+o.orgRank]);
@@ -3497,24 +3519,18 @@
 
     const clients = DATA.clientList.filter(c=>latestIntel(c.key,t)).map(c => {
       const rec=latestIntel(c.key,t); const dr=state.picks.find(p=>p.isDrafted&&normName(p.player)===c.key);
-      return { c, rec, dr, f:fit(c.comp,t,c.key,state) };
-    }).sort((a,b)=>b.f.score-a.f.score);
+      return { c, rec, dr, f:fit(c.comp,t,c.key,state), cr:intelColorRank(c.key,t) };
+    }).sort((a,b)=>(a.cr-b.cr) || b.f.score-a.f.score);
     h += `<div class="panel"><h3>Our clients they like (${clients.length})</h3>`;
+    let lastCr = -1;
     h += clients.length ? clients.map(x => {
+      const hdr = x.cr!==lastCr ? intGroupHdr(x.cr) : ""; lastCr = x.cr;
       const nx=teamNextPick(state,t); const ou=(x.c.comp&&nx)?negBonus(x.c.comp,nx.slot,nx.overall)-nx.slot:null;
-      return `<div class="ct">${intelDot(x.c.key, t)}
+      return `${hdr}<div class="ct">${intelDot(x.c.key, t)}
         <span class="nm">${playerLink(x.c.name)}</span>${contactBadges(x.c.key, t)}
         <span class="nx">${x.dr?`drafted #${x.dr.overall}`:(ou!=null?ouTag(ou,true):"")}</span></div>`;
     }).join("") : `<div class="placeholder">None on file.</div>`;
     h += `</div></div>`;
-
-    const up = teamUpcoming(state, t);
-    h += `<div class="panel" style="margin-top:14px"><h3>Upcoming picks (${up.length})</h3>`;
-    h += up.length ? `<div class="ba" style="gap:4px">${up.slice(0,16).map(p =>
-      `<div class="ct"><span class="ov" style="min-width:46px;color:var(--red);font-weight:800">#${p.overall}</span>
-       <span style="color:#6b7280">R${p.round}</span><span class="nx">slot ${p.slot>0?fmtM(p.slot):"—"}</span></div>`).join("")}</div>`
-      : `<div class="placeholder">No picks remaining.</div>`;
-    h += `</div>`;
 
     const made = teamMade(state, t);
     if (made.length) {
