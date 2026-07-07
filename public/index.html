@@ -2866,13 +2866,12 @@
       const c = sel.c.comp, isHS = c.level==="HS", p = isPitcher(c.pos);
       const levPct = hsPctRd!=null ? (isHS ? hsPctRd : 100-hsPctRd) : (isHS ? o.hsPct : o.collegePct);
       const withLean = (p && leanPitcher) || (!p && !leanPitcher);
-      const bonus = negBonus(c, pk.slot, pk.overall), ou = bonus - pk.slot;
       const last = tcInitialName(sel.c.name).split(" ").slice(-1)[0];
       const lb3 = bonusFor(sel.c.key);
       if (lb3) h += `<div class="tc-kv" style="margin-top:8px"><span class="k">Logged ${last} bonus (${lb3.kind})</span><span class="v">${fmtM(lb3.amount)}${lb3.pick?` <span class="tc-onpace">at #${lb3.pick}</span>`:""}</span></div>`;
-      h += `<div class="tc-kv" ${lb3?'':'style="margin-top:8px"'}><span class="k">Projected ${last} bonus · ${team}</span><span class="v">${fmtM(bonus)} <span class="tg ${ou>0?'over':ou<0?'under':'fit'}">${ou>0?"over":ou<0?"under":"at"} slot</span></span></div>`;
-      h += `<div class="tc-kv"><span class="k">Agent · market value</span><span class="v" style="font-size:12px">${c.agent||"—"} · ${fmt$(demandFor(c))}</span></div>`;
-      h += `<div class="tc-hab-note">${last} is a ${isHS?"HS":"college"} ${p?"pitcher":"position player"}. ${team} takes ${levPct!=null?levPct+"%":"—"} ${isHS?"HS":"college"} and leans ${leanPitcher?"pitcher":"hitter"} ${leanWhere} — this profile ${withLean?"fits":"runs against"} their habit at this spot.</div>`;
+      h += `<div class="tc-hab-note" style="margin-top:${lb3?"6":"10"}px">${last} is a ${isHS?"HS":"college"} ${p?"pitcher":"position player"}. ${team} takes ${levPct!=null?levPct+"%":"—"} ${isHS?"HS":"college"} and leans ${leanPitcher?"pitcher":"hitter"} ${leanWhere} — this profile ${withLean?"fits":"runs against"} their habit at this spot.</div>`;
+      // Pick Economics — if we got popped at THIS pick: slot vs his ask, pool room, leverage
+      h += `<div class="tc-pecon"><h5>Pick Economics · if we got popped here</h5>${pickEconRows(state, sel.c.key, c, pk, `R${pk.round} · this pick`)}</div>`;
     }
     return h + `</div>`;
   }
@@ -3301,29 +3300,24 @@
       offer_type: $("bvKind")?.value || "reported", amount:amt, note: $("bvNote")?.value || null, status:"active" });
   };
 
-  // ── Pick Economics: "if we got popped here" — the live read for the team on the clock.
-  // If the player were selected at a spot we're not anticipating, this frames what that
-  // pick equips the ask to be: slot money, his projected ask, the team's pool room, and
-  // a leverage line. Hypothetical only — hidden once he's actually drafted.
-  function renderPickEconomics(state, c, comp) {
-    const oc = state.onClock;
-    let h = `<div class="tc-pecon"><h5>Pick Economics · if we got popped here</h5>`;
-    if (!oc) return h + `<div class="placeholder">No pick on the clock.</div></div>`;
-    if (!comp) return h + `<div class="placeholder">Unranked — no market model for this spot.</div></div>`;
-    const slot = oc.slot || 0;
-    const ask = negBonus(comp, slot, oc.overall);
-    const pf = tcPickFit(comp, oc, state);
-    const pool = state.poolsMap[oc.team];
-    h += `<div class="ct" style="margin-bottom:2px">
-      <span class="ov" style="min-width:44px;color:var(--red);font-weight:800">#${oc.overall}</span>
-      ${intelDot(c.key, oc.team)}
-      <span class="tm" data-org="${oc.team}">${teamLink(oc.team)}</span>
+  // ── Pick Economics: "if we got popped here" — what a given pick equips the ask to be:
+  // slot money, the player's projected ask, the team's pool room, and a leverage line.
+  // Core rows shared by the team card (this card's pick) and the dossier (team on the clock).
+  function pickEconRows(state, key, comp, pick, subLabel) {
+    const slot = pick.slot || 0;
+    const ask = negBonus(comp, slot, pick.overall);
+    const pf = tcPickFit(comp, pick, state);
+    const pool = state.poolsMap[pick.team];
+    let h = `<div class="ct" style="margin-bottom:2px">
+      <span class="ov" style="min-width:44px;color:var(--red);font-weight:800">#${pick.overall}</span>
+      ${intelDot(key, pick.team)}
+      <span class="tm" data-org="${pick.team}">${teamLink(pick.team)}</span>
       <span class="tg ${pf.cls}">${pf.label}</span>
-      <span class="nx" style="margin-left:auto;color:var(--muted);font-size:11px">R${oc.round} · on the clock</span></div>`;
+      <span class="nx" style="margin-left:auto;color:var(--muted);font-size:11px">${subLabel}</span></div>`;
     h += `<div class="tc-kv"><span class="k">Slot at this pick</span><span class="v">${slot>0?fmt$(slot):"— (no pool slot)"}</span></div>`;
     h += `<div class="tc-kv"><span class="k">Projected ask here</span><span class="v">${fmt$(ask)}${slot>0?` ${ouTag(ask-slot,true)}`:""}</span></div>`;
     h += `<div class="tc-kv"><span class="k">Market at rank #${comp.rank}</span><span class="v">${fmt$(demandFor(comp))}</span></div>`;
-    if (pool) h += `<div class="tc-kv"><span class="k">${teamAbbrevOf(oc.team)} pool room</span><span class="v">${fmtM(pool.room)}${pf.moneyFits?"":' <span class="tg under">short of ask</span>'}</span></div>`;
+    if (pool) h += `<div class="tc-kv"><span class="k">${teamAbbrevOf(pick.team)} pool room</span><span class="v">${fmtM(pool.room)}${pf.moneyFits?"":' <span class="tg under">short of ask</span>'}</span></div>`;
     const lever = slot<=0
       ? `No pool slot in rounds 11+ — anything over $175k eats their pool; ask is framed by the exempt cap.`
       : ask > slot
@@ -3332,7 +3326,15 @@
     const reach = pf.label==="reach" ? `Early for his rank — a pop here usually means a pre-agreed number. ` :
                   pf.label==="value" ? `Well past his rank — faller territory; over-slot demand is the play. ` : "";
     h += `<div class="tc-hab-note">${reach}${lever}</div>`;
-    return h + `</div>`;
+    return h;
+  }
+  // Dossier variant — live read for whichever team is on the clock right now.
+  function renderPickEconomics(state, c, comp) {
+    const oc = state.onClock;
+    let h = `<div class="tc-pecon"><h5>Pick Economics · if we got popped here</h5>`;
+    if (!oc) return h + `<div class="placeholder">No pick on the clock.</div></div>`;
+    if (!comp) return h + `<div class="placeholder">Unranked — no market model for this spot.</div></div>`;
+    return h + pickEconRows(state, c.key, comp, oc, `R${oc.round} · on the clock`) + `</div>`;
   }
 
   function renderPlayerDetail(state) {
