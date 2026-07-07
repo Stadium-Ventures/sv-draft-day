@@ -3503,7 +3503,7 @@
     h += `<div class="panel" style="margin-top:14px"><h3>Upcoming picks (${up.length})</h3>`;
     h += up.length ? `<div class="ba" style="gap:4px">${up.slice(0,16).map(p =>
       `<div class="ct"><span class="ov" style="min-width:46px;color:var(--red);font-weight:800">#${p.overall}</span>
-       <span style="color:#6b7280">R${p.round}</span><span class="nx">slot ${p.slot>0?fmtM(p.slot):"—"}</span></div>`).join("")}</div>`
+       <span style="color:#6b7280">R${p.round}</span><span class="nx">slot ${p.slot>0?fmt$(p.slot):"—"}</span></div>`).join("")}</div>`
       : `<div class="placeholder">No picks remaining.</div>`;
     h += `</div>`;
 
