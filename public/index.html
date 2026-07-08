@@ -1188,6 +1188,14 @@
     const s = (typeof INTEL !== "undefined" && INTEL.byKey) ? INTEL.byKey.get(k) : null;
     return (s && s.window && (s.window.lo || s.window.hi)) ? { lo: s.window.lo, hi: s.window.hi } : null;
   };
+  // Effective landing window wherever interest is DISPLAYED: manual range / strike window
+  // first, else the engine's estimate around his rank (est:true). The mock engine's hard
+  // locks keep reading rangeOf directly — an estimate must never force a pick.
+  const effRangeOf = (comp) => {
+    const rg = rangeOf(comp);
+    if (rg && (rg.lo || rg.hi)) return { lo: rg.lo || 1, hi: rg.hi || 9999, est: false };
+    return (comp && comp.rank) ? { lo: Math.max(1, comp.rank - 7), hi: comp.rank + 45, est: true } : null;
+  };
   const roundSpan = (r) => { const ps=(ORDER?.picks||[]).filter(p=>String(p.round)===String(r)); return ps.length?{first:Math.min(...ps.map(p=>p.overall)), last:Math.max(...ps.map(p=>p.overall))}:null; };
   const roundOfPick = (n) => (ORDER?.picks||[]).find(p=>p.overall===n)?.round;
   function saveRanges(key) { try { localStorage.setItem("dd:ranges", JSON.stringify(RANGES)); } catch (e) {}
@@ -1226,10 +1234,8 @@
   // Unranked clients have no window to enforce.
   function inRangeAt(key, overall) {
     const comp = DATA.compByName.get(key); if (!comp) return true;
-    const rg = rangeOf(comp), hasRg = !!(rg && (rg.lo || rg.hi));
-    const lo = hasRg ? (rg.lo || 1) : Math.max(1, comp.rank - 7);
-    const hi = hasRg ? (rg.hi || 9999) : comp.rank + 45;
-    return overall >= lo && overall <= hi;
+    const rg = effRangeOf(comp); if (!rg) return true;
+    return overall >= rg.lo && overall <= rg.hi;
   }
   function tiInPlayAt(key, team, overall) {
     if (!inRangeAt(key, overall)) return false;   // out of his landing window -> never in play here
@@ -2073,10 +2079,10 @@
     $("clientRows").innerHTML = rows.map(c => {
       const comp = c.comp, pk = drafted.get(c.key);
       // Interest: strongest color first; ties broken by who's up soonest INSIDE his landing
-      // window (locked range / strike window) — teams with no pick in the window sort last.
-      // Every pill has the same shape (dot · team · pick slot); no pick in window → "—",
-      // so rows scan as a repeated unit. Hover a dot for the latest intel.
-      const rgW = comp ? rangeOf(comp) : null;
+      // window (locked range / strike window when set, else the engine estimate) — teams
+      // with no pick in the window sort last. Every pill has the same shape (dot · team ·
+      // pick slot); no pick in window → "—", so rows scan as a repeated unit.
+      const rgW = comp ? effRangeOf(comp) : null;
       const teams = [...new Set(DATA.intel.filter(r=>normName(r.player)===c.key).map(r=>teamAlias(r.team)))]
         .map(t => ({ t, cr: intelColorRank(c.key,t), nx: teamPickInRange(state, t, rgW) }))
         .sort((a,b)=> (a.cr-b.cr) || (!!b.nx-!!a.nx) || ((a.nx?a.nx.overall:1e9)-(b.nx?b.nx.overall:1e9)));
@@ -2358,7 +2364,7 @@
     const ops = [];
     if (!dpk) for (const p of state.picks) {
       if (p.isDrafted) continue;
-      if (p.overall < comp.rank-7 || p.overall > comp.rank+45) continue;
+      if (!inRangeAt(c.key, p.overall)) continue;
       const team = p.team, o = DATA.orgs[team] || {};
       const intel = intelColorRank(c.key, team) <= 1 && tiInPlayAt(c.key, team, p.overall);
       const lvlLean = lvl==="HS" ? (o.hsPct!=null && o.hsPct>=30) : (o.collegePct!=null && o.collegePct>=75);
@@ -2916,9 +2922,10 @@
   // Landing fit for one player at one specific pick: is this a plausible slot for his talent,
   // and does the team's money work? Reuses the same reach window as clientsInPlay.
   function tcPickFit(comp, pick, state) {
-    const rank = comp.rank;
-    const early = pick.overall < rank - 7;      // reaching (taking him earlier than his value)
-    const late  = pick.overall > rank + 45;     // he'd be a faller/steal — unlikely to last
+    // Landing window: manual range / strike window first, else the rank estimate.
+    const rg = effRangeOf(comp) || { lo: 1, hi: 9999 };
+    const early = pick.overall < rg.lo;         // reaching (taking him earlier than his window)
+    const late  = pick.overall > rg.hi;         // he'd be a faller/steal — unlikely to last
     const bonus = negBonus(comp, pick.slot, pick.overall);
     const pool = state.poolsMap[pick.team];
     const moneyFits = pool ? pool.room >= bonus : true;
@@ -4167,10 +4174,10 @@
     let p2 = "";
     if (isClient) {
       const teams = [...new Set(DATA.intel.filter(r=>normName(r.player)===c.key).map(r=>teamAlias(r.team)))]
-        .map(t => ({ t, rec:latestIntel(c.key,t), f:fit(comp,t,c.key,state), nx:teamNextPick(state,t), cr:intelColorRank(c.key,t) }))
+        .map(t => ({ t, rec:latestIntel(c.key,t), f:fit(comp,t,c.key,state), nx:teamPickInRange(state,t,comp?effRangeOf(comp):null), cr:intelColorRank(c.key,t) }))
         .sort((a,b) => (a.cr-b.cr) || ((!!a.nx !== !!b.nx) ? (a.nx?-1:1) : (a.nx ? a.nx.overall-b.nx.overall : b.f.score-a.f.score)));
       p2 = `<div class="tc-panel" data-q="orgs"><h4><span class="n">2</span> How Each Org Views Him</h4>
-        <div class="tc-fitline sm"><span>grouped by latest interest · then their next pick</span></div>`;
+        <div class="tc-fitline sm"><span>grouped by latest interest · then their next pick in his landing window</span></div>`;
       let lastCr = -1;
       p2 += teams.length ? teams.map(x => {
         const hdr = x.cr!==lastCr ? intGroupHdr(x.cr) : ""; lastCr = x.cr;
@@ -4180,7 +4187,7 @@
           <span class="ov" style="min-width:44px;color:var(--red);font-weight:800">${x.nx?`#${x.nx.overall}`:"—"}</span>
           ${intelDot(c.key, x.t)}
           <span class="tm" data-org="${x.t}">${teamLink(x.t)}</span>${contactBadges(c.key, x.t)}
-          <span class="nx">${x.nx?`${fmtM(x.nx.slot)}${ou!=null?` · ${ouTag(ou,true)}`:""}${pool?` · ammo ${fmtM(pool.room)}`:""}`:"no picks left"}</span></div>`;
+          <span class="nx">${x.nx?`${fmtM(x.nx.slot)}${ou!=null?` · ${ouTag(ou,true)}`:""}${pool?` · ammo ${fmtM(pool.room)}`:""}`:(teamNextPick(state,x.t)?"no pick in his window":"no picks left")}</span></div>`;
       }).join("") : `<div class="placeholder">No logged team interest.</div>`;
       if (!pk) p2 += renderPickEconomics(state, c, comp);
       p2 += `</div>`;
@@ -4265,7 +4272,7 @@
     let lastCr = -1;
     h += clients.length ? clients.map(x => {
       const hdr = x.cr!==lastCr ? intGroupHdr(x.cr) : ""; lastCr = x.cr;
-      const nx=teamNextPick(state,t); const ou=(x.c.comp&&nx)?negBonus(x.c.comp,nx.slot,nx.overall)-nx.slot:null;
+      const nx=teamPickInRange(state,t,x.c.comp?effRangeOf(x.c.comp):null); const ou=(x.c.comp&&nx)?negBonus(x.c.comp,nx.slot,nx.overall)-nx.slot:null;
       return `${hdr}<div class="ct">${intelDot(x.c.key, t)}
         <span class="nm">${playerLink(x.c.name)}</span>${contactBadges(x.c.key, t)}
         <span class="nx">${x.dr?`drafted #${x.dr.overall}`:(ou!=null?ouTag(ou,true):"")}</span></div>`;
