@@ -971,17 +971,16 @@
   body.mob #viewPools th:nth-child(7), body.mob #viewPools td:nth-child(7),
   body.mob #viewPools th:nth-child(8), body.mob #viewPools td:nth-child(8),
   body.mob #viewPools th:nth-child(9), body.mob #viewPools td:nth-child(9) { display:none; }
-  /* best available: # / Player / Pos / Lvl / B/T (+ Draft in a paused mock) —
-     School/Commit/Agency/Age/Ranks/Trend are all hide-sm (per-publication ranks are a
-     hover chip on desktop; on a phone they live on the player page, one tap away).
-     B/T stays: deliberately made always-visible incl. mobile (commit 7bfd615). */
+  /* best available on mobile: full table, swipeable left-right (all hide-sm columns
+     come back — School/Commit/Agency/Age/Ranks/Trend — reachable by horizontal scroll
+     rather than being dropped). B/T stays always-visible. */
   body.mob .ba-sub { font-size:11px; color:var(--muted); font-weight:600; }
-  body.mob #viewBest table.ba th, body.mob #viewBest table.ba td { padding:8px 4px; }
+  body.mob .ba-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  body.mob #viewBest table.ba { min-width:680px; }
+  body.mob #viewBest table.ba .hide-sm { display:table-cell; }
+  body.mob #viewBest table.ba th, body.mob #viewBest table.ba td { padding:8px 6px; white-space:nowrap; }
   body.mob #viewBest table.ba th:first-child, body.mob #viewBest table.ba td:first-child { padding-left:8px; }
-  /* best-available filter bar: one swipeable row (matches the board toolbar) */
-  body.mob #viewBest .ba-filters { flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:4px; }
-  body.mob #viewBest .ba-filters label, body.mob #viewBest .ba-filters .count { white-space:nowrap; }
-  body.mob #fQuery { min-width:120px !important; flex:0 0 auto; }
+  body.mob #fQuery { min-width:120px; }
   /* player dossier + detail pages */
   /* dossier accordion — tap headers to collapse; independent toggles (page scrolls) */
   body.mob #viewDetail .tc-panel[data-q] > h4 { cursor:pointer; }
@@ -1096,10 +1095,12 @@
       </div>
       <span class="count" id="baCount"></span>
     </div>
-    <table class="ba">
-      <thead><tr><th>#</th><th>Player</th><th>Pos</th><th>Lvl</th><th class="hide-sm">School</th><th class="hide-sm">Commit</th><th class="hide-sm">Agency</th><th class="hide-sm">Age</th><th>B/T</th><th class="sr-col hide-sm">Ranks</th><th class="hide-sm">Trend</th><th></th></tr></thead>
-      <tbody id="baBody"></tbody>
-    </table>
+    <div class="ba-scroll">
+      <table class="ba">
+        <thead><tr><th>#</th><th>Player</th><th>Pos</th><th>Lvl</th><th class="hide-sm">School</th><th class="hide-sm">Commit</th><th class="hide-sm">Agency</th><th class="hide-sm">Age</th><th>B/T</th><th class="sr-col hide-sm">Ranks</th><th class="hide-sm">Trend</th><th></th></tr></thead>
+        <tbody id="baBody"></tbody>
+      </table>
+    </div>
   </section>
 
   <!-- RESEARCH — two sub-tabs: precedent wizard (default) + team-fit grid -->
