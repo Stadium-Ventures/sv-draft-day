@@ -1075,7 +1075,7 @@
       <label>Pos <select id="fPos" onchange="renderBest()"><option>All</option><option>P</option><option>C</option><option>IF</option><option>OF</option></select></label>
       <label><input type="checkbox" id="fSv" onchange="renderBest()"> SV clients only</label>
       <label><input type="checkbox" id="fDrafted" onchange="renderBest()"> Show drafted</label>
-      <input id="fQuery" placeholder="search name / school" oninput="renderBest()" style="min-width:180px" />
+      <input id="fQuery" placeholder="search name / school / agency" oninput="renderBest()" style="min-width:180px" />
       <span class="count" id="baCount"></span>
     </div>
     <table class="ba">
@@ -2191,7 +2191,7 @@
       if (lvl!=="All" && p.level!==lvl) return false;
       if (pos!=="All" && p.posGroup!==pos) return false;
       if (svOnly && !DATA.clients.has(normName(p.name))) return false;
-      if (q && !(normName(p.name).includes(q) || normName(p.school).includes(q))) return false;
+      if (q && !(normName(p.name).includes(q) || normName(p.school).includes(q) || normName(agentOf(p)).includes(q))) return false;
       return true;
     });
     // DATA.composite is board-rank order, so drafted rows slot back into their original board
