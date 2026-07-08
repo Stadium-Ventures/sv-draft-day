@@ -577,6 +577,16 @@
   .rf-grade { -webkit-appearance:none; appearance:none; height:4px; border-radius:2px; background:var(--line); flex:0 0 150px; margin:0 4px; }
   .rf-grade::-webkit-slider-thumb { -webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:#fff; border:2.5px solid var(--red); cursor:pointer; }
   .rf-grade::-moz-range-thumb { width:12px; height:12px; border-radius:50%; background:#fff; border:2.5px solid var(--red); cursor:pointer; }
+  /* Column pickers: split chip (binary side toggle + ▾ granular dropdown) */
+  .rf-drop { position:relative; display:inline-flex; align-items:center; margin-right:8px; }
+  .rf-side { border-top-right-radius:0; border-bottom-right-radius:0; }
+  .rf-caret { border-top-left-radius:0; border-bottom-left-radius:0; border-left:none; padding:2px 7px; color:var(--muted); }
+  .res-posmenu.rf-menu { left:0; top:26px; min-width:240px; }
+  .res-posmenu.rf-menu-wide { min-width:320px; }
+  .rf-menu .rf-menulist { display:flex; flex-wrap:wrap; gap:4px; max-height:280px; overflow-y:auto; margin-top:7px; }
+  .rf-menu .res-findin { width:100%; box-sizing:border-box; }
+  .rf-mrk { color:var(--muted); font-weight:600; font-size:9px; margin-left:2px; }
+  .rf-empty { color:var(--muted); font-size:11px; padding:8px 2px; }
   .rf-tbox, .rf-wbox { margin-top:9px; max-width:560px; }
   .rf-tgrps { display:flex; flex-direction:column; gap:6px; margin-top:9px; }
   .rf-tgrp { display:flex; gap:4px; flex-wrap:wrap; align-items:center; }
@@ -607,6 +617,9 @@
   .rf-cell { text-align:center; font-size:11px; font-weight:800; font-variant-numeric:tabular-nums; cursor:pointer; color:#141b26; padding:0; height:24px; min-width:34px; }
   .rf-cell:hover { outline:2px solid var(--ink); outline-offset:-2px; }
   .rf-cell.rf-dim { opacity:.14; }
+  .rf-ph.rf-sorted { background:#fff0f1; }
+  .rf-ph.rf-sorted .rf-phn { color:var(--red); }
+  .rf-cell.rf-colsort { box-shadow:inset 0 0 0 1px rgba(255,42,34,.4); }
   /* Fit card (player × team deep dive) */
   .fc-card .fc-sub { font-size:11px; font-weight:700; color:var(--muted); }
   .fc-card .fc-arrow { color:var(--muted); font-weight:900; margin:0 3px; font-size:15px; }
@@ -867,6 +880,21 @@
   body.mob #tcArmed:not(:empty) { position:fixed; left:0; right:0; bottom:0; z-index:96; background:#fff;
     box-shadow:0 -10px 34px rgba(0,0,0,.24); max-height:70dvh; overflow-y:auto;
     padding-bottom:env(safe-area-inset-bottom); }
+  /* Fit card on mobile: one-open accordion (flex column, not grid — grid doesn't scroll
+     reliably in the fixed-height card). The open panel fills and scrolls; others are headers. */
+  body.mob .fc-panels { display:flex; flex-direction:column; gap:10px; padding:10px 12px; flex:1 1 auto; min-height:0; overflow:hidden; }
+  body.mob #fitCard .tc-panel[data-q]:not(.collapsed) { flex:1 1 0; min-height:0; overflow-y:auto; }
+  body.mob #fitCard .tc-panel[data-q].collapsed { flex:0 0 auto; padding:12px 16px; }
+  body.mob #fitCard .tc-panel[data-q] > h4 { cursor:pointer; }
+  body.mob #fitCard .tc-panel[data-q] > h4::after { content:"▾"; margin-left:auto; color:var(--muted); font-size:14px; }
+  body.mob #fitCard .tc-panel[data-q].collapsed > h4 { margin-bottom:0; }
+  body.mob #fitCard .tc-panel[data-q].collapsed > h4::after { content:"▸"; }
+  body.mob #fitCard .tc-panel[data-q].collapsed > *:not(h4) { display:none; }
+  body.mob .fc-card .tc-band { padding:8px 12px; }
+  /* fit card KPIs wrap (override the team card's horizontal-scroll band) instead of clipping */
+  body.mob .fc-card .tc-stats { min-width:0; flex:0 1 auto; flex-wrap:wrap; overflow-x:visible; gap:4px 0; }
+  body.mob .fc-card .tc-stat { flex:1 0 30%; min-width:0; padding:3px 10px; border-left:1px solid var(--line); }
+  body.mob .fc-card .tc-stat .v.big { font-size:20px; }
   /* wide tables inside panels scroll sideways instead of stretching the sheet */
   body.mob .tc-panel { min-width:0; }
   body.mob .tc-panel table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
@@ -1379,6 +1407,9 @@
   // one-open accordion: the dossier is a scrolling page, several can be open at once.
   let ppPanelOpen = { comps:true };
   try { ppPanelOpen = JSON.parse(localStorage.getItem("dd:ppPanels")) || ppPanelOpen; } catch (e) {}
+  // Team-fit card accordion (mobile) — one-open, like the team card.
+  let fitPanelOpen = { blend:true };
+  try { fitPanelOpen = JSON.parse(localStorage.getItem("dd:fitPanels")) || fitPanelOpen; } catch (e) {}
   const mobPanels = (html, open = mPanelOpen) => !MOBILE.matches ? html :
     html.replace(/<div class="tc-panel" data-q="(\w+)">/g, (m, q) => open[q] ? m : `<div class="tc-panel collapsed" data-q="${q}">`);
   // TV mode: per-device (localStorage). The wall TV turns it on once; laptops stay interactive.
@@ -2188,6 +2219,7 @@
     if (playerMenuOpen && !(e.target.closest && e.target.closest(".pdrop"))) { playerMenuOpen = false; renderBoardPlayers(currentState); }
     if (bonusEdit!=null && !(e.target.closest && e.target.closest(".bc-bform"))) { bonusEdit = null; renderBoard(currentState); }
     if (resPosOpen && !(e.target.closest && e.target.closest(".res-pdrop"))) { resPosOpen = false; renderResearch(); }
+    if ((rfClientsMenu||rfBoardMenu) && !(e.target.closest && e.target.closest(".rf-drop"))) { rfClientsMenu = false; rfBoardMenu = false; if (resTab==="fit") renderRfControls(); }
   });
   window.toggleBoardClient = (key, e) => {
     if (e) e.stopPropagation();
@@ -3236,26 +3268,35 @@
   const RF_LENSES = [["combined","Combined"],["interest","Interest"],["dev","Org·dev"],["type","Type"],["money","Money"]];
   const RF_LENSLBL = { combined:"Combined fit", interest:"Interest", dev:"Org·dev", type:"Type", money:"Money" };
   const RF_WDEF = { interest:45, dev:20, type:15, money:20 };
-  const RF_DEF = () => ({ players:"clients", pos:new Set(), teamsOff:new Set(), gradeMin:0,
-    lens:"combined", weights:{...RF_WDEF}, wOpen:false, tOpen:false });
+  const RF_DEF = () => ({ clientsSide:true, clientsOff:new Set(), boardSide:false, boardOn:new Set(),
+    pos:new Set(), teamsOff:new Set(), gradeMin:0, lens:"combined", weights:{...RF_WDEF},
+    wOpen:false, tOpen:false, sortCol:null, sortDir:"desc" });
   let resFit = RF_DEF(), resFitDrawn = false, resTab = "research", fitSel = null;
+  let rfClientsMenu = false, rfBoardMenu = false, rfBoardQuery = "";   // column-picker dropdown state (session)
   try {
     const sv = JSON.parse(localStorage.getItem("dd:resFit") || "null");
     if (sv) {
-      resFit.players = sv.players==="board" ? "board" : "clients";
+      resFit.clientsSide = sv.clientsSide!==false;
+      resFit.clientsOff = new Set(Array.isArray(sv.clientsOff)?sv.clientsOff:[]);
+      resFit.boardSide = !!sv.boardSide;
+      resFit.boardOn = new Set(Array.isArray(sv.boardOn)?sv.boardOn:[]);
       resFit.pos = new Set(Array.isArray(sv.pos)?sv.pos:[]);
       resFit.teamsOff = new Set(Array.isArray(sv.teamsOff)?sv.teamsOff:[]);
       resFit.gradeMin = +sv.gradeMin || 0;
       resFit.lens = RF_LENSLBL[sv.lens] ? sv.lens : "combined";
       resFit.weights = Object.assign({...RF_WDEF}, sv.weights || {});
       resFit.wOpen = !!sv.wOpen; resFit.tOpen = !!sv.tOpen;
+      resFit.sortCol = typeof sv.sortCol==="string" ? sv.sortCol : null;
+      resFit.sortDir = sv.sortDir==="asc" ? "asc" : "desc";
       if (sv.tab==="fit") resTab = "fit";
     }
   } catch (e) {}
   function rfSave() {
     try { localStorage.setItem("dd:resFit", JSON.stringify({
-      players:resFit.players, pos:[...resFit.pos], teamsOff:[...resFit.teamsOff], gradeMin:resFit.gradeMin,
-      lens:resFit.lens, weights:resFit.weights, wOpen:resFit.wOpen, tOpen:resFit.tOpen, tab:resTab })); } catch (e) {}
+      clientsSide:resFit.clientsSide, clientsOff:[...resFit.clientsOff], boardSide:resFit.boardSide, boardOn:[...resFit.boardOn],
+      pos:[...resFit.pos], teamsOff:[...resFit.teamsOff], gradeMin:resFit.gradeMin,
+      lens:resFit.lens, weights:resFit.weights, wOpen:resFit.wOpen, tOpen:resFit.tOpen,
+      sortCol:resFit.sortCol, sortDir:resFit.sortDir, tab:resTab })); } catch (e) {}
   }
   // ---- sub-tab switching (Player Research ↔ Team Fit) ----
   function applyResTab() {
@@ -3269,13 +3310,32 @@
   window.setResTab = (t) => { resTab = t==="fit" ? "fit" : "research"; rfSave(); applyResTab(); };
 
   // ---- data selection ----
+  // Columns = (SV clients side, minus any toggled off) ∪ (board side, only those toggled on).
+  // Each side has a binary master (clientsSide / boardSide) so a whole side can be shut off.
   function rfPlayerList() {
-    let list = resFit.players==="board" ? DATA.composite.slice()
-             : DATA.clientList.filter(c=>c.comp).map(c=>c.comp);
+    const clients = DATA.clientList.filter(c=>c.comp);
+    const clientKeys = new Set(clients.map(c=>c.key));
+    let list = [];
+    if (resFit.clientsSide) for (const c of clients) if (!resFit.clientsOff.has(c.key)) list.push(c.comp);
+    if (resFit.boardSide) for (const key of resFit.boardOn) {
+      if (clientKeys.has(key)) continue; const comp = DATA.compByName.get(key); if (comp) list.push(comp); }
     if (resFit.pos.size) list = list.filter(c => resFit.pos.has(posGroupOf(c.pos)));
+    const seen = new Set();
+    list = list.filter(c => { const k=normName(c.name); if (seen.has(k)) return false; seen.add(k); return true; });
     list.sort((a,b) => (a.rank||9999)-(b.rank||9999));
-    const CAP = resFit.players==="board" ? 60 : 999;
-    return { list: list.slice(0, CAP), total: list.length, cap: CAP };
+    return { list };
+  }
+  // Board dropdown list HTML (non-client composite, filtered by the search box) — split out so the
+  // search input can repaint just this list and keep focus.
+  function rfBoardListHtml() {
+    const clientKeys = new Set(DATA.clientList.filter(c=>c.comp).map(c=>c.key));
+    const q = rfBoardQuery.trim().toLowerCase();
+    let list = DATA.composite.filter(c => !clientKeys.has(normName(c.name)));
+    if (q) list = list.filter(c => (c.name||"").toLowerCase().includes(q));
+    list = list.slice(0, 60);
+    const rows = list.map(c => { const k=normName(c.name);
+      return `<button class="tc-chip${resFit.boardOn.has(k)?' on':''}" onclick="rfBoardToggle('${k.replace(/'/g,"\\'")}',event)">${_esc(c.name)} <span class="rf-mrk">#${c.rank} ${c.pos}</span></button>`; }).join("");
+    return rows || `<div class="rf-empty">No board players match “${_esc(rfBoardQuery)}”.</div>`;
   }
   function rfTeamList() {
     return Object.keys(DATA.orgs).filter(t=>!resFit.teamsOff.has(t))
@@ -3308,9 +3368,23 @@
     const el = $("rfControls"); if (!el) return;
     const w = resFit.weights, wsum = rfWsum();
     const chip = (on,lbl,onclick,extra="") => `<button class="tc-chip${on?' on':''}${extra?' '+extra:''}" onclick="${onclick}">${lbl}</button>`;
-    const playersRow = `<div class="tc-wizgrp"><span class="tc-wizlab">Players</span>
-      ${chip(resFit.players==="clients","Our clients","rfSetPlayers('clients')")}
-      ${chip(resFit.players==="board","Full board","rfSetPlayers('board')")}</div>`;
+    // Columns: two split chips. Click the label to toggle the whole side on/off (binary);
+    // click ▾ to pick individual players. Board list is searchable.
+    const clients = DATA.clientList.filter(c=>c.comp).sort((a,b)=>(a.comp.rank||9999)-(b.comp.rank||9999));
+    const clientsOnN = clients.filter(c=>!resFit.clientsOff.has(c.key)).length;
+    const clientsMenu = !rfClientsMenu ? "" : `<div class="res-posmenu rf-menu" onclick="event.stopPropagation()">
+      <div class="res-posrow"><button class="tc-chip grp" onclick="rfClientsAll(true,event)">all on</button><button class="tc-chip grp" onclick="rfClientsAll(false,event)">all off</button></div>
+      <div class="rf-menulist">${clients.map(c=>`<button class="tc-chip${resFit.clientsOff.has(c.key)?'':' on'}" onclick="rfClient('${c.key.replace(/'/g,"\\'")}',event)">${_esc(tcInitialName(c.name))} <span class="rf-mrk">#${c.comp.rank}</span></button>`).join("")}</div></div>`;
+    const clientsDrop = `<span class="rf-drop res-pdrop">
+      <button class="tc-chip rf-side${resFit.clientsSide?' on':''}" onclick="rfSide('clients')">SV Clients · ${resFit.clientsSide?clientsOnN:"off"}</button>
+      <button class="tc-chip rf-caret" onclick="rfMenu('clients',event)">▾</button>${clientsMenu}</span>`;
+    const boardMenu = !rfBoardMenu ? "" : `<div class="res-posmenu rf-menu rf-menu-wide" onclick="event.stopPropagation()">
+      <input id="rfBoardSearch" class="res-findin" type="search" placeholder="Search the board…" autocomplete="off" value="${rfBoardQuery.replace(/"/g,"&quot;")}" oninput="rfBoardSearch(this.value)">
+      <div class="rf-menulist" id="rfBoardList">${rfBoardListHtml()}</div></div>`;
+    const boardDrop = `<span class="rf-drop res-pdrop">
+      <button class="tc-chip rf-side${resFit.boardSide?' on':''}" onclick="rfSide('board')">Rest of Board · ${resFit.boardSide?(resFit.boardOn.size||0):"off"}</button>
+      <button class="tc-chip rf-caret" onclick="rfMenu('board',event)">▾</button>${boardMenu}</span>`;
+    const playersRow = `<div class="tc-wizgrp"><span class="tc-wizlab">Columns</span>${clientsDrop}${boardDrop}</div>`;
     const posRow = `<div class="tc-wizgrp"><span class="tc-wizlab">Position</span>
       ${["P","C","IF","OF"].map(p=>chip(resFit.pos.has(p),p,`rfPos('${p}')`)).join("")}
       ${resFit.pos.size?chip(false,"✕ any","rfPosClear()","clear"):""}</div>`;
@@ -3348,31 +3422,65 @@
     if (!state) { wrap.innerHTML = `<div class="placeholder">Waiting for draft state…</div>`; return; }
     if (!DATA.composite.length || !Object.keys(DATA.orgs).length) {
       wrap.innerHTML = `<div class="placeholder">Loading player board & org review…</div>`; return; }
-    const { list:players, total, cap } = rfPlayerList();
-    const teams = rfTeamList();
-    if (!players.length) { wrap.innerHTML = `<div class="placeholder">No players match those position filters.</div>`; return; }
+    const { list:players } = rfPlayerList();
+    let teams = rfTeamList();
+    if (!players.length) { wrap.innerHTML = `<div class="placeholder">No player columns — turn on SV Clients or add players from Rest of Board above${resFit.pos.size?" (or clear the position filter)":""}.</div>`; return; }
     if (!teams.length) { wrap.innerHTML = `<div class="placeholder">All teams are filtered out — turn some back on.</div>`; return; }
+    // Column sort: clicking a player header ranks the teams (rows) by his fit, respecting the
+    // active lens. Falls back to org rank as the tiebreak (and when no column is pinned).
+    const sortComp = resFit.sortCol ? players.find(c => normName(c.name)===resFit.sortCol) : null;
+    if (sortComp) {
+      const dir = resFit.sortDir==="asc" ? 1 : -1;
+      const val = t => rfCellVal(fit(sortComp, t, resFit.sortCol, state));
+      teams = teams.slice().sort((a,b) => dir*(val(a)-val(b)) || ((DATA.orgs[a].orgRank??99)-(DATA.orgs[b].orgRank??99)));
+    }
     let h = `<table class="rf-grid"><thead><tr><th class="rf-corner">${teams.length}×${players.length}<small>${RF_LENSLBL[resFit.lens]}</small></th>`;
-    h += players.map(c => { const last = tcInitialName(c.name).split(" ").slice(-1)[0];
-      return `<th class="rf-ph" title="${_esc(c.name)} · ${c.pos} · #${c.rank}" onclick="openPlayer('${normName(c.name)}')"><span class="rf-phn">${_esc(last)} #${c.rank}</span></th>`; }).join("");
+    h += players.map(c => { const last = tcInitialName(c.name).split(" ").slice(-1)[0], key = normName(c.name);
+      // header text is rotated 180° (vertical-rl), which flips the glyph — emit the inverse so
+      // descending reads as a visual down-arrow (biggest fit on top)
+      const isSort = resFit.sortCol===key, arrow = isSort ? (resFit.sortDir==="asc"?" ▼":" ▲") : "";
+      return `<th class="rf-ph${isSort?' rf-sorted':''}" title="Sort teams by ${resFit.lens==="combined"?"fit":RF_LENSLBL[resFit.lens]} for ${_esc(c.name)}" onclick="rfSortCol('${key}')"><span class="rf-phn">${_esc(last)} #${c.rank}${arrow}</span></th>`; }).join("");
     h += `</tr></thead><tbody>`;
     for (const t of teams) {
       const o = DATA.orgs[t] || {};
       h += `<tr><th class="rf-th" onclick="openTeam('${t}')">${teamLogo(t,16)}<span class="rf-tab">${t}</span><span class="rf-tor">org #${o.orgRank!=null?Math.round(o.orgRank):"—"}</span></th>`;
       for (const c of players) {
         const key = normName(c.name), f = fit(c, t, key, state), v = rfCellVal(f);
-        const dim = v < resFit.gradeMin ? " rf-dim" : "";
-        h += `<td class="rf-cell${dim}" style="background:${rfHeat(v)}" title="${_esc(c.name)} → ${t}: ${v}" onclick="openFitCard('${key}','${t}')">${v}</td>`;
+        const dim = v < resFit.gradeMin ? " rf-dim" : "", sortCls = resFit.sortCol===key ? " rf-colsort" : "";
+        h += `<td class="rf-cell${dim}${sortCls}" style="background:${rfHeat(v)}" title="${_esc(c.name)} → ${t}: ${v}" onclick="openFitCard('${key}','${t}')">${v}</td>`;
       }
       h += `</tr>`;
     }
     h += `</tbody></table>`;
-    if (resFit.players==="board" && total>cap) h = `<div class="rf-note">Showing the top ${cap} of ${total} board players by rank — filter by position to narrow, or switch to Our clients.</div>` + h;
     wrap.innerHTML = h;
   }
 
   // ---- control handlers ----
-  window.rfSetPlayers = (v) => { resFit.players = v; rfSave(); renderResFit(); };
+  // Column pickers: binary side toggle + granular dropdowns (clients / searchable board).
+  window.rfSide = (which) => {
+    if (which==="clients") resFit.clientsSide = !resFit.clientsSide; else resFit.boardSide = !resFit.boardSide;
+    rfSave(); renderResFit();
+  };
+  window.rfMenu = (which, e) => { if (e) e.stopPropagation();
+    if (which==="clients") { rfClientsMenu = !rfClientsMenu; rfBoardMenu = false; }
+    else { rfBoardMenu = !rfBoardMenu; rfClientsMenu = false; }
+    renderRfControls();
+  };
+  window.rfClient = (key, e) => { if (e) e.stopPropagation();
+    resFit.clientsOff.has(key) ? resFit.clientsOff.delete(key) : resFit.clientsOff.add(key);
+    resFit.clientsSide = true;   // editing the roster implies the side is live
+    rfSave(); renderRfControls(); renderRfGrid();
+  };
+  window.rfClientsAll = (on, e) => { if (e) e.stopPropagation();
+    if (on) resFit.clientsOff.clear(); else DATA.clientList.filter(c=>c.comp).forEach(c=>resFit.clientsOff.add(c.key));
+    resFit.clientsSide = true; rfSave(); renderRfControls(); renderRfGrid();
+  };
+  window.rfBoardToggle = (key, e) => { if (e) e.stopPropagation();
+    resFit.boardOn.has(key) ? resFit.boardOn.delete(key) : resFit.boardOn.add(key);
+    resFit.boardSide = true;   // adding a board player implies the side is live
+    rfSave(); renderRfControls(); renderRfGrid();
+  };
+  window.rfBoardSearch = (v) => { rfBoardQuery = v; const el = $("rfBoardList"); if (el) el.innerHTML = rfBoardListHtml(); };
   window.rfPos = (p) => { resFit.pos.has(p) ? resFit.pos.delete(p) : resFit.pos.add(p); rfSave(); renderResFit(); };
   window.rfPosClear = () => { resFit.pos.clear(); rfSave(); renderResFit(); };
   window.rfLens = (k) => { resFit.lens = k; rfSave(); renderResFit(); };
@@ -3385,6 +3493,13 @@
   window.rfToggleW = () => { resFit.wOpen = !resFit.wOpen; rfSave(); renderRfControls(); };
   window.rfWeight = (k,v) => { resFit.weights[k] = +v; rfSave(); rfWeightLabels(); renderRfGrid(); };
   window.rfWeightReset = () => { resFit.weights = {...RF_WDEF}; rfSave(); renderRfControls(); renderRfGrid(); };
+  // Click a player column header → sort teams by his fit (desc → asc → back to org-rank default)
+  window.rfSortCol = (key) => {
+    if (resFit.sortCol !== key) { resFit.sortCol = key; resFit.sortDir = "desc"; }
+    else if (resFit.sortDir === "desc") { resFit.sortDir = "asc"; }
+    else { resFit.sortCol = null; resFit.sortDir = "desc"; }
+    rfSave(); renderRfGrid();
+  };
 
   // ---- fit card: player × team deep dive across every lens ----
   window.openFitCard = (key, team) => { fitSel = { key, team }; renderFitCard(); };
@@ -3412,7 +3527,7 @@
         return `<div class="fc-blend"><div class="fc-brow"><span>${l}</span><span>${Math.round(100*v)}<small> × ${wp}%</small></span></div>
           <div class="db"><i style="width:${Math.round(v*100)}%;background:${rfDcol(v)}"></i></div>
           <div class="fc-contrib">contributes +${contrib} to combined</div></div>`; }).join("");
-    const p1 = `<div class="tc-panel"><h4><span class="n">1</span> The Blend</h4>${lensRows}
+    const p1 = `<div class="tc-panel" data-q="blend"><h4><span class="n">1</span> The Blend</h4>${lensRows}
       <div class="fc-note">Each lens grade is independent (0–100). The blend weights them into the <b>${combined}</b> combined fit — adjust weights in the controls to restack.</div></div>`;
 
     // Panel 2 — Interest (SV intel)
@@ -3427,13 +3542,13 @@
     } else {
       p2i = `<div class="fc-note">No SV intel on file for ${t} on this player — the interest lens reads 0, so this fit leans on org-dev, type & money.</div>`;
     }
-    const p2 = `<div class="tc-panel"><h4><span class="n">2</span> Interest</h4>${p2i}
+    const p2 = `<div class="tc-panel" data-q="interest"><h4><span class="n">2</span> Interest</h4>${p2i}
       <div class="tc-kv"><span class="k">Likely landing</span><span class="v">${land?`#${land.overall} · ${land.roundPick||("R"+land.round)}`:"no pick left"}</span></div></div>`;
 
     // Panel 3 — Org-review dev-fit
     const trends = o.trends || {}, dev = o.dev || {};
     const tKeyN = isP ? ["ncaaPitcher","hsPitcher"] : ["ncaaPos","hsPos"];
-    const p3 = `<div class="tc-panel"><h4><span class="n">3</span> Org-review dev-fit</h4>
+    const p3 = `<div class="tc-panel" data-q="dev"><h4><span class="n">3</span> Org-review dev-fit</h4>
       <div class="tc-kv"><span class="k">Org rank (COMP)</span><span class="v">${rkChip(o.orgRank)}</span></div>
       <div class="tc-kv"><span class="k">MLB debut rate</span><span class="v">${pct(dev.mlbDebut)}</span></div>
       <div class="tc-kv"><span class="k">Reached arb</span><span class="v">${pct(dev.arb)}</span></div>
@@ -3447,7 +3562,7 @@
     const lean = o.earlyPitcherPct!=null ? o.earlyPitcherPct : 50;
     const sideMatch = isP ? lean : 100-lean;
     const lvlPct = comp.level==="HS" ? o.hsPct : comp.level==="College" ? o.collegePct : null;
-    const p4 = `<div class="tc-panel"><h4><span class="n">4</span> Type-fit</h4>
+    const p4 = `<div class="tc-panel" data-q="type"><h4><span class="n">4</span> Type-fit</h4>
       <div class="tc-kv"><span class="k">Player archetype</span><span class="v">${isP?"Pitcher":"Position"} · ${comp.level||"—"}</span></div>
       <div class="tc-kv"><span class="k">Org early-pick lean</span><span class="v">${o.earlyPitcherPct!=null?`${lean}% arms`:"—"}</span></div>
       <div class="tc-kv"><span class="k">→ matches his side</span><span class="v">${o.earlyPitcherPct!=null?sideMatch+"%":"—"}</span></div>
@@ -3458,7 +3573,7 @@
     // Panel 5 — Money
     const bonus = land ? negBonus(comp, land.slot, land.overall) : null;
     const fits = pool && bonus!=null ? pool.room >= bonus : null;
-    const p5 = `<div class="tc-panel"><h4><span class="n">5</span> Money</h4>
+    const p5 = `<div class="tc-panel" data-q="money"><h4><span class="n">5</span> Money</h4>
       <div class="tc-kv"><span class="k">Pool room</span><span class="v">${pool?fmtM(pool.room):"—"}</span></div>
       <div class="tc-kv"><span class="k">Pool ceiling</span><span class="v">${pool&&pool.ceiling?fmtM(pool.ceiling):"—"}</span></div>
       <div class="tc-kv"><span class="k">Landing slot</span><span class="v">${land&&land.slot?fmtM(land.slot):"—"}</span></div>
@@ -3480,7 +3595,7 @@
         <div class="tc-stat"><div class="k">Type</div><div class="v">${Math.round(100*f.typeN)}</div></div>
         <div class="tc-stat"><div class="k">Money</div><div class="v">${Math.round(100*f.moneyN)}</div></div>
       </div></div>
-      <div class="fc-panels">${p1}${p2}${p3}${p4}${p5}</div>
+      <div class="fc-panels">${mobPanels(p1+p2+p3+p4+p5, fitPanelOpen)}</div>
     </div>`;
     bd.classList.add("on");
   }
@@ -4352,6 +4467,17 @@
     ppPanelOpen = { ...ppPanelOpen, [q]: !ppPanelOpen[q] };
     try { localStorage.setItem("dd:ppPanels", JSON.stringify(ppPanelOpen)); } catch (err) {}
     if (selected && selected.type==="player") renderPlayerDetail(currentState);
+  });
+
+  // Mobile fit card: tap a panel's numbered header to expand/collapse — one-open accordion
+  // like the team card (state in fitPanelOpen, persisted so it survives re-renders).
+  $("fitCard").addEventListener("click", (e) => {
+    if (!MOBILE.matches) return;
+    const h4 = e.target.closest(".tc-panel[data-q] > h4"); if (!h4) return;
+    const q = h4.parentElement.dataset.q;
+    fitPanelOpen = fitPanelOpen[q] ? { ...fitPanelOpen, [q]: false } : { [q]: true };
+    try { localStorage.setItem("dd:fitPanels", JSON.stringify(fitPanelOpen)); } catch (err) {}
+    if (fitSel) renderFitCard();
   });
 
   // Companion PWA: SW only caches static art/fonts — live data always hits the network.
