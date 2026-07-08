@@ -276,6 +276,11 @@
   .bcard .bc-team { font-weight:900; font-size:14px; line-height:1.1; display:flex; align-items:center; gap:4px; }
   .bcard .bc-slot { font-size:10px; color:var(--muted); }
   .bcard .bc-player { font-weight:700; font-size:11px; flex:1; margin-top:3px; line-height:1.3; }
+  /* click-to-edit agency on the drafted-player vitals card */
+  .ag-edit { cursor:pointer; border-bottom:1px dashed var(--line); }
+  .ag-edit:hover { color:var(--good); border-bottom-color:var(--good); }
+  .ag-pencil { font-size:10px; opacity:.45; margin-left:2px; }
+  .ag-edit:hover .ag-pencil { opacity:1; }
   /* drafted-tile advisory lines: pos · agency · school, then bonus when known */
   .bcard .bc-meta { font-size:9px; color:var(--muted); font-weight:600; line-height:1.3; margin-top:1px; }
   .bcard .bc-bonus { font-size:10px; font-weight:800; font-variant-numeric:tabular-nums; margin-top:2px; display:flex; align-items:center; gap:3px; flex-wrap:wrap; }
@@ -1210,6 +1215,22 @@
   window.setRangeByRound = (key, rLo, rHi) => { const a=roundSpan(rLo), b=roundSpan(rHi); if(a&&b) window.setRange(key, a.first, b.last); };
   window.clearRange = (key) => { delete RANGES[key]; saveRanges(key);
     postIntel({ kind:"strike_window", player_name:clientName(key), window_lo:null, window_hi:null }, true); };
+
+  // Representing agency (non-SV clients) — a war-room-editable override on the fed comp.agent,
+  // shared like medical/range: local override wins, else the value from the data feed.
+  let AGENCIES = {};   // normName -> agency string
+  try { AGENCIES = JSON.parse(localStorage.getItem("dd:agencies") || "{}"); } catch (e) {}
+  const agentOf = (comp) => comp ? (AGENCIES[normName(comp.name)] || comp.agent || "") : "";
+  window.editAgency = (key) => {
+    const cur = AGENCIES[key] || (DATA.compByName.get(key)?.agent) || "";
+    const next = window.prompt("Representing agency", cur);
+    if (next === null) return;                       // cancelled
+    const val = next.trim();
+    if (val) AGENCIES[key] = val; else delete AGENCIES[key];
+    try { localStorage.setItem("dd:agencies", JSON.stringify(AGENCIES)); } catch (e) {}
+    renderActive();
+    postIntel({ kind:"agency", player_name:clientName(key), note:val }, true);   // share (best-effort)
+  };
   const TEAMINTEL_URL = "https://sv-teamintel.vercel.app/teamintel.json";
   // sv-teamintel's shared per-pick "in play" checkboxes (Draft Card `pk|player|team` overrides):
   // key ABSENT = in play at every one of that team's picks; present = whitelist of pick numbers.
@@ -2768,6 +2789,8 @@
         if (s.medical===undefined) s.medical = ev.note || "unknown";
       } else if (ev.kind==="range") {
         if (s.range===undefined) s.range = (ev.window_lo || ev.window_hi) ? { lo: ev.window_lo, hi: ev.window_hi } : null;
+      } else if (ev.kind==="agency") {                  // newest-first, so first seen wins ("" clears)
+        if (s.agency===undefined) s.agency = ev.note || "";
       }
     }
     INTEL.byKey = byKey;
@@ -2776,8 +2799,9 @@
     for (const [key, s] of byKey) {
       if (s.medical!==undefined) { if (s.medical && s.medical!=="unknown") MEDICALS[key]=s.medical; else delete MEDICALS[key]; }
       if (s.range!==undefined) { if (s.range) RANGES[key]=s.range; else delete RANGES[key]; }
+      if (s.agency!==undefined) { if (s.agency) AGENCIES[key]=s.agency; else delete AGENCIES[key]; }
     }
-    try { localStorage.setItem("dd:medicals", JSON.stringify(MEDICALS)); localStorage.setItem("dd:ranges", JSON.stringify(RANGES)); } catch (e) {}
+    try { localStorage.setItem("dd:medicals", JSON.stringify(MEDICALS)); localStorage.setItem("dd:ranges", JSON.stringify(RANGES)); localStorage.setItem("dd:agencies", JSON.stringify(AGENCIES)); } catch (e) {}
   }
   const intelFor = (key) => INTEL.byKey.get(key) || null;
   // Best-known signing bonus for a player, across war-room captures AND the teamintel feed:
@@ -4028,6 +4052,9 @@
     const positions = [...new Set([pk.pos, comp?.pos].filter(Boolean).flatMap(s=>String(s).split(/[\/,]/).map(x=>x.trim())).filter(Boolean))].join(" / ");
     const level = comp ? levelClass(comp).replace("College-","College ") : (pk.schoolClass || "—");
     const eb = effectiveBonus(pk), lb = bonusFor(c.key);
+    const agKey = c.key.replace(/'/g,"\\'");
+    const ag = agentOf(comp);
+    const agCell = `<span class="ag-edit" title="Click to edit agency" onclick="editAgency('${agKey}')">${ag || "—"} <span class="ag-pencil">✎</span></span>`;
     let h = `<div class="cc"><div class="detail-head">${teamLogo(pk.team,32)}<span class="big">${displayName}</span>
       <span class="pl">drafted #${pk.overall} · ${roundLabel(pk.round)} · ${pk.teamName||pk.team}</span></div>`;
     h += `<div class="pool-row" style="margin-top:12px">${[
@@ -4036,7 +4063,7 @@
       [positions.includes("/") ? "Positions" : "Position", positions || "—"],
       ["B/T", fmtBT(comp)],
       ["HT / WT", comp ? fmtHtWt(comp) : "—"],
-      ["Agency", comp?.agent || "—"],
+      ["Agency", agCell],
       ["Pick slot", pk.slot>0?fmt$(pk.slot):"—"],
       ["Bonus", eb.bonus!=null && (pk.bonus!=null||eb.src) ? fmt$(eb.bonus)+(eb.src?` (${eb.src})`:"") : "—"],
     ].map(([k,v])=>`<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("")}</div></div>`;

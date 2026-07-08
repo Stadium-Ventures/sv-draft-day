@@ -13,7 +13,9 @@ const TABLE = "draft_intel_events";
 // medical (note = "yes"|"no"|"unknown") and range (window_lo/window_hi) are player-scoped
 // settings shared across the war room; latest event per player wins.
 // bonus = a rumored or confirmed signing bonus (offer_type carries "rumored"|"confirmed", amount = $)
-const KINDS = ["interest_sought", "interest_received", "rule_out", "strike_window", "offer", "medical", "range", "bonus"];
+// agency (note = representing agency name, "" clears) is a player-scoped setting shared
+// across the war room; latest event per player wins.
+const KINDS = ["interest_sought", "interest_received", "rule_out", "strike_window", "offer", "medical", "range", "bonus", "agency"];
 
 function rest(path, opts = {}) {
   return fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
