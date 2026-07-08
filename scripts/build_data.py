@@ -209,9 +209,11 @@ def bucket(school_class):
     return None
 
 
-def pos_group(pos):
-    """Mirror posGroupOf() in public/index.html: collapse a raw Pos string to
-    P/C/IF/OF/? (case-insensitive, robust to empty/None)."""
+def pos_group_app(pos):
+    """Mirror posGroupOf() in public/index.html (regex substring) so org posDraft*
+    groups match how the app buckets a player. Distinct from the exact-match
+    pos_group() used by build_composite — do NOT merge them (that would change
+    composite.json's posGroup on rebuild). Returns P/C/IF/OF/? , robust to None."""
     p = (str(pos).strip().upper() if pos else "")
     if re.search(r"P|RHP|LHP|SP|RP", p):
         return "P"
@@ -281,7 +283,7 @@ def build_orgs(path):
             # be formatted like "1s" or "CB-A" — extract the leading integer for "early"
             # classification, but still count the pick in posAll even if that fails.
             pos_raw = (str(r[col["Pos"]]).strip() if "Pos" in col and r[col["Pos"]] else "")
-            grp2 = pos_group(pos_raw)
+            grp2 = pos_group_app(pos_raw)
             if grp2 != "?" and "Round" in col and r[col["Round"]] not in (None, ""):
                 pos_all_ct[grp2] += 1
                 m = re.match(r"\s*(-?\d+)", str(r[col["Round"]]))
