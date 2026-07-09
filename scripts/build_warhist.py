@@ -27,6 +27,9 @@ Method:
     joined to the sweep by id (name fallback, "Last, First" -> normName). Attached
     as `aw` on per-pick rows; recent-class (2018-24) aWAR/pick baked per org.
   - Per-pick rows per org (newest first): {y, ov, n, g, lvl, bon, w(bWAR), aw?}.
+  - Debut speed: median years from draft to MLB debut (statsapi mlbDebutDate),
+    split HS vs College, mature classes only (year <= MATURE_THROUGH) — baked as
+    orgs[t].debutSpeed = {all, HS, College} alongside all/byG.
 
 Usage: python3 scripts/build_warhist.py [--awar path.xlsx|csv] [--cache-dir DIR]
 """
@@ -237,6 +240,43 @@ def finish(cell):
     return {"n": cell["n"], "warSum": round(cell["warSum"], 1),
             "expSum": round(cell["expSum"], 1), "woe": round(woe, 3)}
 
+def median(vals):
+    vals = sorted(vals)
+    n = len(vals)
+    if n == 0: return None
+    mid = n // 2
+    return vals[mid] if n % 2 else (vals[mid - 1] + vals[mid]) / 2
+
+def fetch_debuts(mlbids, cache_dir):
+    """statsapi people lookup in chunks of 100 -> {mlbid: debutYear or None}.
+    Cached to <cache_dir>/debuts.json when cache_dir given so re-runs skip the fetch."""
+    cache_path = os.path.join(cache_dir, "debuts.json") if cache_dir else None
+    if cache_path and os.path.exists(cache_path):
+        return json.load(open(cache_path))
+    out = {}
+    ids = [i for i in mlbids if i.isdigit()]
+    for i in range(0, len(ids), 100):
+        chunk = ids[i:i+100]
+        url = ("https://statsapi.mlb.com/api/v1/people?personIds=" + ",".join(chunk)
+               + "&fields=people,id,mlbDebutDate")
+        for attempt in range(3):
+            try:
+                with urllib.request.urlopen(url, timeout=30) as resp:
+                    data = json.load(resp)
+                for p in data.get("people", []):
+                    debut = p.get("mlbDebutDate")
+                    out[str(p["id"])] = int(debut[:4]) if debut else None
+                break
+            except Exception as e:
+                if attempt == 2:
+                    print(f"  !! statsapi debut chunk failed: {e}", file=sys.stderr)
+                else:
+                    time.sleep(1.5)
+        print(f"  debuts {min(i+100, len(ids))}/{len(ids)}", file=sys.stderr)
+    if cache_path:
+        json.dump(out, open(cache_path, "w"))
+    return out
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--awar", default=AWAR_DEFAULT if os.path.exists(AWAR_DEFAULT) else None,
@@ -270,6 +310,12 @@ def main():
     print(f"bWAR join: {id_hits} id, {name_hits} name, {len(picks)-id_hits-name_hits} no-MLB; "
           f"aWAR attached to {aw_hits} picks", file=sys.stderr)
 
+    debuts = fetch_debuts(sorted({p["mlbid"] for p in picks if p["mlbid"]}), args.cache_dir)
+    for p in picks:
+        p["debutYear"] = debuts.get(p["mlbid"])
+    debuted_n = sum(1 for p in picks if p["debutYear"])
+    print(f"debuts: {debuted_n}/{len(picks)} picks have an MLB debut year", file=sys.stderr)
+
     # expected-bWAR curve from mature classes
     curve = {k: [0, 0.0] for k in BAND_KEYS}
     for p in picks:
@@ -282,7 +328,8 @@ def main():
     orgs = {}
     for p in picks:
         o = orgs.setdefault(p["team"], {"all": blank(), "byG": {}, "byB": {}, "byLvl": {},
-                                        "aw": {"n": 0, "sum": 0.0}, "picks": []})
+                                        "aw": {"n": 0, "sum": 0.0}, "picks": [],
+                                        "debutYears": {"all": [], "HS": [], "College": []}})
         row = {"y": p["y"], "ov": p["ov"], "n": p["name"], "g": p["g"], "w": p["war"]}
         if p["lvl"]: row["lvl"] = p["lvl"]
         if p["bon"]: row["bon"] = p["bon"]
@@ -298,6 +345,11 @@ def main():
         b = band_of(p["ov"])
         if b: add(o["byB"].setdefault(b, blank()), p["warC"], e)
         if p["lvl"]: add(o["byLvl"].setdefault(p["lvl"], blank()), p["warC"], e)
+        if p["debutYear"]:
+            yrs = p["debutYear"] - p["y"]
+            o["debutYears"]["all"].append(yrs)
+            if p["lvl"] in ("HS", "College"):
+                o["debutYears"][p["lvl"]].append(yrs)
 
     out_orgs = {}
     for t, o in orgs.items():
@@ -312,6 +364,10 @@ def main():
         if o["aw"]["n"]:
             rec["awRecent"] = {"n": o["aw"]["n"], "sum": round(o["aw"]["sum"], 1),
                                "perPick": round(o["aw"]["sum"] / o["aw"]["n"], 2)}
+        debut_speed = {k: {"medianYears": median(yrs), "n": len(yrs)}
+                       for k, yrs in o["debutYears"].items() if yrs}
+        if debut_speed:
+            rec["debutSpeed"] = debut_speed
         out_orgs[t] = rec
 
     payload = {
@@ -321,6 +377,8 @@ def main():
             "awar": bool(args.awar),
             "builtAt": datetime.datetime.now().isoformat(timespec="seconds"),
             "posNote": "pos group = current primaryPosition (drafted position not in feed)",
+            "debutSpeedNote": "median years from draft to MLB debut, HS vs College picks, "
+                               "mature classes only (year <= matureThrough); non-debuted picks excluded",
         },
         "expBands": BAND_KEYS,
         "expMean": exp_mean,
@@ -332,6 +390,13 @@ def main():
     print("expected career bWAR by band:", json.dumps(exp_mean))
     kc = out_orgs.get("KC", {})
     print("sample KC all:", json.dumps(kc.get("all")), "| awRecent:", json.dumps(kc.get("awRecent")))
+
+    lg_hs = [p["debutYear"] - p["y"] for p in picks
+             if p["y"] <= MATURE_THROUGH and p["debutYear"] and p["lvl"] == "HS"]
+    lg_college = [p["debutYear"] - p["y"] for p in picks
+                  if p["y"] <= MATURE_THROUGH and p["debutYear"] and p["lvl"] == "College"]
+    print(f"league debut speed — HS median {median(lg_hs)}y (n={len(lg_hs)}), "
+          f"College median {median(lg_college)}y (n={len(lg_college)})")
 
 if __name__ == "__main__":
     main()
