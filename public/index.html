@@ -676,6 +676,11 @@
   .rf-tgrp { display:flex; gap:4px; flex-wrap:wrap; align-items:center; }
   .rf-tgrp .tc-chip.grp { border-style:dashed; font-weight:900; width:78px; text-align:center; }
   .rf-wgrid { margin-top:9px; }
+  /* always-visible weight panel: 3-col mini-slider grid (2-col mobile) */
+  .rf-wgrid3 { display:grid; grid-template-columns:repeat(3,1fr); gap:2px 22px; }
+  .rf-wgrid3 .rf-wlab { width:84px; }
+  @media (max-width:900px){ .rf-wgrid3 { grid-template-columns:repeat(2,1fr); } }
+  body.mob .rf-wgrid3 { grid-template-columns:repeat(2,1fr); gap:2px 12px; }
   .rf-wrow { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
   .rf-wlab { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.3px; color:var(--muted); width:66px; flex:0 0 auto; }
   .rf-wsl { flex:1 1 auto; min-width:0; -webkit-appearance:none; appearance:none; height:4px; border-radius:2px; background:var(--line); }
@@ -708,6 +713,29 @@
   .fc-card .fc-sub { font-size:11px; font-weight:700; color:var(--muted); }
   .fc-card .fc-arrow { color:var(--muted); font-weight:900; margin:0 3px; font-size:15px; }
   .fc-panels { display:grid; grid-template-columns:repeat(auto-fit,minmax(232px,1fr)); gap:14px; padding:14px 22px; flex:1 1 auto; min-height:0; overflow-y:auto; align-items:start; align-content:start; }
+  /* fit card v2: four-questions-first — height hugs content (kill .tc-card's flex-stretch) */
+  .fc2 { max-width:820px; flex:0 0 auto !important; align-self:center; width:min(820px,100%);
+    height:auto !important; max-height:92dvh; overflow-y:auto; padding-bottom:6px; }
+  .fc2-badge { margin-left:auto; display:inline-flex; align-items:baseline; gap:6px; padding:5px 12px; border-radius:9px; font-weight:900; font-size:20px; font-variant-numeric:tabular-nums; }
+  .fc2-badge small { font-size:9.5px; font-weight:800; text-transform:uppercase; letter-spacing:.4px; color:rgba(0,0,0,.55); }
+  .fc2-cal { padding:7px 22px 0; font-size:12.5px; color:var(--muted); font-weight:600; }
+  .fc2-cal b { color:var(--ink); }
+  .fc2-tiles { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; padding:12px 22px 4px; }
+  .fc2-tile { border:1.5px solid transparent; border-radius:11px; padding:10px 10px 9px; text-align:left; cursor:pointer; display:flex; flex-direction:column; gap:2px; font-family:inherit; }
+  .fc2-tile.sel { border-color:var(--ink); }
+  .fc2-tile:hover { border-color:rgba(0,0,0,.35); }
+  .fc2-tk { font-size:9.5px; font-weight:900; letter-spacing:.5px; color:rgba(0,0,0,.55); }
+  .fc2-tv { font-size:26px; font-weight:900; line-height:1; font-variant-numeric:tabular-nums; }
+  .fc2-tev { font-size:10.5px; font-weight:700; color:rgba(0,0,0,.6); line-height:1.25; }
+  .fc2-drawer { padding:8px 22px 4px; min-height:78px; }
+  .fc2-drawer .tc-kv .k { color:var(--muted); }
+  .fc2-hint { color:var(--muted); font-style:italic; }
+  .fc2-strip { padding:8px 22px; border-top:1px solid var(--line); font-size:12.5px; color:var(--ink); display:flex; flex-wrap:wrap; align-items:center; gap:4px 7px; }
+  .fc2-sk { font-size:9.5px; font-weight:900; letter-spacing:.5px; color:var(--muted); margin-right:4px; }
+  .fc2-dim { color:var(--muted); font-weight:600; font-size:11px; }
+  @media (max-width:640px){ .fc2-tiles { grid-template-columns:repeat(2,1fr); } .fc2-badge { font-size:16px; } }
+  body.mob .fc2-tiles { grid-template-columns:repeat(2,1fr); }
+  body.mob .fc2 { height:100dvh; overflow-y:auto; }
   .fc-blend { margin-bottom:12px; }
   .fc-blend .fc-brow { display:flex; justify-content:space-between; align-items:baseline; font-size:11.5px; font-weight:800; margin-bottom:3px; }
   .fc-blend .fc-brow small { color:var(--muted); font-weight:700; }
@@ -2580,10 +2608,14 @@
     // fit surface at a slot even when the team's money doesn't work.
     const orgScore = Math.round(100*(0.45*interestN + 0.20*devN + 0.15*typeN)/0.80);
     // Directional lenses (empirical fit engine) — cached per player, cheap per cell.
+    // dev/depth ride along as raw 0-1 factors for the weight-blend basis.
     const dir = comp ? {
       reach: dirReach(team, comp), develop: dirDevelop(team, comp),
       speed: dirSpeed(team, comp), earn: dirEarn(team, comp),
       emp: dfComposite(comp, team, state),
+      dev: (() => { const d = dfDev(team, comp); return d.known ? d.dev01 : null; })(),
+      depth: (() => { const d = dfDepth(team, comp); return d.known ? d.depth01 : null; })(),
+      depthInfo: dfDepth(team, comp),
     } : null;
     return { score, orgScore, interestN, devN, typeN, moneyN, flavorN, fvN, fvKnown,
       histN, hist, war, dir, pipeN:pipe.pipeN, pipe, bucketEst:pb.est, bucketIdx:pb.idx };
@@ -3174,7 +3206,7 @@
     if (bonusEdit!=null && !(e.target.closest && e.target.closest(".bc-bform"))) { bonusEdit = null; renderBoard(currentState); }
     if (resPosOpen && !(e.target.closest && e.target.closest(".res-pdrop"))) { resPosOpen = false; renderResearch(); }
     if (baOpen && !(e.target.closest && e.target.closest(".ba-drop"))) { baOpen = null; renderBaChips(); }
-    if ((rfClientsMenu||rfBoardMenu) && !(e.target.closest && e.target.closest(".rf-drop"))) { rfClientsMenu = false; rfBoardMenu = false; if (resTab==="fit") renderRfControls(); }
+    if ((rfClientsMenu||rfBoardMenu||rfPosMenu) && !(e.target.closest && e.target.closest(".rf-drop, .res-pdrop"))) { rfClientsMenu = false; rfBoardMenu = false; rfPosMenu = false; if (resTab==="fit") renderRfControls(); }
   });
   window.toggleBoardClient = (key, e) => {
     if (e) e.stopPropagation();
@@ -4272,22 +4304,47 @@
   // (Old dev / flavor / FV lenses folded in or dropped: FV is the same for every org so it
   // never re-ranks teams; org-wide dev now lives inside Track record's league-shrunk rates;
   // flavor's HS/college + arm/bat story survives as "why" bullets on the fit card.)
-  // Lens groups, two labeled rows. INTEREST IS NOT A FIT FACTOR here by design (Mike,
-  // 7/9): SV intel is our collected intelligence — this tab evaluates the class on equal
-  // footing, so interest stays informational (card panel 2, hidden-fits contrast, board
-  // dots) but never moves a fit number. Row 1 = the Combined blend's inputs; row 2 =
-  // display-only outlook reads (WAR lookback + the four questions + empirical composite).
-  const RF_LENSES_MAIN = [["combined","Combined"],["hist","Track record"],["pipe","Pipeline"],["money","Money"]];
-  const RF_LENSES_OUT = [["war","WAR"],["reach","Reach MLB"],["develop","Development"],["speed","Speed to MLB"],["earn","Cost vs value"],["emp","Org fit (emp)"]];
-  const RF_LENSES = [...RF_LENSES_MAIN, ...RF_LENSES_OUT];
-  const RF_LENSLBL = { combined:"Combined fit", hist:"Track record", war:"WAR lookback", pipe:"Pipeline", money:"Money",
-    reach:"Reach MLB", develop:"Development", speed:"Speed to MLB", earn:"Cost vs value", emp:"Empirical org fit" };
-  const RF_WDEF = { hist:40, pipe:20, money:40 };
+  // OUTLOOKS = named weight vectors over one shared FACTOR basis. One blend codepath
+  // renders every view: cell = Σw·factor/Σw. Click a chip → sliders snap to its preset;
+  // drag any slider → "Custom". INTEREST IS NOT A FIT FACTOR by design (Mike, 7/9):
+  // SV intel is our collected intelligence — this tab evaluates the class on equal
+  // footing; interest stays informational (card context strip, hidden-fits contrast,
+  // board dots) but never moves a fit number.
+  const RF_FACTORS = [   // [key, slider label, reader over the fit() result]
+    ["hist", "Track record", f => f.histN],
+    ["war", "WAR lookback", f => f.war && f.war.known ? f.war.warN : 0.5],
+    ["reach", "Reach MLB", f => f.dir ? f.dir.reach.v : 0.5],
+    ["dev", "Regime dev", f => f.dir && f.dir.dev ? f.dir.dev : 0.5],
+    ["speed", "Speed to MLB", f => f.dir ? f.dir.speed.v : 0.5],
+    ["value", "Cost vs value", f => f.dir ? f.dir.earn.v : 0.5],
+    ["pipe", "Pipeline", f => f.pipeN],
+    ["depth", "Farm depth", f => f.dir && f.dir.depth != null ? f.dir.depth : 0.5],
+    ["money", "Money (live)", f => f.moneyN],
+  ];
+  const RF_FKEYS = RF_FACTORS.map(([k]) => k);
+  const RF_PRESETS = {   // intel-neutral throughout; Development mirrors the old 60/40 formula
+    combined: { hist:40, pipe:20, money:40 },
+    reach:    { reach:100 },
+    develop:  { war:60, dev:40 },
+    speed:    { speed:100 },
+    value:    { value:100 },
+    emp:      { dev:30, depth:30, money:20, value:20 },   // basis approx of the Kent composite
+  };
+  const RF_PRESET_LBL = { combined:"Combined", reach:"Reach MLB", develop:"Development",
+    speed:"Speed to MLB", value:"Cost vs value", emp:"Org fit (emp)", custom:"Custom" };
+  const rfVec = (w) => { const v = {}; for (const k of RF_FKEYS) v[k] = +w[k] || 0; return v; };
+  const rfMatchPreset = (w) => {
+    for (const [name, p] of Object.entries(RF_PRESETS)) {
+      const pv = rfVec(p);
+      if (RF_FKEYS.every(k => pv[k] === (+w[k] || 0))) return name;
+    }
+    return "custom";
+  };
   const RF_DEF = () => ({ clientsSide:true, clientsOff:new Set(), boardSide:false, boardOn:new Set(),
-    pos:new Set(), teamsOff:new Set(), gradeMin:0, lens:"combined", weights:{...RF_WDEF},
-    wOpen:false, tOpen:false, sortCol:null, sortDir:"desc", hidden:false });
+    pos:new Set(), teamsOff:new Set(), gradeMin:0, outlook:"combined", weights:rfVec(RF_PRESETS.combined),
+    custom:null, tOpen:false, sortCol:null, sortDir:"desc", hidden:false });
   let resFit = RF_DEF(), resFitDrawn = false, resTab = "research", fitSel = null;
-  let rfClientsMenu = false, rfBoardMenu = false, rfBoardQuery = "";   // column-picker dropdown state (session)
+  let rfClientsMenu = false, rfBoardMenu = false, rfBoardQuery = "", rfPosMenu = false;   // dropdown state (session)
   try {
     const sv = JSON.parse(localStorage.getItem("dd:resFit") || "null");
     if (sv) {
@@ -4295,17 +4352,32 @@
       resFit.clientsOff = new Set(Array.isArray(sv.clientsOff)?sv.clientsOff:[]);
       resFit.boardSide = !!sv.boardSide;
       resFit.boardOn = new Set(Array.isArray(sv.boardOn)?sv.boardOn:[]);
-      resFit.pos = new Set(Array.isArray(sv.pos)?sv.pos:[]);
+      // pos: token set. Old saves held groups (P/C/IF/OF) — expand through POS_TREE.
+      const savedPos = Array.isArray(sv.pos) ? sv.pos : [];
+      resFit.pos = new Set(savedPos.flatMap(v => POS_TREE[v] ? POS_TREE[v] : [v]));
       resFit.teamsOff = new Set(Array.isArray(sv.teamsOff)?sv.teamsOff:[]);
       resFit.gradeMin = +sv.gradeMin || 0;
-      resFit.lens = RF_LENSLBL[sv.lens] ? sv.lens : "combined";
       resFit.hidden = !!sv.hidden;
-      // migrate: pre-simplification saves carried dev/flavor/fv weights — a stale mix has no
-      // meaning under the 4-lens blend, so any save without a 'hist' weight resets to defaults
-      resFit.weights = (sv.weights && sv.weights.hist!=null)
-        ? Object.assign({...RF_WDEF}, sv.weights) : {...RF_WDEF};
-      for (const k of Object.keys(resFit.weights)) if (RF_WDEF[k]==null) delete resFit.weights[k];
-      resFit.wOpen = !!sv.wOpen; resFit.tOpen = !!sv.tOpen;
+      // outlook/weights: new saves carry {outlook, weights{9}}. Old saves carried
+      // {lens, weights{hist,pipe,money}} — map single-factor lenses to a 100-weight
+      // custom vector, 'combined' to its preset, unknown to combined.
+      if (sv.outlook && RF_PRESET_LBL[sv.outlook]) {
+        resFit.weights = rfVec(sv.weights || RF_PRESETS.combined);
+        resFit.outlook = rfMatchPreset(resFit.weights);
+        resFit.custom = Array.isArray(sv.custom) ? null : (sv.custom ? rfVec(sv.custom) : null);
+        if (resFit.outlook === "custom") resFit.custom = { ...resFit.weights };
+      } else if (sv.lens) {
+        const L = sv.lens;
+        if (RF_PRESETS[L]) { resFit.outlook = L; resFit.weights = rfVec(RF_PRESETS[L]); }
+        else if (L === "earn") { resFit.outlook = "value"; resFit.weights = rfVec(RF_PRESETS.value); }
+        else if (RF_FKEYS.includes(L)) { resFit.outlook = "custom"; resFit.weights = rfVec({ [L]: 100 }); resFit.custom = { ...resFit.weights }; }
+        else if (sv.weights && sv.weights.hist != null) {
+          resFit.weights = rfVec(sv.weights);
+          resFit.outlook = rfMatchPreset(resFit.weights);
+          if (resFit.outlook === "custom") resFit.custom = { ...resFit.weights };
+        }
+      }
+      resFit.tOpen = !!sv.tOpen;
       resFit.sortCol = typeof sv.sortCol==="string" ? sv.sortCol : null;
       resFit.sortDir = sv.sortDir==="asc" ? "asc" : "desc";
       if (sv.tab==="fit") resTab = "fit";
@@ -4315,7 +4387,7 @@
     try { localStorage.setItem("dd:resFit", JSON.stringify({
       clientsSide:resFit.clientsSide, clientsOff:[...resFit.clientsOff], boardSide:resFit.boardSide, boardOn:[...resFit.boardOn],
       pos:[...resFit.pos], teamsOff:[...resFit.teamsOff], gradeMin:resFit.gradeMin,
-      lens:resFit.lens, hidden:resFit.hidden, weights:resFit.weights, wOpen:resFit.wOpen, tOpen:resFit.tOpen,
+      outlook:resFit.outlook, weights:resFit.weights, custom:resFit.custom, hidden:resFit.hidden, tOpen:resFit.tOpen,
       sortCol:resFit.sortCol, sortDir:resFit.sortDir, tab:resTab })); } catch (e) {}
   }
   // ---- sub-tab switching (Player Research ↔ Team Fit) ----
@@ -4339,7 +4411,7 @@
     if (resFit.clientsSide) for (const c of clients) if (!resFit.clientsOff.has(c.key)) list.push(c.comp);
     if (resFit.boardSide) for (const key of resFit.boardOn) {
       if (clientKeys.has(key)) continue; const comp = DATA.compByName.get(key); if (comp) list.push(comp); }
-    if (resFit.pos.size) list = list.filter(c => resFit.pos.has(posGroupOf(c.pos)));
+    if (resFit.pos.size) list = list.filter(c => baPosTokens(c).some(t => resFit.pos.has(t)));
     const seen = new Set();
     list = list.filter(c => { const k=normName(c.name); if (seen.has(k)) return false; seen.add(k); return true; });
     list.sort((a,b) => (a.rank||9999)-(b.rank||9999));
@@ -4361,22 +4433,18 @@
     return Object.keys(DATA.orgs).filter(t=>!resFit.teamsOff.has(t))
       .sort((a,b) => ((DATA.orgs[a].orgRank??99)-(DATA.orgs[b].orgRank??99)));
   }
-  const rfWsum = () => { const w=resFit.weights; return (w.hist+w.pipe+w.money)||1; };
-  const rfCombined = (f) => { const w=resFit.weights;   // intel-neutral: no interest term
-    return Math.round(100*(w.hist*f.histN+w.pipe*f.pipeN+w.money*f.moneyN)/rfWsum()); };
+  const rfWsum = () => RF_FKEYS.reduce((s, k) => s + (+resFit.weights[k] || 0), 0) || 1;
+  // ONE blend codepath for every view: cell = Σ w·factor / Σ w over the shared basis.
+  // Presets are just named weight vectors; unknown factors read 0.5 (degrade contract).
   function rfCellVal(f) {
-    switch (resFit.lens) {
-      case "hist":     return Math.round(100*f.histN);
-      case "war":      return Math.round(100*((f.war && f.war.known) ? f.war.warN : 0.5));
-      case "pipe":     return Math.round(100*f.pipeN);
-      case "money":    return Math.round(100*f.moneyN);
-      case "reach":    return Math.round(100*(f.dir ? f.dir.reach.v : 0.5));
-      case "develop":  return Math.round(100*(f.dir ? f.dir.develop.v : 0.5));
-      case "speed":    return Math.round(100*(f.dir ? f.dir.speed.v : 0.5));
-      case "earn":     return Math.round(100*(f.dir ? f.dir.earn.v : 0.5));
-      case "emp":      return Math.round(100*(f.dir ? f.dir.emp.v : 0.5));
-      default:         return rfCombined(f);
+    const w = resFit.weights;
+    let s = 0, tot = 0;
+    for (const [k, , read] of RF_FACTORS) {
+      const wk = +w[k] || 0;
+      if (!wk) continue;
+      s += wk * read(f); tot += wk;
     }
+    return Math.round(100 * (tot ? s / tot : 0.5));
   }
   // one short clause per lens that moved — the cell tooltip's "why"
   function rfWhyShort(f) {
@@ -4421,13 +4489,20 @@
       <button class="tc-chip rf-side${resFit.boardSide?' on':''}" onclick="rfSide('board')">Rest of Board · ${resFit.boardSide?(resFit.boardOn.size||0):"off"}</button>
       <button class="tc-chip rf-caret" onclick="rfMenu('board',event)">▾</button>${boardMenu}</span>`;
     const playersRow = `<div class="tc-wizgrp"><span class="tc-wizlab">Columns</span>${clientsDrop}${boardDrop}</div>`;
-    const posRow = `<div class="tc-wizgrp"><span class="tc-wizlab">Position</span>
-      ${["P","C","IF","OF"].map(p=>chip(resFit.pos.has(p),p,`rfPos('${p}')`)).join("")}
-      ${resFit.pos.size?chip(false,"✕ any","rfPosClear()","clear"):""}</div>`;
-    const lensRow = `<div class="tc-wizgrp"><span class="tc-wizlab">Lens</span>
-      ${RF_LENSES_MAIN.map(([k,l])=>chip(resFit.lens===k,l,`rfLens('${k}')`)).join("")}</div>
-    <div class="tc-wizgrp"><span class="tc-wizlab">Outlook</span>
-      ${RF_LENSES_OUT.map(([k,l])=>chip(resFit.lens===k,l,`rfLens('${k}')`)).join("")}
+    // Position: same POS_TREE dropdown as Best Available / Player Research (token-level,
+    // RHP/LHP/SS/… with family headers) — replaces the old coarse P/C/IF/OF chips.
+    const posMenu = !rfPosMenu ? "" : `<div class="res-posmenu rf-menu" onclick="event.stopPropagation()">${Object.entries(POS_TREE).map(([g,toks])=>{
+      const all = toks.every(t=>resFit.pos.has(t));
+      const grpBtn = toks.length>1 ? `<button class="tc-chip grp${all?' on':''}" onclick="rfPosGrp('${g}',event)">${g} · all</button>` : "";
+      return `<div class="res-posrow">${grpBtn}${toks.map(t=>
+        `<button class="tc-chip${resFit.pos.has(t)?' on':''}" onclick="rfPosTok('${t}',event)">${t}</button>`).join("")}</div>`;}).join("")}
+      ${resFit.pos.size?`<div class="res-posrow"><button class="tc-chip clear" onclick="rfPosClear(event)">✕ any</button></div>`:""}</div>`;
+    const posRow = `<div class="tc-wizgrp res-pdrop"><span class="tc-wizlab">Position</span>
+      <button class="tc-chip${resFit.pos.size?' on':''}" onclick="rfPosOpen(event)">${resFit.pos.size?[...resFit.pos].join(" "):"Any"} ▾</button>${posMenu}</div>`;
+    // Outlooks = preset weight vectors; Custom appears once sliders deviate.
+    const outlookRow = `<div class="tc-wizgrp"><span class="tc-wizlab">Outlook</span>
+      ${Object.keys(RF_PRESETS).map(k=>chip(resFit.outlook===k,RF_PRESET_LBL[k],`rfOutlook('${k}')`)).join("")}
+      ${resFit.outlook==="custom"||resFit.custom?chip(resFit.outlook==="custom","Custom","rfOutlook('custom')"):""}
       ${chip(resFit.hidden,"◎ Hidden fits","rfHidden()","match")}</div>`;
     const gradeRow = `<div class="tc-wizgrp"><span class="tc-wizlab">Grade ≥</span>
       <input type="range" class="rf-grade" min="0" max="100" step="1" value="${resFit.gradeMin}" oninput="rfGrade(this.value)">
@@ -4441,19 +4516,18 @@
       <div class="res-chead" onclick="rfToggleT()">Teams${resFit.teamsOff.size?` · ${nOn} of 30 on`:""}<span>${resFit.tOpen?"▾":"▸"}</span></div>
       ${resFit.tOpen?`<div class="rf-tgrps">${Object.entries(RF_DIV).map(([n,ts])=>tGrp(n,ts)).join("")}
         ${resFit.teamsOff.size?`<button class="tc-chip clear" onclick="rfTeamsAll()">✕ show all 30</button>`:""}</div>`:""}</div>`;
-    // blend weights (collapsible)
+    // weight panel — ALWAYS visible: the active outlook's vector, draggable into Custom
     const sl = (k,l) => `<div class="rf-wrow"><span class="rf-wlab">${l}</span>
-      <input type="range" class="rf-wsl" min="0" max="100" step="1" value="${w[k]}" oninput="rfWeight('${k}',this.value)">
-      <span class="rf-wval" id="rfW_${k}">${Math.round(100*w[k]/wsum)}%</span></div>`;
+      <input type="range" class="rf-wsl" id="rfS_${k}" min="0" max="100" step="5" value="${+w[k]||0}" oninput="rfWeight('${k}',this.value)" onchange="rfWeightDone()">
+      <span class="rf-wval" id="rfW_${k}">${wsum?Math.round(100*(+w[k]||0)/wsum):0}%</span></div>`;
     const weightsBox = `<div class="res-box rf-wbox">
-      <div class="res-chead" onclick="rfToggleW()">Blend weights<span>${resFit.wOpen?"▾":"▸"}</span></div>
-      ${resFit.wOpen?`<div class="rf-wgrid">${sl("hist","Track record")}${sl("pipe","Pipeline")}${sl("money","Money")}
-        <div class="rf-wfoot"><span>Combined = weighted blend of Track record · Pipeline · Money. Intel-neutral by design — SV interest never moves a fit grade here. Selecting a single lens shows it raw.</span>
-        <button class="tc-chip clear" onclick="rfWeightReset()">Reset 40·20·40</button></div></div>`:""}</div>`;
-    el.innerHTML = `<div class="rf-controls">${playersRow}${posRow}${lensRow}${gradeRow}</div>${teamsBox}${weightsBox}`;
+      <div class="res-chead" style="cursor:default">Weights · <span id="rfWName">${RF_PRESET_LBL[resFit.outlook]||"Custom"}</span></div>
+      <div class="rf-wgrid rf-wgrid3">${RF_FACTORS.map(([k,l])=>sl(k,l)).join("")}</div>
+      <div class="rf-wfoot"><span>Click an outlook to load its preset; drag any slider for a Custom blend. Intel-neutral — SV interest never moves a fit grade. Money reads live pool room and sharpens as slots commit during the draft.</span></div></div>`;
+    el.innerHTML = `<div class="rf-controls">${playersRow}${posRow}${outlookRow}${gradeRow}</div>${weightsBox}${teamsBox}`;
   }
   function rfWeightLabels() { const w=resFit.weights, s=rfWsum();
-    ["hist","pipe","money"].forEach(k=>{ const e=$("rfW_"+k); if(e) e.textContent=Math.round(100*w[k]/s)+"%"; }); }
+    RF_FKEYS.forEach(k=>{ const e=$("rfW_"+k); if(e) e.textContent=(s?Math.round(100*(+w[k]||0)/s):0)+"%"; }); }
 
   function renderRfGrid() {
     const wrap = $("rfGrid"); if (!wrap) return;
@@ -4474,13 +4548,13 @@
       const val = t => rfCellVal(fit(sortComp, t, resFit.sortCol, state));
       teams = teams.slice().sort((a,b) => dir*(val(a)-val(b)) || ((DATA.orgs[a].orgRank??99)-(DATA.orgs[b].orgRank??99)));
     }
-    let h = `<table class="rf-grid"><thead><tr><th class="rf-corner">${teams.length}×${players.length}<small>${RF_LENSLBL[resFit.lens]}</small></th>`;
+    let h = `<table class="rf-grid"><thead><tr><th class="rf-corner">${teams.length}×${players.length}<small>${RF_PRESET_LBL[resFit.outlook]||"Custom"}</small></th>`;
     h += players.map(c => { const last = tcInitialName(c.name).split(" ").slice(-1)[0], key = normName(c.name);
       // header text is rotated 180° (vertical-rl), which flips the glyph — emit the inverse so
       // descending reads as a visual down-arrow (biggest fit on top)
       const isSort = resFit.sortCol===key, arrow = isSort ? (resFit.sortDir==="asc"?" ▼":" ▲") : "";
       const rtS = rtSummary(c);
-      return `<th class="rf-ph${isSort?' rf-sorted':''}" title="Sort teams by ${resFit.lens==="combined"?"fit":RF_LENSLBL[resFit.lens]} for ${_esc(c.name)}${rtS?" · "+rtS:""}" onclick="rfSortCol('${key}')"><span class="rf-phn">${_esc(last)} #${c.rank}${arrow}</span></th>`; }).join("");
+      return `<th class="rf-ph${isSort?' rf-sorted':''}" title="Sort teams by ${RF_PRESET_LBL[resFit.outlook]||"Custom"} for ${_esc(c.name)}${rtS?" · "+rtS:""}" onclick="rfSortCol('${key}')"><span class="rf-phn">${_esc(last)} #${c.rank}${arrow}</span></th>`; }).join("");
     h += `</tr></thead><tbody>`;
     for (const t of teams) {
       const o = DATA.orgs[t] || {};
@@ -4577,9 +4651,20 @@
     rfSave(); renderRfControls(); renderRfGrid();
   };
   window.rfBoardSearch = (v) => { rfBoardQuery = v; const el = $("rfBoardList"); if (el) el.innerHTML = rfBoardListHtml(); };
-  window.rfPos = (p) => { resFit.pos.has(p) ? resFit.pos.delete(p) : resFit.pos.add(p); rfSave(); renderResFit(); };
-  window.rfPosClear = () => { resFit.pos.clear(); rfSave(); renderResFit(); };
-  window.rfLens = (k) => { resFit.lens = k; rfSave(); renderResFit(); };
+  // Position dropdown (POS_TREE tokens — parity with Best Available / Player Research)
+  window.rfPosOpen = (e) => { if (e) e.stopPropagation(); rfPosMenu = !rfPosMenu; renderRfControls(); };
+  window.rfPosTok = (t, e) => { if (e) e.stopPropagation();
+    resFit.pos.has(t) ? resFit.pos.delete(t) : resFit.pos.add(t); rfSave(); renderRfControls(); renderRfGrid(); };
+  window.rfPosGrp = (g, e) => { if (e) e.stopPropagation();
+    const toks = POS_TREE[g], all = toks.every(t=>resFit.pos.has(t));
+    toks.forEach(t => all ? resFit.pos.delete(t) : resFit.pos.add(t)); rfSave(); renderRfControls(); renderRfGrid(); };
+  window.rfPosClear = (e) => { if (e) e.stopPropagation(); resFit.pos.clear(); rfSave(); renderRfControls(); renderRfGrid(); };
+  // Outlook chips = presets over the factor basis; Custom recalls the last dragged vector
+  window.rfOutlook = (k) => {
+    if (k === "custom") { if (resFit.custom) { resFit.outlook = "custom"; resFit.weights = { ...resFit.custom }; } }
+    else { resFit.outlook = k; resFit.weights = rfVec(RF_PRESETS[k]); }
+    rfSave(); renderRfControls(); renderRfGrid();
+  };
   window.rfHidden = () => { resFit.hidden = !resFit.hidden; rfSave(); renderResFit(); };
   window.rfGrade = (v) => { resFit.gradeMin = +v; const l=$("rfGradeLab"); if(l) l.textContent=v; rfSave(); renderRfGrid(); };
   window.rfTeam = (t) => { resFit.teamsOff.has(t) ? resFit.teamsOff.delete(t) : resFit.teamsOff.add(t); rfSave(); renderResFit(); };
@@ -4587,9 +4672,20 @@
     ts.forEach(t=>{ if(allOff) resFit.teamsOff.delete(t); else resFit.teamsOff.add(t); }); rfSave(); renderResFit(); };
   window.rfTeamsAll = () => { resFit.teamsOff.clear(); rfSave(); renderResFit(); };
   window.rfToggleT = () => { resFit.tOpen = !resFit.tOpen; rfSave(); renderRfControls(); };
-  window.rfToggleW = () => { resFit.wOpen = !resFit.wOpen; rfSave(); renderRfControls(); };
-  window.rfWeight = (k,v) => { resFit.weights[k] = +v; rfSave(); rfWeightLabels(); renderRfGrid(); };
-  window.rfWeightReset = () => { resFit.weights = {...RF_WDEF}; rfSave(); renderRfControls(); renderRfGrid(); };
+  // Dragging any slider detaches into Custom (unless the vector happens to equal a preset).
+  window.rfWeight = (k,v) => {
+    resFit.weights[k] = +v;
+    const match = rfMatchPreset(resFit.weights);
+    resFit.outlook = match;
+    if (match === "custom") resFit.custom = { ...resFit.weights };
+    rfSave(); rfWeightLabels();
+    const nm = $("rfWName"); if (nm) nm.textContent = RF_PRESET_LBL[resFit.outlook] || "Custom";
+    // chips need re-highlight (Custom may appear) without wiping the slider mid-drag —
+    // re-render controls only when the outlook name changed class-wise is overkill; the
+    // grid re-blends now and chips catch up on the next controls render (pointerup).
+    renderRfGrid();
+  };
+  window.rfWeightDone = () => renderRfControls();   // pointerup/change → sync chip highlights
   // Click a player column header → sort teams by his fit (desc → asc → back to org-rank default)
   window.rfSortCol = (key) => {
     if (resFit.sortCol !== key) { resFit.sortCol = key; resFit.sortDir = "desc"; }
@@ -4599,162 +4695,118 @@
   };
 
   // ---- fit card: player × team deep dive across every lens ----
-  window.openFitCard = (key, team) => { fitSel = { key, team }; renderFitCard(); };
+  window.openFitCard = (key, team) => { fitSel = { key, team }; fitTile = null; renderFitCard(); };
   window.closeFitCard = () => { fitSel = null; const bd=$("fitCard"); if(bd){ bd.classList.remove("on"); bd.innerHTML=""; } };
+  // ================= FIT CARD — "four questions first" (redesigned 7/10) =================
+  // The four directional grades ARE the card: heat tiles up top with one-line evidence,
+  // a receipts drawer that swaps to the tapped question, then logistics + context-only
+  // intel strips. The blended badge tracks the grid's ACTIVE OUTLOOK. fitTile = session
+  // tile selection (null = default drawer: comps · regime · system).
+  let fitTile = null;
+  window.fitTileSel = (k) => { fitTile = fitTile === k ? null : k; renderFitCard(); };
   function renderFitCard() {
     const bd = $("fitCard"); if (!bd || !fitSel) return;
     const state = currentState; if (!state) return;
     const comp = DATA.compByName.get(fitSel.key) || DATA.composite.find(c=>normName(c.name)===fitSel.key);
     if (!comp) { closeFitCard(); return; }
-    const t = fitSel.team, key = fitSel.key, o = DATA.orgs[t] || {};
+    const t = fitSel.team, key = fitSel.key;
     const teamName = (state.pools.find(p=>p.team===t)||{}).teamName || "";
-    const w = resFit.weights, wsum = rfWsum();
     const f = fit(comp, t, key, state);
-    const combined = rfCombined(f);
-    const isP = isPitcher(comp.pos);
+    const blended = rfCellVal(f);
+    const D = f.dir || {};
     const ti = teamInterest(key, t), li = latestIntel(key, t);
     const land = tcNextLanding(state, t, comp) || teamNextPick(state, t);
     const pool = state.poolsMap[t];
-    const pct = (x) => x==null ? "—" : Math.round(x*100)+"%";
-    const rkChip = (n) => { if (n==null) return `<span class="hg-pct">—</span>`; const c = n<=10?"rk-hi":n<=20?"rk-mid":"rk-lo"; return `<span class="hg-pct ${c}">#${Math.round(n)}</span>`; };
-    const g = comp.posGroup || posGroupOf(comp.pos);
-    const theComp = findComp(t, comp, f.bucketIdx);
-    const outChip = (o) => { const [lbl] = OUT_LBL[o]||["?"]; const cls = o==="mlb"?"fit":o==="t30"?"late":o==="out"?"early":"";
-      return `<span class="tg ${cls}" title="${(OUT_LBL[o]||["","" ])[1]}">${lbl}</span>`; };
     const bonus = land ? negBonus(comp, land.slot, land.overall) : null;
+    const g = comp.posGroup || posGroupOf(comp.pos);
+    const pct = (x) => x==null ? "—" : Math.round(x*100)+"%";
+    const cal = calibOf(comp);
+    const pv = playerValue(comp);
+    const rg = D.reach && D.reach.d ? D.reach.d.rg : null;
+    const dd = D.reach && D.reach.d ? D.reach.d.best : null;
 
-    // Panel 1 — Why: the answer Mike gives on a call, one plain sentence per lens.
-    const whyBullets = [];
-    whyBullets.push(ti.n
-      ? `Interest: ${ti.n} note${ti.n>1?"s":""} logged, strength ${Math.round(ti.strength*100)}${li&&li.date?` (latest ${li.date})`:""} — they're on him.`
-      : `Interest: no SV intel logged for ${t} — this fit rides on history and money.`);
-    if (f.hist && f.hist.pos) { const P=f.hist.pos;
-      whyBullets.push(`${g} track record: ${P.hit} of ${P.n} hits since '18 (${pct(P.hit/Math.max(P.n,1))} vs ${pct(P.lgRate)} league).`); }
-    if (f.hist && f.hist.bucket) { const B=f.hist.bucket;
-      whyBullets.push(`At his price (${B.label}): ${B.hit} of ${B.n} hits (${pct(B.n?B.hit/B.n:null)} vs ${pct(B.lgRate)} league).`); }
-    if (f.war && f.war.known && (f.war.pos || f.war.all)) { const W = f.war.pos || f.war.all;
-      whyBullets.push(`WAR lookback ('08-19 ${f.war.pos?g+" ":""}picks): ${W.warSum} WAR vs ${W.expSum} expected over ${W.n} — ${W.woe>=0.15?"they develop his kind":W.woe<=-0.15?"they've underdelivered on his kind":"about league rate"}.`); }
-    if (f.pipe && f.pipe.known)
-      whyBullets.push(`Pipeline: ${f.pipe.count} ${g} in their Top-30 vs ${f.pipe.lgAvg.toFixed(1)} league — ${f.pipeN>=0.58?"they collect his type":f.pipeN<=0.42?"light on his group":"about the field's mix"}.`);
-    if (pool && bonus!=null)
-      whyBullets.push(`Money: ${fmtM(pool.room)} of room vs ~${fmtM(bonus)} to sign — ${pool.room>=bonus?"fits":"short"}.`);
-    if (theComp) { const p=theComp.pick;
-      whyBullets.push(`The comp: ${p.name} '${String(p.y).slice(2)} (${p.pos} ${p.lvl==="HS"?"HS":"COL"}, ${p.bon?fmtM(p.bon):"—"}) — ${(OUT_LBL[p.out]||["",""])[1]}.`); }
-    const p1 = `<div class="tc-panel" data-q="why"><h4><span class="n">1</span> Why ${t}?</h4>
-      <ul class="fc-reasons">${whyBullets.map(r=>`<li>${_esc(r)}</li>`).join("")}</ul>
-      <div class="fc-note">Combined <b>${combined}</b> = Track record ${Math.round(100*w.hist/wsum)}% · Pipeline ${Math.round(100*w.pipe/wsum)}% · Money ${Math.round(100*w.money/wsum)}% — intel-neutral: interest shown for context, never blended.</div></div>`;
+    // ---- four tiles: grade + one-line evidence ----
+    const tiles = [
+      ["reach", "REACH", D.reach, dd ? `${dd.mlb} of ${dd.n} like him made it` : "no regime sample"],
+      ["develop", "DEVELOP", D.develop, f.war && f.war.known && f.war.pos
+        ? `${f.war.pos.woe>0?"+":""}${f.war.pos.woe.toFixed(2)} WOE/pick (${g})` : "WAR lookback n/a"],
+      ["speed", "SPEED", D.speed, D.speed && D.speed.known
+        ? `${D.speed.med} yr ${D.speed.med===D.speed.lg?"= lg":D.speed.med<D.speed.lg?"< lg "+D.speed.lg:"> lg "+D.speed.lg} (${D.speed.lvl})` : "no debut sample"],
+      ["value", "COST↔VALUE", D.earn, D.earn && D.earn.roi && D.earn.roi.known
+        ? `${D.earn.roi.roi.toFixed(1)}× vs ${D.earn.roi.lg?D.earn.roi.lg.toFixed(1):"—"}× lg` : "no bonus data"],
+    ];
+    const tileHtml = tiles.map(([k, lbl, d, ev]) => {
+      const v = d && d.known !== false ? Math.round(100 * d.v) : null;
+      return `<button class="fc2-tile${fitTile===k?' sel':''}" style="background:${v!=null?rfHeat(v):"var(--card)"}" onclick="fitTileSel('${k}')">
+        <span class="fc2-tk">${lbl}</span><span class="fc2-tv">${v!=null?v:"—"}</span><span class="fc2-tev">${ev}</span></button>`;
+    }).join("");
 
-    // Panel 2 — Interest (SV intel)
-    let p2i;
-    if (ti.n) {
-      const raw = (li && (li.note||li.full_text)||"").trim(), msg = raw.length>220 ? raw.slice(0,220)+"…" : raw;
-      p2i = `<div class="tc-kv"><span class="k"><span class="fc-dot" style="background:${intelColorHex(key,t)}"></span>Interest strength</span><span class="v">${Math.round(ti.strength*100)}</span></div>
-        <div class="tc-kv"><span class="k">Logged notes</span><span class="v">${ti.n}${contactBadges(key,t)?` ${contactBadges(key,t)}`:""}</span></div>
-        <div class="tc-kv"><span class="k">Peak score</span><span class="v">${ti.max||"—"}</span></div>
-        <div class="tc-kv"><span class="k">Latest</span><span class="v">${li&&li.date?li.date:"—"}</span></div>
-        ${msg?`<div class="fc-note">“${_esc(msg)}”</div>`:""}`;
-    } else {
-      p2i = `<div class="fc-note">No SV intel on file for ${t} on this player — the interest lens reads 0, so this fit leans on org-dev, type & money.</div>`;
-    }
-    const p2 = `<div class="tc-panel" data-q="interest"><h4><span class="n">2</span> Interest</h4>${p2i}
-      <div class="tc-kv"><span class="k">Likely landing</span><span class="v">${land?`#${land.overall} · ${land.roundPick||("R"+land.round)}`:"no pick left"}</span></div></div>`;
-
-    // Panel 3 — Track record: this org × his position × his price, 2018-25 rounds 1-10.
-    const histRow = (lbl, S) => S ? `<div class="tc-kv"><span class="k">${lbl}</span><span class="v">${S.hit} of ${S.n} hit${S.mlb||S.t30?` <span class="sub">(${S.mlb} MLB · ${S.t30} T30)</span>`:""} · ${pct(S.n?S.hit/S.n:null)} vs ${pct(S.lgRate)} lg</span></div>` : "";
-    const compBlock = theComp ? (()=>{ const p=theComp.pick;
-      return `<div class="fc-note" style="margin-top:8px"><b>The comp</b> (${theComp.match}): ${_esc(p.name)} — ${p.y} R${p.rd} (#${p.ov}), ${p.pos} ${p.lvl==="HS"?"HS":"COL"}${p.b?`, ${p.g==="P"?"throws "+(p.t||"?"):"bats "+p.b}`:""}, ${p.bon?fmtM(p.bon):"bonus n/a"} ${outChip(p.out)}</div>`; })()
-      : `<div class="fc-note" style="margin-top:8px">No comparable pick found — ${t} hasn't taken a ${g} like him in rounds 1-10 since 2018.</div>`;
-    // WAR lookback block: org's long-run value extraction on picks like him + comps
-    // with actual career value (aWAR when the comp has it, else bWAR).
+    // ---- receipts drawer per question (or default: comps · regime · system) ----
+    const kv = (k, v) => `<div class="tc-kv"><span class="k">${k}</span><span class="v">${v}</span></div>`;
     const woeFmt = (c) => `<span class="vsv ${c.woe>=0.12?'over':c.woe<=-0.12?'under':'even'}">${c.woe>0?"+":""}${c.woe.toFixed(2)}</span>`;
-    const warRow = (lbl, c) => c ? `<div class="tc-kv"><span class="k">${lbl}</span><span class="v">${c.warSum} WAR vs ${c.expSum} exp over ${c.n} · ${woeFmt(c)}/pick</span></div>` : "";
-    const wComps = f.war && f.war.known ? warComps(t, comp) : [];
-    const warVal = (p) => p.aw!=null ? `${p.aw} aWAR` : `${p.w} WAR`;
-    const warBlock = f.war && f.war.known ? `
-      <div class="tc-chart-h" style="margin-top:10px">WAR lookback · '08–'19 classes</div>
-      ${warRow(`${g} picks`, f.war.pos)}
-      ${f.war.band?warRow(`Picks ${f.war.band.key}`, f.war.band):""}
-      ${f.war.lvl?warRow(`${f.war.lvl.key} picks`, f.war.lvl):""}
-      ${f.war.expAt!=null?`<div class="tc-kv"><span class="k">Expected at ≈#${comp.rank}</span><span class="v">${f.war.expAt} career WAR <span class="sub">(league mean, his pick band)</span></span></div>`:""}
-      ${f.war.awRecent?`<div class="tc-kv"><span class="k">Recent aWAR/pick ('18–24)</span><span class="v">${f.war.awRecent.perPick} <span class="sub">(${f.war.awRecent.n} picks · SV metric)</span></span></div>`:""}
-      ${wComps.length?`<div class="fc-note" style="margin-top:8px"><b>Their picks like him:</b> ${wComps.map(p=>`${_esc(p.n)} '${String(p.y).slice(2)} #${p.ov} — ${warVal(p)}`).join(" · ")}</div>`:""}`
-      : "";
-    const p3 = `<div class="tc-panel" data-q="hist"><h4><span class="n">3</span> Track record — his position & price</h4>
-      ${f.hist&&f.hist.known?`
-      ${histRow(`${g} picks since '18`, f.hist.pos)}
-      ${f.hist.bucket?histRow(`${f.hist.bucket.label} picks`, f.hist.bucket):""}
-      <div class="tc-kv"><span class="k">His price bucket</span><span class="v">${f.bucketIdx>=0?HIST_BUCKETS[f.bucketIdx][2]:"—"}${f.bucketEst?` <span class="sub">(market ≈ ${fmtM(f.bucketEst)} at #${comp.rank})</span>`:""}</span></div>
-      ${compBlock}`
-      :`<div class="fc-note">Draft-history feed not loaded — recent hit-rates read neutral.</div>`}
-      ${warBlock}
-      <div class="tc-kv" style="margin-top:6px"><span class="k">Lens grade</span><span class="v">${Math.round(100*f.histN)}${f.war&&f.war.known&&f.hist&&f.hist.known?` <span class="sub">(recent hit-rate × long-run WAR, 50/50)</span>`:""}</span></div>
-      <div class="fc-note">A "hit" = reached MLB or current Top-30 ('18-25). WAR lookback = career bWAR vs the league's expected return at that draft slot ('08-19 classes, shrunk); aWAR is the SV metric on recent comps — the long-run development read.</div></div>`;
-
-    // Panel 4 — Pipeline: his position group in their current Top-30, vs the league norm.
-    const p4 = `<div class="tc-panel" data-q="pipe"><h4><span class="n">4</span> Pipeline — his group in their Top-30</h4>
-      ${f.pipe&&f.pipe.known?`
-      <div class="tc-kv"><span class="k">${g} in their Top-30</span><span class="v">${f.pipe.count} of ${f.pipe.total}</span></div>
-      <div class="tc-kv"><span class="k">League average</span><span class="v">${f.pipe.lgAvg.toFixed(1)}</span></div>
-      <div class="tc-kv"><span class="k">Lens grade</span><span class="v">${Math.round(100*f.pipeN)}</span></div>
-      <div class="tc-kv"><span class="k">Draft habits</span><span class="v">${o.earlyPitcherPct!=null?`${isP?o.earlyPitcherPct:100-o.earlyPitcherPct}% early picks on ${isP?"arms":"bats"}`:"—"}</span></div>
-      <div class="tc-kv"><span class="k">HS / College mix</span><span class="v">${o.hsPct!=null?`${o.hsPct}% HS · ${o.collegePct}% COL`:"—"}</span></div>
-      <div class="fc-note">Counts are judged against the league norm for ${g} (every org carries more arms than shortstops). Above the field = they collect his type.</div>`
-      :`<div class="fc-note">No Top-30 feed for ${t} — this lens reads neutral (50).</div>`}</div>`;
-
-    // Panel 5 — Money
-    const fits = pool && bonus!=null ? pool.room >= bonus : null;
-    const p5 = `<div class="tc-panel" data-q="money"><h4><span class="n">5</span> Money</h4>
-      <div class="tc-kv"><span class="k">Pool room</span><span class="v">${pool?fmtM(pool.room):"—"}</span></div>
-      <div class="tc-kv"><span class="k">Pool ceiling</span><span class="v">${pool&&pool.ceiling?fmtM(pool.ceiling):"—"}</span></div>
-      <div class="tc-kv"><span class="k">Landing slot</span><span class="v">${land&&land.slot?fmtM(land.slot):"—"}</span></div>
-      <div class="tc-kv"><span class="k">Est. bonus to sign</span><span class="v">${bonus!=null?fmtM(bonus):"—"}${fits==null?"":fits?` <span class="tg lvl-jc">fits</span>`:` <span class="tg under">short</span>`}</span></div>
-      <div class="fc-note">Money reads the room the org has left vs. what it would take to sign him at his likeliest landing pick.</div></div>`;
-
-    // Panel 6 — Player outlook: the four questions, empirically (sv-draft-fit port).
-    // Regime-aware: history counts only the current front office's drafts.
-    let p6 = "";
-    if (f.dir) {
-      const D = f.dir, cal = calibOf(comp);
-      const grade = (d) => d.known ? `<b>${Math.round(100*d.v)}</b>` : `<span class="sub">n/a</span>`;
-      const rgNote = D.reach.d && D.reach.d.rg ? (D.reach.d.rg.source !== t
-        ? `${D.reach.d.rg.gm||"new regime"} — history via ${D.reach.d.rg.source} since '${String(D.reach.d.rg.start).slice(2)}`
-        : `${D.reach.d.rg.gm||"current regime"} since '${String(D.reach.d.rg.start).slice(2)}`) : null;
-      const dd = D.reach.d && D.reach.d.best;
-      p6 = `<div class="tc-panel" data-q="outlook"><h4><span class="n">6</span> Player outlook — the four questions</h4>
-        ${cal.calib01!=null?`<div class="tc-kv"><span class="k">His caliber (projectability)</span><span class="v"><b>${Math.round(100*cal.calib01)}</b>${cal.fv!=null?` <span class="sub">FV ${cal.fv}${cal.tier?` · ${_esc(String(cal.tier))}`:""}${cal.src?` · ${cal.src}`:""}</span>`:""}</span></div>`:""}
-        <div class="tc-kv"><span class="k">Reach MLB</span><span class="v">${grade(D.reach)}${dd?` <span class="sub">${dd.mlb} of ${dd.n} like him reached (${Math.round(100*dd.rate)}%)</span>`:""}</span></div>
-        <div class="tc-kv"><span class="k">Development</span><span class="v">${grade(D.develop)}${dd&&(dd.w1||dd.w2||dd.w3)?` <span class="sub">${dd.w1}/${dd.w2}/${dd.w3} at 1/2/3+ WAR</span>`:""}</span></div>
-        <div class="tc-kv"><span class="k">Pipeline speed</span><span class="v">${grade(D.speed)}${D.speed.known?` <span class="sub">median ${D.speed.med} yrs to debut (${D.speed.lvl}) vs ${D.speed.lg} league</span>`:""}</span></div>
-        <div class="tc-kv"><span class="k">Cost vs value</span><span class="v">${grade(D.earn)}${D.earn.roi&&D.earn.roi.known?` <span class="sub">${D.earn.roi.roi.toFixed(1)}× ROI on '18+ bonuses vs ${D.earn.roi.lg?D.earn.roi.lg.toFixed(1):"—"}× league</span>`:""}</span></div>
-        ${(()=>{ const pv = playerValue(comp); return pv ? `<div class="tc-kv"><span class="k">His value at his price</span><span class="v"><b>${pv.ratio?Math.round(pv.ratio)+"×":"—"}</b> <span class="sub">FV${pv.fv} ${pv.kind==="pit"?"arm":"bat"} ≈ ${fmtM(pv.surplus)} surplus vs ~${pv.cost?fmtM(pv.cost):"—"} to sign</span></span></div>` : ""; })()}
-        <div class="tc-kv"><span class="k">Empirical org fit</span><span class="v">${grade(D.emp)} <span class="sub">(dev·pool·spend·depth·geo, ${comp.level==="HS"?"HS":"college"} weights)</span></span></div>
-        ${rgNote?`<div class="fc-note">Regime: ${_esc(rgNote)} — history before that front office doesn't count against (or for) them.</div>`:""}
-        <div class="fc-note">Cost vs value = bonuses paid vs career-WAR value returned ('18+ classes, value credited to the drafting org — draft-day lens) + over-slot willingness. Player surplus per the FanGraphs Jul-'26 prospect-valuation update.</div></div>`;
+    const warRow = (lbl, c) => c ? kv(lbl, `${c.warSum} WAR vs ${c.expSum} exp over ${c.n} · ${woeFmt(c)}/pick`) : "";
+    const rgLine = rg ? `Regime: ${_esc(rg.gm||"current FO")}${rg.borrowed?` — history via ${rg.source} '${String(rg.start).slice(2)}–'${String(rg.end).slice(2)}`:` since '${String(rg.start).slice(2)}`}` : null;
+    const wComps = warComps(t, comp);
+    const compsLine = wComps.length ? `<b>Their picks like him:</b> ${wComps.map(p=>`${_esc(p.n)} '${String(p.y).slice(2)} #${p.ov} — ${p.aw!=null?p.aw+" aWAR":p.w+" WAR"}`).join(" · ")}` : null;
+    let drawer = "";
+    if (fitTile === "reach") {
+      drawer = (dd ? kv(`${dd.n} regime picks like him`, `${dd.mlb} reached MLB (${pct(dd.rate)})${D.reach.d.lgRate!=null?` vs ${pct(D.reach.d.lgRate)} league`:""}`) : "")
+        + ((DATA.orgs[t]||{}).dev && DATA.orgs[t].dev.mlbDebut!=null ? kv("Org MLB-debut rate (all)", `${pct(DATA.orgs[t].dev.mlbDebut)}${DATA.lgDebut?` vs ${Math.round(DATA.lgDebut.avg)}% lg`:""}`) : "")
+        + (rgLine ? `<div class="fc-note">${rgLine} — earlier front offices don't count.</div>` : "");
+    } else if (fitTile === "develop") {
+      drawer = (f.war && f.war.known ? warRow(`${g} picks ('08–19)`, f.war.pos) + (f.war.band?warRow(`Picks ${f.war.band.key}`, f.war.band):"") + (f.war.lvl?warRow(`${f.war.lvl.key} picks`, f.war.lvl):"") : "")
+        + (f.war && f.war.expAt!=null ? kv(`Expected at ≈#${comp.rank}`, `${f.war.expAt} career WAR <span class="sub">(league mean, his band)</span>`) : "")
+        + (f.war && f.war.awRecent ? kv("Recent aWAR/pick ('18–24)", `${f.war.awRecent.perPick} <span class="sub">(${f.war.awRecent.n} picks · SV metric)</span>`) : "")
+        + (compsLine ? `<div class="fc-note">${compsLine}</div>` : "");
+    } else if (fitTile === "speed") {
+      drawer = (D.speed && D.speed.known ? kv(`Median yrs to debut (${D.speed.lvl})`, `${D.speed.med} vs ${D.speed.lg} league <span class="sub">(n=${D.speed.n}, '08–19 classes)</span>`) : `<div class="fc-note">No mature debut sample for his level.</div>`)
+        + `<div class="fc-note">Speed = how fast this org moves ${comp.level==="HS"?"prep":"college"} picks to the majors, not roster opportunism — pair with Farm depth for the open-lane read.</div>`;
+    } else if (fitTile === "value") {
+      drawer = (D.earn && D.earn.roi && D.earn.roi.known ? kv("Bonuses → value ('18+)", `${fmtM(D.earn.roi.cost)} in → ${fmtM(D.earn.roi.val)} out · ${D.earn.roi.roi.toFixed(1)}× <span class="sub">(lg ${D.earn.roi.lg.toFixed(1)}×)</span>`) : "")
+        + (D.earn && D.earn.spend && D.earn.spend.known ? kv("Over-slot habit", `${D.earn.spend.avgPct>0?"+":""}${D.earn.spend.avgPct}% vs slot <span class="sub">(${D.earn.spend.n} picks)</span>`) : "")
+        + (pv ? kv("His value at his price", `<b>${pv.ratio?Math.round(pv.ratio)+"×":"—"}</b> <span class="sub">FV${pv.fv} ${pv.kind==="pit"?"arm":"bat"} ≈ ${fmtM(pv.surplus)} surplus vs ~${pv.cost?fmtM(pv.cost):"—"} to sign (FG Jul-'26 valuation)</span>`) : "")
+        + `<div class="fc-note">Value credited to the drafting org — the draft-day question is whether THEY turn picks into careers.</div>`;
+    } else {
+      const ps = orgPosSystem(t), B = leagueBaselines();
+      const sysLine = ps && ps[g]!=null ? `System: ${Math.round(ps[g]*ps.n)} ${g} in their Top-30 (lg ~${(B.sys[g]*ps.n).toFixed(1)})` : null;
+      const depthLine = D.depthInfo && D.depthInfo.known ? `farm ${D.depthInfo.block} blocked at his spot (${D.depthInfo.n})${D.depthInfo.names && D.depthInfo.names.length?": "+D.depthInfo.names.slice(0,3).map(_esc).join(", "):""}` : null;
+      drawer = (compsLine ? `<div class="fc-note">${compsLine}</div>` : "")
+        + (rgLine ? `<div class="fc-note">${rgLine} (${dfPicks(t).length} picks counted)</div>` : "")
+        + ((sysLine||depthLine) ? `<div class="fc-note">${[sysLine,depthLine].filter(Boolean).join(" · ")}</div>` : "")
+        + `<div class="fc-note fc2-hint">▸ tap a tile for that question's receipts</div>`;
     }
 
-    bd.innerHTML = `<div class="tc-card fc-card">
+    // ---- strips: logistics + context-only intel ----
+    const fits = pool && bonus!=null ? pool.room >= bonus : null;
+    const logistics = `<div class="fc2-strip"><span class="fc2-sk">LOGISTICS</span>
+      ${land?`pick <b>#${land.overall}</b> · slot <b>${land.slot?fmtM(land.slot):"—"}</b>`:"no pick left in range"}
+      · room <b>${pool?fmtM(pool.room):"—"}</b> · est to sign <b>${bonus!=null?fmtM(bonus):"—"}</b>
+      ${fits==null?"":fits?`<span class="tg lvl-jc">fits</span>`:`<span class="tg under">short</span>`}
+      <span class="fc2-dim">— sharpens as slots commit</span></div>`;
+    const intel = `<div class="fc2-strip"><span class="fc2-sk">INTEL <span class="fc2-dim">(context only — never graded)</span></span>
+      ${ti.n?`<span class="fc-dot" style="background:${intelColorHex(key,t)}"></span> ${ti.n} note${ti.n>1?"s":""} · strength ${Math.round(ti.strength*100)}${li&&li.date?` · ${li.date}`:""}`:"none logged for this org"}</div>`;
+
+    // ---- header ----
+    const rt = rankTrendOf(comp), rc = rt ? rtConsensus(rt) : null, ra = rt ? rtArrow(rt) : null;
+    const calLine = [
+      cal.calib01!=null?`caliber <b>${Math.round(100*cal.calib01)}</b>`:null,
+      cal.fv!=null?`FV ${cal.fv}${cal.tier?` · ${_esc(String(cal.tier))}`:""}`:null,
+      rc!=null?`board #${Math.round(rc*10)/10} <span class="${ra.cls}">${ra.ch}</span>`:null,
+    ].filter(Boolean).join(" · ");
+
+    bd.innerHTML = `<div class="tc-card fc-card fc2">
       <div class="tc-top">
         <span class="tc-ttl">${_esc(comp.name)}</span>
-        <span class="fc-sub">${comp.pos} · ${comp.level||"—"} · #${comp.rank}${comp.agent?` · ${_esc(comp.agent)}`:""}</span>
+        <span class="fc-sub">${comp.pos} · ${comp.level||"—"} · #${comp.rank}${DATA.clients.has(key)?" · SV":""}</span>
         <span class="fc-arrow">→</span>
-        ${teamLogo(t,22)}<span class="tc-abbr">${t}</span><span class="fc-sub">${teamName?_esc(teamName)+" · ":""}org #${o.orgRank!=null?Math.round(o.orgRank):"—"}</span>
+        ${teamLogo(t,22)}<span class="tc-abbr">${t}</span><span class="fc-sub">${teamName?_esc(teamName)+" · ":""}org #${(DATA.orgs[t]||{}).orgRank!=null?Math.round(DATA.orgs[t].orgRank):"—"}</span>
+        <span class="fc2-badge" style="background:${rfHeat(blended)}" title="${RF_PRESET_LBL[resFit.outlook]||"Custom"} blend">${blended}<small>${RF_PRESET_LBL[resFit.outlook]||"Custom"}</small></span>
         <button class="tc-x" onclick="closeFitCard()">✕</button>
       </div>
-      ${(()=>{ const rt=rankTrendOf(comp); if(!rt) return ""; const c=rtConsensus(rt), a=rtArrow(rt), lat=rtLatest(rt);
-        return `<div class="fc-board"><span class="fc-board-k">Consensus board</span>
-          <b>${c!=null?"#"+(Math.round(c*10)/10):"—"}</b>
-          <span class="${a.cls}">${a.ch}</span>
-          ${lat?`<span class="fc-board-src">latest: ${_esc(lat)}</span>`:""}
-          ${rt.asOf?`<span class="fc-board-src">${_esc(rt.asOf)}</span>`:""}
-          <span class="fc-board-note">market position — distinct from FV</span></div>`; })()}
-      <div class="tc-band"><div class="tc-stats">
-        <div class="tc-stat"><div class="k">Combined fit</div><div class="v big">${combined}</div><div class="sub">weighted blend</div></div>
-        <div class="tc-stat"><div class="k">Interest</div><div class="v">${Math.round(100*f.interestN)}</div></div>
-        <div class="tc-stat"><div class="k">Track record</div><div class="v">${Math.round(100*f.histN)}</div></div>
-        <div class="tc-stat"><div class="k">Pipeline</div><div class="v">${Math.round(100*f.pipeN)}</div></div>
-        <div class="tc-stat"><div class="k">Money</div><div class="v">${Math.round(100*f.moneyN)}</div></div>
-      </div></div>
-      <div class="fc-panels">${mobPanels(p1+p2+p3+p4+p5+p6, fitPanelOpen)}</div>
+      ${calLine?`<div class="fc2-cal">${calLine}</div>`:""}
+      <div class="fc2-tiles">${tileHtml}</div>
+      <div class="fc2-drawer">${drawer}</div>
+      ${logistics}${intel}
     </div>`;
     bd.classList.add("on");
   }
