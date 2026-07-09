@@ -679,8 +679,8 @@
      measured live) so the grid scrolls under it; page bg keeps the seam clean. */
   #rfControls { position:sticky; top:var(--theadTop, 128px); z-index:10; background:var(--bg); padding-bottom:2px; }
   body.mob #rfControls { position:static; }
-  .rf-controls { margin-bottom:8px; }
-  .rf-controls .tc-wizgrp { margin-bottom:5px; }
+  .rf-controls { margin-bottom:4px; }
+  .rf-controls .tc-wizgrp { margin-bottom:3px; }
   .rf-fsep { font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); margin-left:12px; flex-shrink:0; }
   .rf-grade { -webkit-appearance:none; appearance:none; height:4px; border-radius:2px; background:var(--line); flex:0 0 150px; margin:0 4px; }
   .rf-grade::-webkit-slider-thumb { -webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:#fff; border:2.5px solid var(--red); cursor:pointer; }
@@ -695,31 +695,38 @@
   .rf-menu .res-findin { width:100%; box-sizing:border-box; }
   .rf-mrk { color:var(--muted); font-weight:600; font-size:9px; margin-left:2px; }
   .rf-empty { color:var(--muted); font-size:11px; padding:8px 2px; }
-  .rf-tbox { margin-top:9px; max-width:560px; }
-  .rf-wbox { margin-top:9px; }   /* Fine-tune runs full width — don't be shy with the white box */
-  .rf-tgrps { display:flex; flex-direction:column; gap:6px; margin-top:9px; }
+  /* Fine-tune + Teams drawers: two equal collapsed chips on one row; opened content
+     renders full-width beneath the row (both can be open at once). */
+  .rf-drawrow { display:flex; gap:8px; margin-bottom:6px; }
+  .rf-drawchip { flex:1 1 0; min-width:0; display:flex; justify-content:space-between; align-items:center; border:1px solid #c9c9c7; border-radius:10px; padding:5px 12px; background:var(--card); font-family:inherit; font-size:10px; font-weight:900; text-transform:uppercase; letter-spacing:.4px; color:var(--ink); cursor:pointer; user-select:none; text-align:left; }
+  .rf-drawchip span { color:var(--muted); font-size:12px; margin-left:8px; flex-shrink:0; }
+  .rf-drawchip.open { border-color:var(--red); box-shadow:inset 0 0 0 1px var(--red); }
+  .rf-dlab { font-size:9px; font-weight:900; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); margin-bottom:8px; }
+  .rf-tbox { margin-bottom:6px; }
+  .rf-wbox { margin-bottom:6px; }   /* Fine-tune runs full width — don't be shy with the white box */
+  .rf-tgrps { display:flex; flex-direction:column; gap:6px; }
   .rf-tgrp { display:flex; gap:4px; flex-wrap:wrap; align-items:center; }
   .rf-tgrp .tc-chip.grp { border-style:dashed; font-weight:900; width:78px; text-align:center; }
   .rf-otiles { display:inline-flex; gap:8px; flex-wrap:wrap; align-items:center; }
   .rf-otile { border:1.5px solid var(--line); border-radius:10px; padding:7px 14px; background:var(--card); cursor:pointer; font-family:inherit; font-size:12px; font-weight:800; color:var(--ink); }
   .rf-otile.sel { background:#fdeecd; border-color:#e8920e; }
   .rf-otile:hover { border-color:rgba(0,0,0,.4); }
-  .rf-selcap { font-size:11.5px; color:var(--muted); margin:2px 0 6px; }
+  .rf-selcap { font-size:11.5px; color:var(--muted); margin:1px 0 4px; }
   /* long filter labels (COMPOSITE) get their own air — never collide with the chip/value */
   .rf-lab-air { width:auto !important; min-width:52px; margin-right:12px; }
   .rf-rankmenu { min-width:300px; padding:14px 16px; }
   .rf-rankmenu .res-slab { margin-left:6px; }
   .rf-rankmenu .dual { margin-top:10px; }
-  .rf-wgrid { margin-top:9px; }
+  .rf-wgrid { margin-top:0; }
   /* Fine-tune slider grid — contained (minmax(0,1fr)) but generous: the box is wide,
      use it. Full-width tracks, roomy gutters, labels that never collide with values. */
-  .rf-wbox { padding:14px 22px 12px; }
-  .rf-wgrid3 { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px 48px; min-width:0; margin-top:12px; }
+  .rf-wbox { padding:12px 18px 10px; }
+  .rf-wgrid3 { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px 48px; min-width:0; }
   .rf-wgrid3 .rf-wrow { min-width:0; margin-bottom:0; gap:12px; }
   .rf-wgrid3 .rf-wsl { width:100%; min-width:70px; }
   .rf-wgrid3 .rf-wlab { width:auto; flex:0 0 112px; line-height:1.25; }
   .rf-wgrid3 .rf-wval { flex:0 0 46px; text-align:right; }
-  .rf-wbox .rf-wfoot { margin-top:14px; }
+  .rf-wbox .rf-wfoot { margin-top:10px; }
   @media (max-width:900px){ .rf-wgrid3 { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px 32px; } }
   body.mob .rf-wgrid3 { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px 16px; }
   .rf-wrow { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
@@ -730,7 +737,7 @@
   .rf-wval { font-size:12px; font-weight:900; font-variant-numeric:tabular-nums; width:42px; text-align:right; flex:0 0 auto; }
   .rf-wfoot { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:6px; font-size:10px; color:var(--muted); font-weight:600; }
   .rf-note { font-size:10px; font-weight:700; color:var(--muted); margin:8px 2px 2px; text-transform:uppercase; letter-spacing:.3px; }
-  .rf-gridwrap { overflow:auto; border:1px solid #c9c9c7; border-radius:12px; max-height:calc(100vh - 330px); }
+  .rf-gridwrap { overflow:auto; width:fit-content; max-width:100%; border:1px solid #c9c9c7; border-radius:12px; max-height:calc(100vh - 330px); }
   .hf-scroll { max-height:62vh; overflow-y:auto; }
   .hf-scroll thead th { position:sticky; top:0; background:var(--card); z-index:2; }
   table.rf-grid { border-collapse:separate; border-spacing:0; }
@@ -4825,21 +4832,24 @@
     const tGrp = (name,ts) => { const allOff = ts.every(t=>resFit.teamsOff.has(t));
       return `<div class="rf-tgrp"><button class="tc-chip grp${allOff?'':' on'}" onclick="rfDiv('${name}')">${name}</button>${
         ts.map(t=>`<button class="tc-chip${resFit.teamsOff.has(t)?'':' on'}" onclick="rfTeam('${t}')">${t}</button>`).join("")}</div>`; };
-    const teamsBox = `<div class="res-box rf-tbox">
-      <div class="res-chead" onclick="rfToggleT()">Teams${resFit.teamsOff.size?` · ${nOn} of 30 on`:""}<span>${resFit.tOpen?"▾":"▸"}</span></div>
-      ${resFit.tOpen?`<div class="rf-tgrps">${Object.entries(RF_DIV).map(([n,ts])=>tGrp(n,ts)).join("")}
-        ${resFit.teamsOff.size?`<button class="tc-chip clear" onclick="rfTeamsAll()">✕ show all 30</button>`:""}</div>`:""}</div>`;
+    const teamsChip = `<button class="rf-drawchip${resFit.tOpen?' open':''}" onclick="rfToggleT()">Teams${resFit.teamsOff.size?` · ${nOn} of 30 on`:""}<span>${resFit.tOpen?"▾":"▸"}</span></button>`;
+    const teamsBox = !resFit.tOpen ? "" : `<div class="res-box rf-tbox">
+      <div class="rf-dlab">Teams${resFit.teamsOff.size?` · ${nOn} of 30 on`:""}</div>
+      <div class="rf-tgrps">${Object.entries(RF_DIV).map(([n,ts])=>tGrp(n,ts)).join("")}
+        ${resFit.teamsOff.size?`<button class="tc-chip clear" onclick="rfTeamsAll()">✕ show all 30</button>`:""}</div></div>`;
     // fine-tune disclosure — collapsed by default; the raw 9-factor slider grid for anyone
     // who wants to hand-build a blend (dragging any slider detaches into Custom).
     const sl = (k,l) => `<div class="rf-wrow"><span class="rf-wlab">${l}</span>
       <input type="range" class="rf-wsl" id="rfS_${k}" min="0" max="100" step="5" value="${+w[k]||0}" oninput="rfWeight('${k}',this.value)" onchange="rfWeightDone()">
       <span class="rf-wval" id="rfW_${k}">${wsum?Math.round(100*(+w[k]||0)/wsum):0}%</span></div>`;
-    const weightsBox = `<div class="res-box rf-wbox">
-      <div class="res-chead" onclick="rfToggleFt()">Fine-tune${resFit.custom?" · custom blend":""}<span>${resFit.ftOpen?"▾":"▸"}</span></div>
-      ${resFit.ftOpen?`<div class="rf-wgrid rf-wgrid3">${RF_FACTORS.map(([k,l])=>sl(k,l)).join("")}</div>
-      <div class="rf-wfoot"><span>Drag any slider for a Custom blend. Intel-neutral — SV interest never moves a fit grade. Money reads live pool room and sharpens as slots commit during the draft.</span></div>`:""}</div>`;
-    // Row order (per Mike): Columns → Filters (Position/Class/Level/Composite) → Outlook + Grade → caption → boxes
-    el.innerHTML = `<div class="rf-controls">${playersRow}${filtersRow}${tileStrip}${selCap}</div>${weightsBox}${teamsBox}`;
+    const ftChip = `<button class="rf-drawchip${resFit.ftOpen?' open':''}" onclick="rfToggleFt()">Fine-tune${resFit.custom?" · custom blend":""}<span>${resFit.ftOpen?"▾":"▸"}</span></button>`;
+    const weightsBox = !resFit.ftOpen ? "" : `<div class="res-box rf-wbox">
+      <div class="rf-dlab">Fine-tune${resFit.custom?" · custom blend":""}</div>
+      <div class="rf-wgrid rf-wgrid3">${RF_FACTORS.map(([k,l])=>sl(k,l)).join("")}</div>
+      <div class="rf-wfoot"><span>Drag any slider for a Custom blend. Intel-neutral — SV interest never moves a fit grade. Money reads live pool room and sharpens as slots commit during the draft.</span></div></div>`;
+    // Row order (per Mike): Columns → Filters (Position/Class/Level/Composite) → Outlook + Grade → caption →
+    // drawer chips (Fine-tune + Teams side by side) → any open drawer bodies full-width beneath.
+    el.innerHTML = `<div class="rf-controls">${playersRow}${filtersRow}${tileStrip}${selCap}</div><div class="rf-drawrow">${ftChip}${teamsChip}</div>${weightsBox}${teamsBox}`;
   }
   function rfWeightLabels() { const w=resFit.weights, s=rfWsum();
     RF_FKEYS.forEach(k=>{ const e=$("rfW_"+k); if(e) e.textContent=(s?Math.round(100*(+w[k]||0)/s):0)+"%"; }); }
