@@ -491,24 +491,19 @@
   .hg-pct { color:var(--muted); font-weight:700; }
   .pi-ovr { color:var(--muted); font-weight:600; margin-left:2px; }
   /* split proportion bar (Panel 2 mix metrics) — team share + league-avg tick */
-  .tc-mixbar { padding:5px 0; border-top:1px solid var(--line); }
-  .tc-mixbar .top { display:flex; justify-content:space-between; align-items:baseline; }
-  .tc-mixbar .top .k { font-size:11.5px; color:var(--muted); font-weight:700; }
-  .tc-mixbar .top .v { font-size:13px; font-weight:800; font-variant-numeric:tabular-nums; }
-  .tc-mixbar .track { position:relative; display:flex; height:14px; margin-top:5px; border-radius:4px;
-    overflow:hidden; background:var(--line); }
-  .tc-mixbar .seg-l, .tc-mixbar .seg-r { display:flex; align-items:center; font-size:8.5px; font-weight:900;
-    letter-spacing:.4px; color:#fff; overflow:hidden; }
-  .tc-mixbar .seg-l { background:var(--red); padding-left:5px; }
-  .tc-mixbar .seg-r { flex:1; justify-content:flex-end; padding-right:5px; background:#b8bcc4; }
-  .tc-mixbar .tick { position:absolute; top:-3px; transform:translateX(-50%); font-size:9px; color:var(--ink);
-    text-shadow:0 0 2px #fff, 0 0 2px #fff; pointer-events:none; }
-  .tc-mixbar .tick::after { content:""; position:absolute; left:50%; top:11px; width:1px; height:14px;
-    background:var(--ink); transform:translateX(-50%); }
-  /* delta rides directly on the bar (no chip) — a tight white halo keeps black legible on red/gray */
-  .tc-mixbar .tick .tkd { position:absolute; top:3px; line-height:14px; font-size:9.5px; font-weight:900;
-    color:var(--ink); white-space:nowrap;
-    text-shadow:0 0 2px #fff, 0 0 2px #fff, 1px 1px 1px #fff, -1px -1px 1px #fff, 1px -1px 1px #fff, -1px 1px 1px #fff; }
+  /* Team Profile metrics: label · Pct% · ± MLB avg · Rank, aligned in one clean grid */
+  .tc-vgrid { display:grid; grid-template-columns:1fr auto auto auto; column-gap:22px; align-items:baseline; margin-top:3px; }
+  .tc-vgrid > div { padding:6px 0; border-top:1px solid var(--line); }
+  .tc-vgrid .mh { border-top:none; padding:0 0 5px; font-size:8px; font-weight:800; text-transform:uppercase;
+    letter-spacing:.4px; color:var(--muted); text-align:right; white-space:nowrap; }
+  .tc-vgrid .mh:first-child { text-align:left; }
+  .tc-vgrid .mk { font-size:12px; color:var(--muted); font-weight:700; }
+  .tc-vgrid .mv, .tc-vgrid .md, .tc-vgrid .mr { text-align:right; font-variant-numeric:tabular-nums; font-weight:800; }
+  .tc-vgrid .mv { font-size:13px; color:var(--ink); }
+  .tc-vgrid .mv .ms { font-size:10px; color:var(--muted); margin-left:1px; }
+  .tc-vgrid .md { font-size:12.5px; color:var(--ink); }
+  .tc-vgrid .mr { font-size:12.5px; color:var(--ink); }
+  .tc-vgrid .mr .rk-hi { color:#1a7f37; } .tc-vgrid .mr .rk-lo { color:#c8102e; }
   /* 4-way HS/COL × Hitter/Pitcher heat matrix — a compact, right-anchored support graphic */
   .tc-mat { display:grid; grid-template-columns:auto 74px 74px; gap:3px; margin:7px 0 0 auto; width:max-content; }
   .tc-mat .hd { font-size:8px; font-weight:800; text-transform:uppercase; letter-spacing:.3px;
@@ -3471,55 +3466,53 @@
     if (!o || o.orgRank==null) return h + `<div class="placeholder">No org profile for ${team}.</div></div>`;
     const dev = o.dev || {};
     const ord = n => n + (n%100>=11 && n%100<=13 ? "th" : ["th","st","nd","rd"][n%10] || "th");
-    // clean ±pts vs league average · league rank (raw values stay off the panel);
     // rank colors: top 10 green, middle black, bottom 10 red
     const rkCls = n => n<=10 ? "rk-hi" : n<=20 ? "rk-mid" : "rk-lo";
-    const vsLg = (val, avg, rank) => (val==null || avg==null) ? "—"
-      : `${val-avg>=0?"+":"−"}${Math.abs(val-avg).toFixed(1)}%${rank?` <span class="hg-pct ${rkCls(rank)}">· ${ord(rank)}</span>`:""}`;
-    const clamp = (v) => Math.max(0, Math.min(100, v));
-    // Split proportion bar: left segment = the team's actual share (leftShort), right = remainder;
-    // a ▲ tick marks the league average so the lean (and how it beats/trails the league) is obvious.
-    const mixBar = (label, leftShort, rightShort, leftPct, avgLeftPct, rank) => {
-      if (leftPct==null) return `<div class="tc-kv"><span class="k">${label}</span><span class="v">${avgLeftPct==null?"…":"—"}</span></div>`;
-      const lp = clamp(leftPct), tick = clamp(avgLeftPct);
-      const d = leftPct - avgLeftPct;   // team's lean vs league, in points — the headline datapoint
-      const dLbl = `${d>=0?"+":"−"}${Math.abs(d).toFixed(1)}% vs lg`;
-      // put the delta on whichever side of the tick has room (left of arrow when it sits past mid)
-      const dStyle = tick > 55 ? "right:100%;margin-right:5px" : "left:100%;margin-left:5px";
-      return `<div class="tc-mixbar"><div class="top"><span class="k">${label}</span>
-        <span class="v">${Math.round(leftPct)}% ${leftShort}${rank?` <span class="hg-pct ${rkCls(rank)}">· ${ord(rank)}</span>`:""}</span></div>
-        <div class="track"><span class="seg-l" style="width:${lp}%">${leftShort}</span><span class="seg-r">${rightShort}</span>
-        <span class="tick" style="left:${tick}%" title="league avg ${avgLeftPct.toFixed(1)}%">▲<span class="tkd" style="${dStyle}">${dLbl}</span></span></div></div>`;
-    };
-    h += `<div class="tc-sub">vs league average · rank of 30</div>`;
-    // homegrown = drafted by this org & still with them (MLB StatsAPI bake)
     const hg = o.hgLevels, lgHG = DATA.lgHomegrown || {};
-    if (hg && hg.fortyManAll) {
-      h += `<div class="tc-kv"><span class="k">40-man homegrown</span><span class="v">${vsLg(100*hg.fortyMan/hg.fortyManAll, lgHG.avg40, hg.rank40)}</span></div>`;
-      if (hg.orgAll) h += `<div class="tc-kv"><span class="k">Org homegrown</span><span class="v">${vsLg(100*hg.total/hg.orgAll, lgHG.avgOrg, hg.rankOrg)}</span></div>`;
-    } else {
-      h += `<div class="tc-kv"><span class="k">Homegrown</span><span class="v">${o.homegrown!=null?`${o.homegrown} in system`:"—"}</span></div>`;
-    }
-    // MLB-debut sits directly above the mix rows; then the two split bars.
-    h += `<div class="tc-kv"><span class="k">MLB-debut rate (dev)</span><span class="v">${vsLg(dev.mlbDebut!=null?100*dev.mlbDebut:null, DATA.lgDebut?DATA.lgDebut.avg:null, o.rankDebut)}</span></div>`;
-    // Team-wide 2018-25 draft behavior vs the league (leagueTendencies reducer)
     const myName = pk.teamName || "";
     const lt = DATA.leagueTend, tt = lt ? lt.byTeam.get(myName) : null;
-    h += mixBar("Pitchers vs hitters", "P", "H", tt?tt.pPct:null, lt?lt.avgP:null, tt?lt.rankP(myName):null);
-    h += mixBar("HS vs College", "HS", "COL", tt?tt.hsPct:null, lt?lt.avgHS:null, tt?lt.rankHS(myName):null);
+    const rankTot = lt ? lt.byTeam.size : 30;
+    // Clean 3-column read: Pct% · ± MLB avg · Rank. For the two mix metrics the Pct% shows the
+    // side that matches the player under evaluation (his pitcher/hitter + HS/college), and the
+    // diff + rank flip to that same side; homegrown & debut are raw team rates.
+    const selC = sel && sel.c ? sel.c.comp : null;
+    const hitSel = selC ? (selC.posGroup || posGroupOf(selC.pos)) !== "P" : false;
+    const colSel = selC ? !!(selC.level && selC.level !== "HS") : false;
+    const mrow = (label, valPct, avgPct, rank, side) => {
+      const val = valPct==null ? (lt ? "—" : "…") : `${Math.round(valPct)}%${side?` <span class="ms">${side}</span>`:""}`;
+      const diff = (valPct==null||avgPct==null) ? "" : `${valPct-avgPct>=0?"+":"−"}${Math.abs(valPct-avgPct).toFixed(1)}%`;
+      const rk = rank ? `<span class="${rkCls(rank)}">${ord(rank)}</span>` : "";
+      return `<div class="mk">${label}</div><div class="mv">${val}</div><div class="md">${diff}</div><div class="mr">${rk}</div>`;
+    };
+    let rows = "";
+    if (hg && hg.fortyManAll) {
+      rows += mrow("40-man homegrown", 100*hg.fortyMan/hg.fortyManAll, lgHG.avg40, hg.rank40);
+      if (hg.orgAll) rows += mrow("Org homegrown", 100*hg.total/hg.orgAll, lgHG.avgOrg, hg.rankOrg);
+    } else {
+      rows += `<div class="mk">Homegrown</div><div class="mv">${o.homegrown!=null?o.homegrown:"—"}</div><div class="md"></div><div class="mr"></div>`;
+    }
+    rows += mrow("MLB-debut rate (dev)", dev.mlbDebut!=null?100*dev.mlbDebut:null, DATA.lgDebut?DATA.lgDebut.avg:null, o.rankDebut);
+    rows += tt
+      ? (hitSel ? mrow("Pitchers vs hitters", 100-tt.pPct, 100-lt.avgP, (rankTot+1)-lt.rankP(myName), "H")
+                : mrow("Pitchers vs hitters", tt.pPct, lt.avgP, lt.rankP(myName), "P"))
+      : mrow("Pitchers vs hitters", null, null, null);
+    rows += tt
+      ? (colSel ? mrow("HS vs College", 100-tt.hsPct, 100-lt.avgHS, (rankTot+1)-lt.rankHS(myName), "COL")
+                : mrow("HS vs College", tt.hsPct, lt.avgHS, lt.rankHS(myName), "HS"))
+      : mrow("HS vs College", null, null, null);
+    h += `<div class="tc-vgrid"><div class="mh"></div><div class="mh">Pct%</div><div class="mh">± MLB avg</div><div class="mh">Rank</div>${rows}</div>`;
     // 4-way distribution: HS/COL × Hitter/Pitcher across 2018-25, shaded by share of the team's picks
     if (tt) {
       const total = tt.hsHit + tt.hsP + tt.colHit + tt.colP;
       if (total >= 10) {
-        const cells = [["hsHit","HS","Hitter"],["colHit","COL","Hitter"],["hsP","HS","Pitcher"],["colP","COL","Pitcher"]]
-          .map(([k]) => ({ k, share: tt[k]/total, n: tt[k] }));
+        const cells = [["hsHit"],["colHit"],["hsP"],["colP"]].map(([k]) => ({ k, share: tt[k]/total, n: tt[k] }));
         const maxShare = Math.max(...cells.map(c=>c.share)) || 1;
         const cell = (c) => `<span class="cell" style="background:rgba(200,16,46,${(0.07+0.45*(c.share/maxShare)).toFixed(3)})" title="${c.n} of ${total}">${Math.round(100*c.share)}%</span>`;
         h += `<div class="tc-mat">
           <span class="hd"></span><span class="hd">HS</span><span class="hd">COL</span>
           <span class="hd">Hit</span>${cell(cells[0])}${cell(cells[1])}
           <span class="hd">Pit</span>${cell(cells[2])}${cell(cells[3])}</div>`;
-        h += `<div class="tc-sub tc-mat-cap">bat/arm × level · 2018–25 · n=${total}</div>`;
+        h += `<div class="tc-sub tc-mat-cap">N=${total}</div>`;
       }
     }
     // The org's actual picks in THIS round (special rounds fold forward), for the
