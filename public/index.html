@@ -840,7 +840,8 @@
     display:flex; flex-direction:column; align-items:center; gap:2px; padding:4px 0 2px; cursor:pointer; }
   #mtabs button .mi { font-size:17px; line-height:1; }
   #mtabs button.on { color:var(--red); }
-  body.mob #ticker { bottom:calc(56px + env(safe-area-inset-bottom)); }
+  /* sit flush directly on top of the bottom nav bar (its measured height, safe-area included) */
+  body.mob #ticker { bottom:var(--navH, calc(56px + env(safe-area-inset-bottom))); }
   /* pick flash: two tidy rows — PICK · team · player, then pos/school · agency · $ */
   body.mob #ticker .tk-inner { flex-wrap:wrap; gap:5px 10px; margin:0 8px; padding:10px 14px; font-size:14px; border-radius:12px; }
   body.mob #ticker .tk-team { font-size:16px; }
@@ -1591,13 +1592,21 @@
     });
     document.documentElement.style.setProperty("--theadTop", `${Math.round(t)}px`);
   };
-  addEventListener("resize", setTheadTop);
-  new ResizeObserver(setTheadTop).observe(document.body);
-  setTheadTop();
+  // Bottom nav (#mtabs) height — measured live so the mobile ticker can sit flush on top of
+  // it (its height varies with the safe-area inset and font scaling; a fixed guess overlaps).
+  const setNavH = () => {
+    const el = document.getElementById("mtabs");
+    const h = (el && el.offsetParent) ? Math.round(el.getBoundingClientRect().height) : 0;
+    document.documentElement.style.setProperty("--navH", `${h}px`);
+  };
+  const measureChrome = () => { setTheadTop(); setNavH(); };
+  addEventListener("resize", measureChrome);
+  new ResizeObserver(measureChrome).observe(document.body);
+  measureChrome();
   const applyMobile = () => document.body.classList.toggle("mob", MOBILE.matches);
   applyMobile();
   // re-render on crossover: board tiles emit different markup per form factor
-  const onMobileFlip = () => { applyMobile(); try { renderActive(); } catch (e) {} };
+  const onMobileFlip = () => { applyMobile(); measureChrome(); try { renderActive(); } catch (e) {} };
   if (MOBILE.addEventListener) MOBILE.addEventListener("change", onMobileFlip); else MOBILE.addListener(onMobileFlip);
   const teamLink = (t) => t ? `<span class="tlink" onclick="openTeam('${t}')">${t}</span>` : "";
   const playerLink = (name) => `<span class="tlink" onclick="openPlayer('${normName(name).replace(/'/g,"\\'")}')">${name}</span>`;
