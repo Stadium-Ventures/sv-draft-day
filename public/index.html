@@ -1719,8 +1719,22 @@
     return rows.sort((a,b)=> (b.year-a.year) || (Math.abs(a.bonus-pk.slot)-Math.abs(b.bonus-pk.slot)));
   }
   const SUFFIX = /\b(jr|sr|ii|iii|iv|v)\b/g;
-  const normName = (s) => (s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"")
+  const baseNorm = (s) => (s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"")
       .replace(/[.''`\-]/g," ").replace(SUFFIX,"").replace(/[^a-z\s]/g," ").replace(/\s+/g," ").trim();
+  // Cross-source name resolution (data/aliases.json, mirrored server-side in lib/names.js):
+  // merge initials ("j t ginn" -> "jt ginn"), fold first-name diminutives (mike -> michael),
+  // then explicit per-player aliases (org-review legal names -> common: austin wood -> gage wood).
+  // Maps are empty until loadStatic fetches aliases.json — before that normName == baseNorm+initials,
+  // and every name-keyed index is built after that fetch, so keys are always consistent.
+  let NICK = {}, PLAYER_ALIAS = {};
+  const mergeInitials = (b) => b.replace(/\b([a-z]) (?=[a-z]\b)/g, "$1");
+  const normName = (s) => {
+    let b = mergeInitials(baseNorm(s));
+    if (PLAYER_ALIAS[b]) b = PLAYER_ALIAS[b];
+    const i = b.indexOf(" ");
+    if (i > 0) { const t0 = NICK[b.slice(0,i)]; if (t0) { b = t0 + b.slice(i); if (PLAYER_ALIAS[b]) b = PLAYER_ALIAS[b]; } }
+    return b;
+  };
   const teamAlias = (t) => (t === "OAK" ? "ATH" : t);
   // "Etowah HS, Woodstock GA" -> "Etowah HS" — hometowns stay off tiles/chips/feed rows.
   const schoolShort = (s) => (s||"").split(",")[0].trim();
@@ -1854,6 +1868,19 @@
   let mock = { picks:null, running:false, speed:"fast", nextAt:0, seeding:false, sid:null };
 
   async function loadStatic() {
+    // Alias maps FIRST — every name-keyed index below is built with normName, so the
+    // resolution layer must be live before anything is keyed. Missing file degrades
+    // to plain normalization. Hand-keyed + localStorage maps (written under older
+    // normName output) are re-keyed through the alias-aware normName once it's live.
+    try {
+      const al = await fetch("/data/aliases.json").then(r=>r.ok?r.json():null).catch(()=>null);
+      if (al) {
+        for (const g of al.nickGroups||[]) for (let i=1;i<g.length;i++) NICK[g[i]] = g[0];
+        for (const k in (al.players||{})) PLAYER_ALIAS[mergeInitials(baseNorm(k))] = mergeInitials(baseNorm(al.players[k]));
+      }
+      const rekey = (m) => { for (const k of Object.keys(m)) { const nk = normName(k); if (nk!==k) { m[nk]=m[k]; delete m[k]; } } };
+      [DRAFT_COMPS, CLIENT_BATS, MEDICALS, RANGES, AGENCIES].forEach(rekey);
+    } catch (e) {}
     try {
       const [c, o, lev, hg, meta, pros, dh, wh] = await Promise.all([
         fetch("/data/composite.json").then(r=>r.json()),
