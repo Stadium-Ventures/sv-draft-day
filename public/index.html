@@ -681,11 +681,15 @@
   .rf-otile:hover { border-color:rgba(0,0,0,.4); }
   .rf-selcap { font-size:11.5px; color:var(--muted); margin:2px 0 6px; }
   .rf-wgrid { margin-top:9px; }
-  /* always-visible weight panel: 3-col mini-slider grid (2-col mobile) */
-  .rf-wgrid3 { display:grid; grid-template-columns:repeat(3,1fr); gap:2px 22px; }
-  .rf-wgrid3 .rf-wlab { width:84px; }
-  @media (max-width:900px){ .rf-wgrid3 { grid-template-columns:repeat(2,1fr); } }
-  body.mob .rf-wgrid3 { grid-template-columns:repeat(2,1fr); gap:2px 12px; }
+  /* Fine-tune slider grid — columns must SHRINK inside the box (minmax(0,1fr)), never
+     overflow it: range inputs get width:100% and rows min-width:0 so nothing escapes. */
+  .rf-wgrid3 { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:2px 22px; min-width:0; }
+  .rf-wgrid3 .rf-wrow { min-width:0; }
+  .rf-wgrid3 .rf-wsl { width:100%; min-width:40px; }
+  .rf-wgrid3 .rf-wlab { width:84px; flex:0 0 84px; }
+  .rf-wgrid3 .rf-wval { flex:0 0 38px; text-align:right; }
+  @media (max-width:900px){ .rf-wgrid3 { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+  body.mob .rf-wgrid3 { grid-template-columns:repeat(2,minmax(0,1fr)); gap:2px 12px; }
   .rf-wrow { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
   .rf-wlab { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.3px; color:var(--muted); width:66px; flex:0 0 auto; }
   .rf-wsl { flex:1 1 auto; min-width:0; -webkit-appearance:none; appearance:none; height:4px; border-radius:2px; background:var(--line); }
@@ -2151,7 +2155,7 @@
     return out;
   }
   // ---- WAR lookback (warhist.json, 2008-25): the long-run half of the Track-record lens.
-  // Career bWAR per pick vs expectation-at-pick (mature classes '08-'19), per org ×
+  // Career bWAR per pick vs expectation-at-pick (era classes '18+), per org ×
   // pos group / pick band / HS-College — "how much big-league value have they actually
   // extracted from picks like him?" Cells arrive pre-shrunk (K=8) from the builder;
   // woe (WAR-over-expected per pick) maps to 0-1 via a 0.35 gain: LAD's league-best
@@ -2198,13 +2202,10 @@
     // Nico Hoerner, Sept '19) — same window as the tracker + aWAR coverage, one
     // coherent modern era. ESTABLISHED players first (debuted: nonzero bWAR or an
     // aWAR record), newest within each half; pre-2018 classes only as a last resort.
-    const ERA_FROM = 2018;
+    // warhist now spans only the '18+ era — order established players first
+    // (debuted: nonzero bWAR or an aWAR record), newest within each half.
     const established = (p) => p.aw != null || (p.w != null && p.w !== 0);
-    const order = (hits) => {
-      const era = hits.filter(p => p.y >= ERA_FROM);
-      const pool = era.length >= Math.min(limit, 2) ? era : hits;
-      return [...pool.filter(established), ...pool.filter(p => !established(p))];
-    };
+    const order = (hits) => [...hits.filter(established), ...hits.filter(p => !established(p))];
     const tiers = [
       p => p.g===g && (!lv||p.lvl===lv) && whBandKey(p.ov)===bk,
       p => p.g===g && (!lv||p.lvl===lv),
@@ -2429,7 +2430,8 @@
     const ds = W && W.debutSpeed; if (!ds || !comp) return { v: 0.5, known: false };
     const lvl = comp.level === "HS" ? "HS" : "College";
     const cell = ds[lvl] || ds.all; if (!cell || !cell.n) return { v: 0.5, known: false };
-    const lg = lvl === "HS" ? 5 : 4;   // league medians baked/verified in warhist
+    const lgds = DATA.warhist.meta && DATA.warhist.meta.lgDebutSpeed;
+    const lg = lgds && lgds[lvl] != null ? lgds[lvl] : (lvl === "HS" ? 5 : 4);   // baked league medians, era '18+
     return { v: Math.max(0, Math.min(1, 0.5 + 0.25 * (lg - cell.medianYears))), known: true,
       med: cell.medianYears, n: cell.n, lg, lvl };
   }
@@ -2604,7 +2606,7 @@
     const hist = comp ? histSignal(team, g, pb.idx) : { histN:0.5, known:false };
     const pipe = comp ? pipeSignal(team, g) : { pipeN:0.5, known:false };
     // Track record = recent hit-rate ('18-25) blended 50/50 with the long-run WAR
-    // lookback ('08-19 classes) when warhist.json is loaded; hit-rate alone otherwise.
+    // lookback ('18+ classes) when warhist.json is loaded; hit-rate alone otherwise.
     const war = comp ? warSignal(team, g, comp.rank, comp.level) : { warN:0.5, known:false };
     const histN = war.known && hist.known ? 0.5*hist.histN + 0.5*war.warN
                 : war.known ? war.warN : hist.histN;
@@ -3955,13 +3957,13 @@
       rows += `<div class="mk">Homegrown</div><div class="mv">${o.homegrown!=null?o.homegrown:"—"}</div><div class="md"></div><div class="mr"></div>`;
     }
     rows += mrow("MLB-debut rate (dev)", dev.mlbDebut!=null?100*dev.mlbDebut:null, DATA.lgDebut?DATA.lgDebut.avg:null, o.rankDebut);
-    // Draft WAR lookback ('08-19 classes): raw bWAR per pick, ± = vs expected-at-slot
+    // Draft WAR lookback ('18+ classes): raw bWAR per pick, ± = vs expected-at-slot
     // (league expectation is the baseline, so the delta IS the vs-league read).
     {
       const W = DATA.warhist && DATA.warhist.orgs && DATA.warhist.orgs[team];
       if (W && W.all && W.all.n) {
         const perPk = W.all.warSum / W.all.n, rk = whRankOf(team);
-        rows += `<div class="mk">Draft WAR/pick ('08-19)</div><div class="mv">${perPk.toFixed(1)}</div>`
+        rows += `<div class="mk">Draft WAR/pick ('18+)</div><div class="mv">${perPk.toFixed(1)}</div>`
           + `<div class="md">${W.all.woe>=0?"+":"−"}${Math.abs(W.all.woe).toFixed(2)}</div>`
           + `<div class="mr">${rk?`<span class="${rkCls(rk)}">${ord(rk)}</span>`:""}</div>`;
       }
@@ -4357,6 +4359,7 @@
     weights:rfMergeSel(new Set()), tOpen:false, sortCol:null, sortDir:"desc", hidden:false });
   let resFit = RF_DEF(), resFitDrawn = false, resTab = "research", fitSel = null;
   let rfClientsMenu = false, rfBoardMenu = false, rfBoardQuery = "", rfPosMenu = false;   // dropdown state (session)
+  let rfBoardCls = new Set(), rfBoardLvl = new Set();   // Rest-of-Board Class/Level filters (session-only, not persisted)
   try {
     const sv = JSON.parse(localStorage.getItem("dd:resFit") || "null");
     if (sv) {
@@ -4437,14 +4440,27 @@
     list.sort((a,b) => (a.rank||9999)-(b.rank||9999));
     return { list };
   }
-  // Board dropdown list HTML (non-client composite, filtered by the search box) — split out so the
-  // search input can repaint just this list and keep focus.
-  function rfBoardListHtml() {
+  // Board dropdown Class/Level classifiers — mirror the Player Research idioms
+  // (wizClsOf/WIZ_GROUPS.lvl) but over composite entries, which carry .level/.age
+  // instead of tracker rows' .level/born-year.
+  const rfCompCls = (c) => { if (c.level === "HS") return "Prep"; const a = parseFloat(c.age);
+    if (!Number.isFinite(a)) return null; return a < 21 ? "Early col" : a < 22 ? "JR" : "SR+"; };
+  const rfCompLvl = (c) => c.level === "HS" ? "HS" : c.level === "JUCO" ? "JuCo" : c.level === "College" ? "College" : null;
+  // Full filtered (uncapped) board list — search + Class + Level — shared by the
+  // repainted dropdown list and "add all shown".
+  function rfBoardFiltered() {
     const clientKeys = new Set(DATA.clientList.filter(c=>c.comp).map(c=>c.key));
     const q = rfBoardQuery.trim().toLowerCase();
     let list = DATA.composite.filter(c => !clientKeys.has(normName(c.name)));
     if (q) list = list.filter(c => (c.name||"").toLowerCase().includes(q));
-    list = list.slice(0, 60);
+    if (rfBoardCls.size) list = list.filter(c => rfBoardCls.has(rfCompCls(c)));
+    if (rfBoardLvl.size) list = list.filter(c => rfBoardLvl.has(rfCompLvl(c)));
+    return list;
+  }
+  // Board dropdown list HTML (non-client composite, filtered by the search box + chips) —
+  // split out so the search input can repaint just this list and keep focus.
+  function rfBoardListHtml() {
+    const list = rfBoardFiltered().slice(0, 60);
     const rows = list.map(c => { const k=normName(c.name);
       return `<button class="tc-chip${resFit.boardOn.has(k)?' on':''}" onclick="rfBoardToggle('${k.replace(/'/g,"\\'")}',event)">${_esc(c.name)} <span class="rf-mrk">#${c.rank} ${c.pos}</span></button>`; }).join("");
     return rows || `<div class="rf-empty">No board players match “${_esc(rfBoardQuery)}”.</div>`;
@@ -4502,8 +4518,17 @@
     const clientsDrop = `<span class="rf-drop res-pdrop">
       <button class="tc-chip rf-side${resFit.clientsSide?' on':''}" onclick="rfSide('clients')">SV Clients · ${resFit.clientsSide?clientsOnN:"off"}</button>
       <button class="tc-chip rf-caret" onclick="rfMenu('clients',event)">▾</button>${clientsMenu}</span>`;
+    const boardFilteredN = !rfBoardMenu ? 0 : rfBoardFiltered().length;
     const boardMenu = !rfBoardMenu ? "" : `<div class="res-posmenu rf-menu rf-menu-wide" onclick="event.stopPropagation()">
       <input id="rfBoardSearch" class="res-findin" type="search" placeholder="Search the board…" autocomplete="off" value="${rfBoardQuery.replace(/"/g,"&quot;")}" oninput="rfBoardSearch(this.value)">
+      <div class="res-posrow"><span class="tc-wizlab">Class</span>${["Prep","Early col","JR","SR+"].map(v=>
+        `<button class="tc-chip${rfBoardCls.has(v)?' on':''}" onclick="rfBoardClsTok('${v}',event)">${v}</button>`).join("")}</div>
+      <div class="res-posrow"><span class="tc-wizlab">Level</span>${["HS","College","JuCo"].map(v=>
+        `<button class="tc-chip${rfBoardLvl.has(v)?' on':''}" onclick="rfBoardLvlTok('${v}',event)">${v}</button>`).join("")}</div>
+      <div class="res-posrow">
+        <button class="tc-chip grp" onclick="rfBoardAddAll(event)">+ add all shown (${boardFilteredN>100?"top 100":boardFilteredN})</button>
+        ${resFit.boardOn.size?`<button class="tc-chip clear" onclick="rfBoardClearAll(event)">✕ clear selected (${resFit.boardOn.size})</button>`:""}
+      </div>
       <div class="rf-menulist" id="rfBoardList">${rfBoardListHtml()}</div></div>`;
     const boardDrop = `<span class="rf-drop res-pdrop">
       <button class="tc-chip rf-side${resFit.boardSide?' on':''}" onclick="rfSide('board')">Rest of Board · ${resFit.boardSide?(resFit.boardOn.size||0):"off"}</button>
@@ -4691,6 +4716,18 @@
     rfSave(); renderRfControls(); renderRfGrid();
   };
   window.rfBoardSearch = (v) => { rfBoardQuery = v; const el = $("rfBoardList"); if (el) el.innerHTML = rfBoardListHtml(); };
+  window.rfBoardClsTok = (v, e) => { if (e) e.stopPropagation();
+    rfBoardCls.has(v) ? rfBoardCls.delete(v) : rfBoardCls.add(v); renderRfControls(); };
+  window.rfBoardLvlTok = (v, e) => { if (e) e.stopPropagation();
+    rfBoardLvl.has(v) ? rfBoardLvl.delete(v) : rfBoardLvl.add(v); renderRfControls(); };
+  window.rfBoardAddAll = (e) => { if (e) e.stopPropagation();
+    const list = rfBoardFiltered().slice().sort((a,b)=>(a.rank||9999)-(b.rank||9999)).slice(0, 100);
+    list.forEach(c => resFit.boardOn.add(normName(c.name)));
+    resFit.boardSide = true; rfSave(); renderRfControls(); renderRfGrid();
+  };
+  window.rfBoardClearAll = (e) => { if (e) e.stopPropagation();
+    resFit.boardOn.clear(); rfSave(); renderRfControls(); renderRfGrid();
+  };
   // Position dropdown (POS_TREE tokens — parity with Best Available / Player Research)
   window.rfPosOpen = (e) => { if (e) e.stopPropagation(); rfPosMenu = !rfPosMenu; renderRfControls(); };
   window.rfPosTok = (t, e) => { if (e) e.stopPropagation();
@@ -4795,12 +4832,12 @@
         + ((DATA.orgs[t]||{}).dev && DATA.orgs[t].dev.mlbDebut!=null ? kv("Org MLB-debut rate (all)", `${pct(DATA.orgs[t].dev.mlbDebut)}${DATA.lgDebut?` vs ${Math.round(DATA.lgDebut.avg)}% lg`:""}`) : "")
         + (rgLine ? `<div class="fc-note">${rgLine} — earlier front offices don't count.</div>` : "");
     } else if (fitTile === "develop") {
-      drawer = (f.war && f.war.known ? warRow(`${g} picks ('08–19)`, f.war.pos) + (f.war.band?warRow(`Picks ${f.war.band.key}`, f.war.band):"") + (f.war.lvl?warRow(`${f.war.lvl.key} picks`, f.war.lvl):"") : "")
+      drawer = (f.war && f.war.known ? warRow(`${g} picks ('18+)`, f.war.pos) + (f.war.band?warRow(`Picks ${f.war.band.key}`, f.war.band):"") + (f.war.lvl?warRow(`${f.war.lvl.key} picks`, f.war.lvl):"") : "")
         + (f.war && f.war.expAt!=null ? kv(`Expected at ≈#${comp.rank}`, `${f.war.expAt} career WAR <span class="sub">(league mean, his band)</span>`) : "")
         + (f.war && f.war.awRecent ? kv("Recent aWAR/pick ('18–24)", `${f.war.awRecent.perPick} <span class="sub">(${f.war.awRecent.n} picks · SV metric)</span>`) : "")
         + (compsLine ? `<div class="fc-note">${compsLine}</div>` : "");
     } else if (fitTile === "speed") {
-      drawer = (D.speed && D.speed.known ? kv(`Median yrs to debut (${D.speed.lvl})`, `${D.speed.med} vs ${D.speed.lg} league <span class="sub">(n=${D.speed.n}, '08–19 classes)</span>`) : `<div class="fc-note">No mature debut sample for his level.</div>`)
+      drawer = (D.speed && D.speed.known ? kv(`Median yrs to debut (${D.speed.lvl})`, `${D.speed.med} vs ${D.speed.lg} league <span class="sub">(n=${D.speed.n}, '18+ classes)</span>`) : `<div class="fc-note">No mature debut sample for his level.</div>`)
         + `<div class="fc-note">Speed = how fast this org moves ${comp.level==="HS"?"prep":"college"} picks to the majors, not roster opportunism — pair with Farm depth for the open-lane read.</div>`;
     } else if (fitTile === "value") {
       drawer = (D.earn && D.earn.roi && D.earn.roi.known ? kv("Bonuses → value ('18+)", `${fmtM(D.earn.roi.cost)} in → ${fmtM(D.earn.roi.val)} out · ${D.earn.roi.roi.toFixed(1)}× <span class="sub">(lg ${D.earn.roi.lg.toFixed(1)}×)</span>`) : "")
@@ -5634,7 +5671,9 @@
     announcedPicks = null; tickerQueue = [];   // don't replay the board when switching modes
     if (m==="mock") {
       await seedFromLive(); pushMock();
-      seedMockLeads(); renderLeadStrip();   // rehearse the leading-intel alert in mock
+      // Demo X-lead chips in mock are DISABLED for now (per Mike, 7/10) — flip this
+      // gate back on when the live capture wiring conversation resumes.
+      if (MOCK_LEADS_DEMO) { seedMockLeads(); renderLeadStrip(); }
     } else { MOCKLEADS = []; pollLive(); }
   }
 
@@ -5753,6 +5792,7 @@
   // parses tweets; here we match names to the board, render amber UNOFFICIAL chips, and
   // auto-clear once the official feed confirms. Silent unless the server is configured.
   let XLEADS = { enabled: null, leads: [] };
+  const MOCK_LEADS_DEMO = false;   // demo tweets in mock mode — off until the live capture wiring resumes
   let MOCKLEADS = [];   // synthetic leads seeded in mock mode so the alert strip can be rehearsed
   const LEAD_TTL_MS = 45 * 60 * 1000, LEAD_MIN_CONF = 0.55, LEAD_SHOW = 3;
   // Seed a couple of demo leads off the current mock board: upcoming picks × undrafted
