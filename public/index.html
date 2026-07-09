@@ -192,17 +192,25 @@
   .ba-filt-toggle { display:none; }
   .ba-filt-toggle .caret { display:inline-block; transition:transform .15s; }
   .ba-filters.collapsed .ba-filt-toggle .caret { transform:rotate(-90deg); }
-  /* dropdown-chip filters (Level / Position / Age / Bats / Throws) */
+  /* dropdown-chip filters (Level / Position / Age / Bats / Throws) — uniform pills */
   .ba-chips { display:inline-flex; gap:6px; flex-wrap:wrap; align-items:center; }
   .ba-drop { position:relative; }
-  .ba-chips .tc-chip { font-size:12px; padding:5px 11px; border-radius:16px; color:var(--ink); }
-  .ba-chips .tc-chip .cx { opacity:.5; font-size:10px; }
-  .ba-menu { left:0; top:calc(100% + 5px); min-width:180px; }
-  .ba-agemenu { min-width:220px; }
-  .ba-agemenu .res-slab { display:block; margin-bottom:8px; }
+  .ba-chips .tc-chip { display:inline-flex; align-items:center; gap:5px; height:30px; padding:0 12px;
+    font-size:12px; border-radius:15px; color:var(--ink); }
+  .ba-chips .tc-chip .cx { opacity:.5; font-size:9px; }
+  .ba-chips .tc-chip.on .cx { opacity:.85; }
+  /* menu anchors directly under its chip (override .res-posmenu's label-offset defaults) */
+  .ba-drop .res-posmenu { left:0; top:calc(100% + 6px); min-width:auto; width:max-content;
+    max-width:min(340px, calc(100vw - 24px)); }
+  .ba-agemenu { width:240px; max-width:calc(100vw - 24px); }
+  .ba-agemenu .res-slab { display:block; margin-bottom:10px; }
   .ba-agemenu .dual { width:100%; }
   .ba-agemenu .dual input[type=range] { border:0; padding:0; }
-  .ba-agemenu .tc-chip.clear { margin-top:10px; }
+  .ba-agemenu .tc-chip.clear { margin-top:12px; }
+  /* sortable column headers on Best Available */
+  table.ba th.basort { cursor:pointer; white-space:nowrap; }
+  table.ba th.basort:hover { color:var(--ink); }
+  table.ba th.basort .sarr { color:var(--red); font-size:9px; margin-left:2px; }
   /* border-collapse:separate + no overflow:hidden — both break position:sticky on the thead */
   table.ba { width:100%; border-collapse:separate; border-spacing:0; background:#fff; border:1px solid var(--line); border-radius:10px; }
   table.ba th { text-align:left; font-size:var(--fs-1); text-transform:uppercase; letter-spacing:.4px; color:var(--muted); padding:8px 10px; border-bottom:1px solid var(--line); background:#fafafa;
@@ -895,6 +903,12 @@
   body.mob #viewBest .ba-filt-controls label { flex:0 0 auto; }
   body.mob #viewBest .ba-filt-controls #fQuery { flex:1 1 100%; min-width:0; }
   body.mob #viewBest .ba-filters.collapsed .ba-filt-controls { display:none; }
+  /* chips take a full row; the dropdown drops as a full-width panel under that row so a
+     right-edge chip's menu can't run off screen */
+  body.mob #viewBest #baChips { position:relative; flex:1 1 100%; }
+  body.mob #viewBest .ba-drop { position:static; }
+  body.mob #viewBest .ba-drop .res-posmenu { left:0; right:0; width:auto; max-width:none; }
+  body.mob #viewBest .ba-agemenu { width:auto; max-width:none; }
   #mJump { display:none; }
   body.mob #mJump { display:inline-flex; position:fixed; right:12px; bottom:calc(66px + env(safe-area-inset-bottom)); z-index:60;
     align-items:center; gap:5px; background:var(--red); color:#fff; border:0; border-radius:999px;
@@ -1111,7 +1125,19 @@
     </div>
     <div class="ba-scroll">
       <table class="ba">
-        <thead><tr><th>#</th><th>Player</th><th>Pos</th><th>Lvl</th><th class="hide-sm">School</th><th class="hide-sm">Commit</th><th class="hide-sm">Agency</th><th class="hide-sm">Age</th><th>B/T</th><th class="sr-col hide-sm">Ranks</th><th class="hide-sm">Trend</th><th></th></tr></thead>
+        <thead><tr>
+          <th class="basort" data-k="rank" onclick="baSortBy('rank')">#</th>
+          <th class="basort" data-k="name" onclick="baSortBy('name')">Player</th>
+          <th class="basort" data-k="pos" onclick="baSortBy('pos')">Pos</th>
+          <th class="basort" data-k="level" onclick="baSortBy('level')">Lvl</th>
+          <th class="basort hide-sm" data-k="school" onclick="baSortBy('school')">School</th>
+          <th class="basort hide-sm" data-k="commit" onclick="baSortBy('commit')">Commit</th>
+          <th class="basort hide-sm" data-k="agency" onclick="baSortBy('agency')">Agency</th>
+          <th class="basort hide-sm" data-k="age" onclick="baSortBy('age')">Age</th>
+          <th class="basort" data-k="bt" onclick="baSortBy('bt')">B/T</th>
+          <th class="basort sr-col hide-sm" data-k="ranks" onclick="baSortBy('ranks')">Ranks</th>
+          <th class="basort hide-sm" data-k="trend" onclick="baSortBy('trend')">Trend</th>
+          <th></th></tr></thead>
         <tbody id="baBody"></tbody>
       </table>
     </div>
@@ -2234,7 +2260,8 @@
   let _baAgeBounds = null;
   const baAgeBounds = () => {
     if (!_baAgeBounds) {
-      const a = DATA.composite.map(p=>+p.age).filter(Number.isFinite);
+      // guard against missing ages: +"" coerces to 0, which would drag the floor to 0.0
+      const a = DATA.composite.map(p=>+p.age).filter(v => Number.isFinite(v) && v >= 10 && v <= 30);
       _baAgeBounds = a.length ? { min:Math.floor(Math.min(...a)), max:Math.ceil(Math.max(...a)) } : { min:16, max:24 };
     }
     return _baAgeBounds;
@@ -2256,6 +2283,34 @@
     const lab = $("baAgeLab"); if (lab) lab.textContent = `${lo.toFixed(1)} – ${hi.toFixed(1)}`;
     renderBest(); };
   window.baAgeClear = (e) => { if (e) e.stopPropagation(); baFilt.ageLo = baFilt.ageHi = null; renderBaChips(); renderBest(); };
+  // Column sort: click a header to sort by it (asc → desc → back to board-rank order).
+  let baSort = { key:null, dir:1 };
+  const BA_SORT = {
+    rank:   p => p.rank,
+    name:   p => normName(p.name),
+    pos:    p => p.posGroup || p.pos || "",
+    level:  p => p.level || "",
+    school: p => normName(p.school),
+    commit: p => normName(p.commit || ""),
+    agency: p => normName(agentOf(p)),
+    age:    p => { const a=+p.age; return (Number.isFinite(a)&&a>=10&&a<=30) ? a : null; },
+    bt:     p => `${p.bats||""}/${p.throws||""}`,
+    ranks:  p => RANK_SRCS.filter(([f]) => p[f]!=null).length,
+    trend:  p => { const t=(p.trend||[]).filter(v=>v!=null); return t.length>=2 ? t[t.length-2]-t[t.length-1] : null; },
+  };
+  const baIsNull = (v) => v==null || v==="" || v==="/" || (typeof v==="number" && !Number.isFinite(v));
+  const baCompare = (a, b) => {
+    const acc = BA_SORT[baSort.key], av = acc(a), bv = acc(b), an = baIsNull(av), bn = baIsNull(bv);
+    if (an || bn) return an && bn ? (a.rank||0)-(b.rank||0) : (an ? 1 : -1);   // unknowns always last
+    let c = typeof av==="number" ? av-bv : String(av).localeCompare(String(bv));
+    if (c===0) c = (a.rank||0)-(b.rank||0);                                    // stable by board rank
+    return c * baSort.dir;
+  };
+  window.baSortBy = (k) => {
+    if (baSort.key===k) { if (baSort.dir===1) baSort.dir = -1; else baSort = { key:null, dir:1 }; }
+    else baSort = { key:k, dir:1 };
+    renderBest();
+  };
   function renderBaChips() {
     const el = $("baChips"); if (!el) return;
     const b = baAgeBounds(), ageOn = baAgeActive();
@@ -2305,6 +2360,8 @@
       if (q && !(normName(p.name).includes(q) || normName(p.school).includes(q) || normName(agentOf(p)).includes(q))) return false;
       return true;
     });
+    // Default is DATA.composite (board-rank) order; a header click sorts by that column.
+    if (baSort.key) rows.sort(baCompare);
     // DATA.composite is board-rank order, so drafted rows slot back into their original board
     // position — the gap between their rank and where they actually went is the comparison.
     const openCount = rows.filter(p=>!draftedBy.has(normName(p.name))).length;
@@ -2334,6 +2391,11 @@
         <td class="hide-sm">${trendCell(p)}</td>
         <td class="ba-draft">${lastCol}</td></tr>`;
     }).join("") || `<tr><td colspan="12" style="color:#9aa0a6;padding:14px">No players match these filters.</td></tr>`;
+    // reflect the active sort column with a direction arrow in its header
+    document.querySelectorAll("#viewBest th.basort").forEach(th => {
+      th.querySelector(".sarr")?.remove();
+      if (baSort.key===th.dataset.k) th.insertAdjacentHTML("beforeend", `<span class="sarr">${baSort.dir===1?"▲":"▼"}</span>`);
+    });
   }
   // Composite-rank trend across ranking editions (baked from rank_history.json; the point
   // dates live in meta.json histDates). Lower rank = better, so the spark draws rank #1 at
