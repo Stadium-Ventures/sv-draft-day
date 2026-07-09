@@ -3931,8 +3931,11 @@
   // (Old dev / flavor / FV lenses folded in or dropped: FV is the same for every org so it
   // never re-ranks teams; org-wide dev now lives inside Track record's league-shrunk rates;
   // flavor's HS/college + arm/bat story survives as "why" bullets on the fit card.)
-  const RF_LENSES = [["combined","Combined"],["interest","Interest"],["hist","Track record"],["pipe","Pipeline"],["money","Money"]];
-  const RF_LENSLBL = { combined:"Combined fit", interest:"Interest", hist:"Track record", pipe:"Pipeline", money:"Money" };
+  // "WAR" is a display-only lens — it surfaces the long-run WAR-over-expected read (warN)
+  // as its own heatmap. It is NOT in the Combined weight blend (that stays interest/hist/
+  // pipe/money; hist already folds WAR in 50/50). Keeps tomorrow's consolidation pass free.
+  const RF_LENSES = [["combined","Combined"],["interest","Interest"],["hist","Track record"],["war","WAR"],["pipe","Pipeline"],["money","Money"]];
+  const RF_LENSLBL = { combined:"Combined fit", interest:"Interest", hist:"Track record", war:"WAR lookback", pipe:"Pipeline", money:"Money" };
   const RF_WDEF = { interest:40, hist:25, pipe:10, money:25 };
   const RF_DEF = () => ({ clientsSide:true, clientsOff:new Set(), boardSide:false, boardOn:new Set(),
     pos:new Set(), teamsOff:new Set(), gradeMin:0, lens:"combined", weights:{...RF_WDEF},
@@ -4018,6 +4021,7 @@
     switch (resFit.lens) {
       case "interest": return Math.round(100*f.interestN);
       case "hist":     return Math.round(100*f.histN);
+      case "war":      return Math.round(100*((f.war && f.war.known) ? f.war.warN : 0.5));
       case "pipe":     return Math.round(100*f.pipeN);
       case "money":    return Math.round(100*f.moneyN);
       default:         return rfCombined(f);
@@ -4028,6 +4032,7 @@
     const parts = [];
     if (f.interestN>=0.4) parts.push("live interest"); else if (f.interestN>0) parts.push("some intel");
     if (f.histN>=0.58) parts.push("proven at his position/price"); else if (f.histN<=0.42) parts.push("thin track record here");
+    if (f.war && f.war.known) { if (f.war.warN>=0.6) parts.push("develops his kind (WAR)"); else if (f.war.warN<=0.4) parts.push("underdelivers his kind (WAR)"); }
     if (f.pipeN>=0.62) parts.push("collects his type"); else if (f.pipeN<=0.38) parts.push("light on his group");
     if (f.moneyN>=0.6) parts.push("money works"); else if (f.moneyN<=0.3) parts.push("pool is tight");
     return parts.join(" · ") || "neutral across the board";
