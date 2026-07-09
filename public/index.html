@@ -1933,16 +1933,81 @@
   }
   // Pull the shared teamintel feed (colors + scores). Polled on an interval so a mid-draft
   // update in sv-teamintel shows up live; only re-renders when the feed actually changed.
+  //
+  // The baked teamintel.json trails reality by up to ~15-20 min (Actions cron + deploy). The
+  // dashboard's "+ Add Entry" rows and score/color edits land in Redis INSTANTLY via
+  // /api/manual-records and /api/overrides — so both are polled live and merged in here,
+  // mirroring sv-teamintel's own bake (load_manual_records + apply_overrides semantics).
+  const TEAMINTEL_API = "https://sv-teamintel.vercel.app/api";
+  const TI_SCORE_COLOR = { "2":"green", "1":"light green", "0":"yellow", "-1":"orange", "-2":"red" };
+  const tiColorWord = (s) => { const t=(s||"").toLowerCase();
+    for (const c of ["light green","green","yellow","orange","red"]) { if (t.includes(c)) return c; } return null; };
+  // Live manual record -> baked shape. Tier detection stays server-side; live rows default to
+  // T5/Area (mult 1) exactly like the bake's no-keyword floor — next bake refines if needed.
+  const tiManualRec = (m) => { const full = m.full_text || ""; const sc = Number(m.score) || 0;
+    return { player:m.player, team:m.team, date:m.date, score:sc,
+      color: tiColorWord(full) || TI_SCORE_COLOR[String(sc)] || null,
+      full_text: full, note: full, is_manual: true, id: m.id,
+      attendee_tier: 5, tier_multiplier: 1, tier_label: "Area", channel: null,
+      workout: !!m.workout, combine: !!m.combine, workout_dates: m.workout_dates || [] }; };
+  // Mirrors fetch_and_build.apply_overrides (score/'NA' -> tier -> team -> workout/combine ->
+  // color w/ auto-expire against a newer Slack colored record). pk| keys are dashboard-only.
+  function applyTiOverrides(recs, ov, meta) {
+    if (!ov) return recs;
+    const score={}, pts={}, team={}, pdw={}, cmb={}, col={};
+    for (const [k,v] of Object.entries(ov)) { const p = k.split("|");
+      if (k.startsWith("cb|")) { if (p.length===3) cmb[p[1]+"|"+p[2]] = v; }
+      else if (k.startsWith("w|")) { if (p.length===3) pdw[p[1]+"|"+p[2]] = v; }
+      else if (k.startsWith("t|")) { if (p.length===4) pts[p[1]+"|"+p[2]+"|"+p[3]] = v; }
+      else if (k.startsWith("c|")) { if (p.length===3) col[p[1]+"|"+p[2]] = [v, ((meta&&meta[k])||"").slice(0,10) || "9999-12-31"]; }
+      else if (k.startsWith("pk|")) continue;
+      else if (k.startsWith("mt|")) { if (p.length===4) team[p[1]+"|"+p[2]+"|"+p[3]] = v; }
+      else if (p.length===3) score[k] = v;
+    }
+    const out = [];
+    for (const r of recs) { const rk = r.player+"|"+r.team+"|"+r.date; const c = {...r};
+      if (rk in score) { if (score[rk]==="NA") continue; c.score = score[rk]; c.score_overridden = true; }
+      if (rk in pts && typeof pts[rk]==="number") c.tier_multiplier = pts[rk];
+      out.push(c);
+    }
+    for (const [k,nt] of Object.entries(team)) { const [pl,ot,dt] = k.split("|");
+      for (const r of out) if (r.player===pl && r.team===ot && r.date===dt) { r.team = nt; r.team_overridden = true; } }
+    for (const [k,v] of Object.entries(pdw)) { const [pl,tm] = k.split("|");
+      for (const r of out) if (r.player===pl && r.team===tm) r.workout = !!v; }
+    for (const [k,v] of Object.entries(cmb)) { const [pl,tm] = k.split("|");
+      for (const r of out) if (r.player===pl && r.team===tm) r.combine = !!v; }
+    for (const [k,[v,edit]] of Object.entries(col)) { if (!v) continue; const [pl,tm] = k.split("|");
+      const rs = out.filter(r=>r.player===pl && r.team===tm).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+      if (!rs.length) continue;
+      if (rs.some(r=>r.color && !r.is_manual && (r.date||"") > edit)) continue;   // fresher Slack color wins
+      rs[0].color = v; rs[0].color_overridden = true; }
+    return out;
+  }
   let _tiRaw = "";
   async function loadTeamIntel(rerender) {
     try {
       // 30s cache-bust bucket: no-store only skips the BROWSER cache — Vercel's edge serves this
       // file with swr up to an hour stale; a fresh query string forces a new CDN cache key.
-      const txt = await fetch(`${TEAMINTEL_URL}?v=${Math.floor(Date.now()/30000)}`, { cache:"no-store" }).then(r=>r.text());
-      if (txt === _tiRaw) return false;                 // unchanged — skip rebuild + re-render
-      _tiRaw = txt;
+      // Live Redis endpoints are uncached; both fail soft to the baked feed alone.
+      const [txt, mrRaw, ovRaw] = await Promise.all([
+        fetch(`${TEAMINTEL_URL}?v=${Math.floor(Date.now()/30000)}`, { cache:"no-store" }).then(r=>r.text()),
+        fetch(`${TEAMINTEL_API}/manual-records`, { cache:"no-store" }).then(r=>r.ok?r.json():null).catch(()=>null),
+        fetch(`${TEAMINTEL_API}/overrides?meta=1`, { cache:"no-store" }).then(r=>r.ok?r.json():null).catch(()=>null),
+      ]);
+      const combined = txt + " " + JSON.stringify(mrRaw) + " " + JSON.stringify(ovRaw);
+      if (combined === _tiRaw) return false;            // unchanged — skip rebuild + re-render
+      _tiRaw = combined;
       const ti = JSON.parse(txt);
-      DATA.intel = Array.isArray(ti) ? ti : (ti.records || []);
+      let recs = Array.isArray(ti) ? ti : (ti.records || []);
+      if (mrRaw && typeof mrRaw === "object") {         // live manual rows not yet in the bake (dedupe by mr_ id)
+        const baked = new Set(recs.map(r=>r.id).filter(Boolean));
+        for (const m of Object.values(mrRaw)) {
+          if (m && m.player && m.team && m.date && !baked.has(m.id)) recs.push(tiManualRec(m));
+        }
+      }
+      const ovVals = ovRaw && ovRaw.values ? ovRaw.values : ovRaw;
+      recs = applyTiOverrides(recs, ovVals, ovRaw && ovRaw.meta);
+      DATA.intel = recs;
       DATA.clients = new Set(DATA.intel.map(r => normName(r.player)));
       // distinct clients, attach composite entry
       const names = [...new Set(DATA.intel.map(r => r.player))];
