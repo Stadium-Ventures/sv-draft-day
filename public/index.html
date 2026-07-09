@@ -44,19 +44,29 @@
   .prebanner { display:flex; flex-direction:column; align-items:center; gap:3px; padding:8px 16px; background:#fff; border-bottom:1px solid var(--line); font-size:13px; font-weight:700; color:var(--ink); position:sticky; top:90px; z-index:4; }
   .prebanner b { color:var(--red); font-variant-numeric:tabular-nums; }
   .prebanner .pb-main { display:flex; align-items:center; gap:7px; white-space:nowrap; }
-  .prebanner .sched { text-align:center; font-size:11px; font-weight:600; color:var(--muted); line-height:1.5; }
-  .prebanner .sched b { color:var(--ink); white-space:nowrap; }
-  .prebanner .sched .sep { color:var(--line); padding:0 3px; }
-  .prebanner .sched .s-short { display:none; }
   body.mob .prebanner { padding:8px 10px; }
-  body.mob .prebanner .sched { cursor:pointer; padding:1px 0; -webkit-tap-highlight-color:transparent; }
-  body.mob .prebanner .sched .s-short { font-size:9.5px; letter-spacing:-.2px; white-space:nowrap; }
-  body.mob .prebanner .sched .s-full { display:none; }
-  body.mob .prebanner .sched .s-short { display:inline; }
-  body.mob .prebanner .sched.open .s-full { display:inline; }
-  body.mob .prebanner .sched.open .s-short { display:none; }
-  body.mob .prebanner .sched::after { content:" ▾"; color:var(--muted); font-size:9px; }
-  body.mob .prebanner .sched.open::after { content:" ▴"; }
+  /* how-to-watch: compact pill -> dropdown card with per-window broadcast + stream links */
+  .pb-watch { position:relative; display:inline-block; }
+  .pb-watchbtn { font:inherit; font-size:11px; font-weight:800; color:var(--muted); background:#fff; border:1px solid var(--line); border-radius:999px; padding:3px 12px; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .pb-watchbtn:hover, .pb-watch.open .pb-watchbtn { color:var(--ink); border-color:#ccc; }
+  .watch-card { display:none; position:absolute; top:calc(100% + 6px); left:50%; transform:translateX(-50%); width:min(360px, calc(100vw - 24px)); background:#fff; border:1px solid var(--line); border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.14); padding:10px 14px 12px; z-index:40; text-align:left; }
+  .pb-watch.open .watch-card { display:block; }
+  .watch-card h5 { margin:4px 0 3px; font-size:11px; font-weight:900; text-transform:uppercase; letter-spacing:.5px; color:var(--red); }
+  .watch-card h5 span { color:var(--muted); font-weight:600; text-transform:none; letter-spacing:0; }
+  .watch-row { display:flex; align-items:baseline; gap:8px; padding:3px 0; font-size:12px; }
+  .watch-row .wt { font-weight:800; font-variant-numeric:tabular-nums; white-space:nowrap; min-width:62px; }
+  .watch-row .wp { color:var(--muted); font-weight:600; flex:1; }
+  .watch-row a { color:var(--red); font-weight:800; text-decoration:none; white-space:nowrap; }
+  .watch-row a:hover { text-decoration:underline; }
+  /* during the draft the banner slot becomes the primary on-the-clock display */
+  .prebanner.liveoc { flex-direction:row; justify-content:center; align-items:center; gap:14px; padding:9px 16px; cursor:pointer; }
+  .prebanner.liveoc .oc-lab { font-size:11px; font-weight:800; letter-spacing:1.5px; text-transform:uppercase; color:var(--red); display:flex; align-items:center; gap:7px; }
+  .prebanner.liveoc .oc-team { font-size:18px; font-weight:900; display:flex; align-items:center; gap:7px; line-height:1; }
+  .prebanner.liveoc .oc-cd { font-size:22px; font-weight:900; font-variant-numeric:tabular-nums; line-height:1; }
+  .prebanner.liveoc .oc-cd.low { color:var(--red); }
+  .prebanner.liveoc .oc-meta { font-size:12px; font-weight:700; color:var(--muted); }
+  body.mob .prebanner.liveoc { gap:9px; padding:7px 10px; flex-wrap:wrap; }
+  body.mob .prebanner.liveoc .oc-meta { flex-basis:100%; text-align:center; margin-top:-2px; }
   .pulse { width:8px; height:8px; border-radius:50%; background:var(--red); box-shadow:0 0 0 0 rgba(255,42,34,.5); animation:pulse 1.6s infinite; }
   @keyframes pulse { 70% { box-shadow:0 0 0 7px rgba(255,42,34,0); } 100% { box-shadow:0 0 0 0 rgba(255,42,34,0); } }
   /* X leading-intel strip: amber = unofficial, never the red/green of the official ticker */
@@ -320,6 +330,12 @@
   /* ── Card grid view ── */
   .board-grid { display:flex; flex-wrap:wrap; gap:5px; }
   .bc-rnd { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); margin:10px 0 4px; width:100%; }
+  /* completed rounds fold into their header — the current round owns the screen */
+  .bc-rnd.done { cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .bc-rnd.done:hover .rc-tgl { color:var(--ink); }
+  .bc-rnd .rc-sum { font-weight:600; text-transform:none; letter-spacing:0; color:var(--muted); }
+  .bc-rnd .rc-sum b { color:var(--red); font-weight:800; }
+  .bc-rnd .rc-tgl { font-weight:800; color:#b9b9b9; padding-left:4px; }
   .bcard { background:#fff; border:1px solid var(--line); border-radius:9px; padding:7px 8px; width:104px; min-height:104px; font-size:12px; display:flex; flex-direction:column; cursor:pointer; }
   .bcard:hover { border-color:var(--red); }
   .bcard.sv { background:#fff5f6; border-color:#f1b8c1; }
@@ -1194,7 +1210,9 @@
   .nb-pickrow:hover { background:#f4f4f4; }
   .nb-teamgrid { display:grid; grid-template-columns:repeat(6,1fr); gap:4px; }
   .nb-teamgrid .nb-chip { text-align:center; padding:4px 0; border-radius:7px; }
-  .nb-filters { display:flex; gap:6px; padding:8px 12px; border-bottom:1px solid var(--line); }
+  .nb-filters { display:flex; gap:6px; padding:8px 12px; border-bottom:1px solid var(--line); align-items:center; }
+  .nb-search { margin-left:auto; flex:0 1 170px; min-width:100px; border:1px solid var(--line); border-radius:999px; padding:4px 11px; font:inherit; font-size:11px; font-weight:600; color:var(--ink); outline:none; }
+  .nb-search:focus { border-color:#ccc; }
   #nbFeed { overflow-y:auto; padding:6px 12px 10px; flex:1; min-height:60px; }
   .nb-note { padding:7px 0; border-bottom:1px solid #f0f0ef; font-size:12px; }
   .nb-note .m { display:flex; gap:7px; align-items:center; margin-bottom:2px; }
@@ -2021,7 +2039,7 @@
         fetch(`${TEAMINTEL_API}/manual-records`, { cache:"no-store" }).then(r=>r.ok?r.json():null).catch(()=>null),
         fetch(`${TEAMINTEL_API}/overrides?meta=1`, { cache:"no-store" }).then(r=>r.ok?r.json():null).catch(()=>null),
       ]);
-      const combined = txt + " " + JSON.stringify(mrRaw) + " " + JSON.stringify(ovRaw);
+      const combined = txt + "\u0000" + JSON.stringify(mrRaw) + "\u0000" + JSON.stringify(ovRaw);
       if (combined === _tiRaw) return false;            // unchanged — skip rebuild + re-render
       _tiRaw = combined;
       const ti = JSON.parse(txt);
@@ -3524,6 +3542,9 @@
     }
   };
 
+  // manual overrides on the auto-fold of completed rounds (session-scoped)
+  const openRounds = new Set();
+  window.toggleRound = (r) => { openRounds.has(r) ? openRounds.delete(r) : openRounds.add(r); renderActive(); };
   function renderBoardGrid(state) {
     const svOnly = $("bSv").checked, focus = boardSelClients.size>0, CAP = 6;
     // Exactly one player selected → full intel-color "heat" board around that player.
@@ -3532,11 +3553,27 @@
     // One continuous flex grid; full-width round headers force a wrap. Dedupe by
     // round so interleaved comp/PPI picks don't re-emit "Round 1" repeatedly.
     let html = `<div class="board-grid">`;
+    // Completed rounds fold to a one-line summary so the current round owns the
+    // screen — SV picks stay named on the folded header; tap re-expands. Not
+    // applied in SV-only mode (that view is already sparse).
+    const rdStat = new Map();
+    for (const p of state.picks) {
+      let s = rdStat.get(p.round); if (!s) rdStat.set(p.round, s = { total:0, done:0, sv:[] });
+      s.total++; if (p.isDrafted || p.isPass) s.done++;
+      if (p.isDrafted && p.player && DATA.clients.has(normName(p.player))) s.sv.push(p.player);
+    }
     const seenRounds = new Set();
     for (const p of state.picks) {
       const ours = p.isDrafted && DATA.clients.has(normName(p.player||""));
       if (svOnly && !ours) continue;
-      if (!seenRounds.has(p.round)) { seenRounds.add(p.round); html += `<div class="bc-rnd">${roundLabel(p.round)}</div>`; }
+      const rs = rdStat.get(p.round), complete = rs.done === rs.total;
+      const folded = complete && !svOnly && !openRounds.has(String(p.round));
+      if (!seenRounds.has(p.round)) {
+        seenRounds.add(p.round);
+        const sum = complete ? ` <span class="rc-sum">· ✓ ${rs.total} picks${rs.sv.length?` · <b>SV:</b> ${rs.sv.map(_esc).join(", ")}`:""}</span><span class="rc-tgl">${folded?"▸ expand":"▾ collapse"}</span>` : "";
+        html += `<div class="bc-rnd${complete?" done":""}"${complete?` onclick="toggleRound('${String(p.round).replace(/'/g,"\\'")}')"`:""}>${roundLabel(p.round)}${sum}</div>`;
+      }
+      if (folded) continue;
       const onclock = state.onClock && state.onClock.overall === p.overall;
       let cardCls = `bcard ${ours?"sv":""} ${onclock?"oc":""}`, dotsHtml = "", body, cardStyle = "";
       if (p.isDrafted) {
@@ -3808,7 +3845,7 @@
   // ---------- WAR-ROOM NOTEBOOK — shared free-form notes (kind:"note" via /api/intel) ----------
   // The panel renders itself only (never from the global render loop), so the composer draft,
   // tag pick, and open pickers survive live ticks; loadIntel refreshes just the feed list.
-  let nbOpen=false, nbFilter="all", nbDraft="", nbTag=null, nbPicker=null, nbQ="", nbBusy=false;
+  let nbOpen=false, nbFilter="all", nbDraft="", nbTag=null, nbPicker=null, nbQ="", nbBusy=false, nbSearch="";
   window.toggleNotebook = (open) => {
     nbOpen = typeof open === "boolean" ? open : !nbOpen;
     $("nbBtn").classList.toggle("on", nbOpen);
@@ -3833,12 +3870,17 @@
     if (nbFilter==="players") evs = evs.filter(e=>e.player_name);
     else if (nbFilter==="teams") evs = evs.filter(e=>!e.player_name && e.team);
     else if (nbFilter==="general") evs = evs.filter(e=>!e.player_name && !e.team);
-    el.innerHTML = evs.length ? evs.map(e=>nbNoteRow(e)).join("") : `<div class="placeholder">No notes yet.</div>`;
+    const q = nbSearch.trim().toLowerCase();
+    if (q) evs = evs.filter(e => [e.note, e.player_name, e.team, e.agent].some(v => (v||"").toLowerCase().includes(q)));
+    el.innerHTML = evs.length ? evs.map(e=>nbNoteRow(e)).join("")
+      : `<div class="placeholder">${q ? "No notes match." : "No notes yet."}</div>`;
   }
   window.nbSetFilter = (f) => { nbFilter=f; renderNotebook(); };
   window.nbSetTag = (t) => { nbTag=t; nbPicker=null; nbQ=""; renderNotebook(); };   // one tag at a time
   window.nbTogglePicker = (w) => { nbPicker = nbPicker===w ? null : w; nbQ=""; renderNotebook(); };
   window.nbInput = (v) => { nbDraft = v; };
+  // feed-only re-render keeps focus in the search box while typing
+  window.nbSearchInput = (v) => { nbSearch = v; renderNbFeed(); };
   window.nbQuery = (v) => { nbQ = v; const el = $("nbPickList"); if (el) el.innerHTML = nbPickRows(); };
   function nbPickRows() {
     const q = normName(nbQ); if (!q) return "";
@@ -3867,9 +3909,11 @@
           ${chip(nbTag?.type==="team", "nbTogglePicker('team')", nbTag?.type==="team" ? nbTag.abbr+" ▾" : "Team ▾")}
           <button class="ctl primary" style="margin-left:auto;padding:4px 12px" onclick="nbSave()" ${nbBusy?"disabled":""}>Save</button>
         </div>${nbPickerHtml()}</div>
-      <div class="nb-filters">${["all","players","teams","general"].map(f=>chip(nbFilter===f, `nbSetFilter('${f}')`, f[0].toUpperCase()+f.slice(1))).join("")}</div>
+      <div class="nb-filters">${["all","players","teams","general"].map(f=>chip(nbFilter===f, `nbSetFilter('${f}')`, f[0].toUpperCase()+f.slice(1))).join("")}
+        <input class="nb-search" id="nbSearchIn" type="search" placeholder="Search notes…" autocomplete="off" oninput="nbSearchInput(this.value)"></div>
       <div id="nbFeed"></div>`;
     $("nbText").value = nbDraft;   // unsent draft survives every re-render
+    $("nbSearchIn").value = nbSearch;
     if (nbPicker==="player") $("nbPickQ").value = nbQ;
     renderNbFeed();
   }
@@ -6129,22 +6173,49 @@
   }
   let lastPre = false;
   const isPreDraft = () => MODE==="live" && currentState && currentState.madeCount===0 && Date.now() < DRAFT_START;
+  // One banner slot, two modes: pre-draft countdown + how-to-watch dropdown; once the
+  // draft is underway it becomes the primary ON THE CLOCK display (bigger than the
+  // header chip). Built once per mode — only countdown text ticks, so the open
+  // watch-card dropdown survives re-renders.
+  const WATCH_CARD = `<div class="pb-watch" id="pbWatch"><button class="pb-watchbtn" onclick="document.getElementById('pbWatch').classList.toggle('open')">📺 How to watch ▾</button>
+    <div class="watch-card">
+      <h5>Day 1 <span>· Sat 7/11 · Rounds 1–4 · times ET</span></h5>
+      <div class="watch-row"><span class="wt">1:00 PM</span><span class="wp">Picks 1–10</span><a href="https://www.peacocktv.com" target="_blank" rel="noopener">NBC / Peacock ↗</a></div>
+      <div class="watch-row"><span class="wt">2:30 PM</span><span class="wp">Picks 11–40</span><a href="https://www.mlb.com/network" target="_blank" rel="noopener">MLB Network ↗</a>&nbsp;<a href="https://www.mlb.com/draft" target="_blank" rel="noopener">MLB.com ↗</a></div>
+      <div class="watch-row"><span class="wt">4:30 PM</span><span class="wp">Picks 41–135</span><a href="https://www.mlb.com/draft" target="_blank" rel="noopener">MLB.com ↗</a></div>
+      <h5 style="margin-top:9px">Day 2 <span>· Sun 7/12 · Rounds 5–20 · times ET</span></h5>
+      <div class="watch-row"><span class="wt">11:30 AM</span><span class="wp">– 7:30 PM · all picks</span><a href="https://www.mlb.com/draft" target="_blank" rel="noopener">MLB.com ↗</a></div>
+    </div></div>`;
   function updatePreDraft() {
     const pre = isPreDraft(), b = $("preBanner");
-    if (b) {
-      if (pre) {
-        b.style.display = "";
-        // build once — only the countdown span ticks, so the mobile tap-expanded schedule survives re-renders
-        if (!b.dataset.built) {
-          b.dataset.built = "1";
-          b.innerHTML = `<div class="pb-main"><span class="pulse"></span><span>2026 MLB Draft &middot; <b id="draftCountdown"></b> &middot; Sat 7/11 1:00 PM ET</span></div>
-            <div class="sched" onclick="this.classList.toggle('open')"><span class="s-short"><b>Day 1</b> Sat 1:00 ET (NBC/Peacock, MLB Net) · <b>Day 2</b> Sun 11:30 ET (MLB.com)</span><span class="s-full"><b>Day 1</b> Sat 7/11 · R1–4 — 1:00 picks 1–10 (NBC/Peacock) · 2:30 picks 11–40 (MLB Network, MLB.com) · 4:30 picks 41–135 (MLB.com) <span class="sep">|</span> <b>Day 2</b> Sun 7/12 · R5–20 — 11:30 AM–7:30 PM (MLB.com)</span></div>`;
-        }
-        const sp = document.getElementById("draftCountdown");
-        if (sp) sp.textContent = fmtCountdown(DRAFT_START-Date.now());
+    if (!b) return;
+    const oc = currentState && currentState.onClock;
+    if (pre) {
+      b.style.display = "";
+      if (b.dataset.mode !== "pre") {
+        b.dataset.mode = "pre"; b.className = "prebanner"; b.onclick = null;
+        b.innerHTML = `<div class="pb-main"><span class="pulse"></span><span>2026 MLB Draft &middot; <b id="draftCountdown"></b> &middot; Sat 7/11 1:00 PM ET</span></div>${WATCH_CARD}`;
       }
-      else b.style.display = "none";
-    }
+      const sp = document.getElementById("draftCountdown");
+      if (sp) sp.textContent = fmtCountdown(DRAFT_START-Date.now());
+    } else if (oc && timer.pick) {
+      b.style.display = "";
+      if (b.dataset.mode !== "live") {
+        b.dataset.mode = "live"; b.className = "prebanner liveoc";
+        b.innerHTML = `<span class="oc-lab"><span class="pulse"></span>On the clock</span><span class="oc-team" id="ocbTeam"></span><span class="oc-cd" id="ocbCd"></span><span class="oc-meta" id="ocbMeta"></span>`;
+      }
+      b.onclick = () => openTeam(oc.team);
+      $("ocbTeam").innerHTML = `${teamLogo(oc.team,20)}${oc.team||"—"}`;
+      $("ocbMeta").textContent = `Pick #${oc.overall} · ${roundLabel(oc.round)}${oc.slot>0?` · slot ${fmtM(oc.slot)}`:""}`;
+      const cd = $("ocbCd");
+      if (MODE === "live" && liveClock === "off") { cd.textContent = ""; }
+      else {
+        const leftMs = timer.endsAt != null ? (timer.endsAt - Date.now()) : timer.remainingMs;   // frozen when paused
+        const left = Math.max(0, Math.round((leftMs||0)/1000));
+        cd.textContent = `${Math.floor(left/60)}:${String(left%60).padStart(2,"0")}`;
+        cd.className = `oc-cd${left<=15?" low":""}`;
+      }
+    } else { b.style.display = "none"; b.dataset.mode = ""; }
   }
   function tick() {
     renderCountdown();
