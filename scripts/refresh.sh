@@ -7,6 +7,7 @@ echo "▸ rebuilding data…"
 python3 scripts/build_data.py
 python3 scripts/build_homegrown.py
 python3 scripts/build_prospects.py
+python3 scripts/build_warhist.py   # WAR lookback; reads public/data/aWAR.xlsx (--awar to override)
 if git diff --quiet public/data; then
   echo "✓ no data changes — nothing to deploy."
   exit 0
