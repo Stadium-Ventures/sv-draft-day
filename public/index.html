@@ -4447,12 +4447,22 @@
         const best = [["Reach MLB", f.dir.reach], ["Development", f.dir.develop],
           ["Pipeline speed", f.dir.speed], ["Earnings", f.dir.earn]]
           .filter(([, d]) => d.known).sort((a, b) => b[1].v - a[1].v)[0];
-        rows.push({ c, t, pk, emp, interest: f.interestN,
-          score: emp * (1 - f.interestN), best, f });
+        // projectability-weighted: a deep flier with zero intel shouldn't outrank a
+        // credible client — caliber scales the hidden score (0.5 floor keeps deep
+        // names visible, just not on top)
+        const cal = calibOf(c).calib01;
+        rows.push({ c, t, pk, emp, interest: f.interestN, cal,
+          score: emp * (1 - f.interestN) * (cal != null ? 0.5 + 0.5 * cal : 0.75), best, f });
       }
     }
     rows.sort((a, b) => b.score - a.score);
-    const top = rows.slice(0, 15);
+    // max 2 rows per player so one extreme profile can't monopolize the list
+    const perPlayer = {}, top = [];
+    for (const r of rows) {
+      const k = normName(r.c.name);
+      if ((perPlayer[k] = (perPlayer[k] || 0) + 1) <= 2) top.push(r);
+      if (top.length >= 15) break;
+    }
     if (!top.length) return `<div class="placeholder">No hidden fits under the current filters — every strong empirical match already has live intel (or lacks a pick in range).</div>`;
     let h = `<div class="tc-sub" style="margin:2px 0 8px">Strong <b>empirical</b> org fits with little-to-no logged SV interest — candidates we may not be seeing (or being told about) yet. Empirical = regime-aware development · pool · spending · depth · geography.</div>`;
     h += `<table class="tc-upc"><thead><tr><th>Player</th><th>Team</th><th>Hidden</th><th>Emp fit</th><th>Intel</th><th>Strongest angle</th><th>Pick in range</th></tr></thead><tbody>`;
