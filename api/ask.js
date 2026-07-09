@@ -12,9 +12,27 @@ const MAX_CONTEXT_BYTES = 80 * 1024;   // hard cap on client-packed context
 
 const SYSTEM = `You are the analytics desk inside a baseball agency's MLB Draft war room, live on draft day.
 The user is an agent advising drafted-and-draftable clients on signing bonuses, slot values, and leverage.
-Answer from the DRAFT DATA provided in the message. Be direct and quantitative; cite picks, slots, and
-dollar figures from the data. If the data doesn't cover the question, say what's missing rather than guessing.
-Keep answers tight — a few sentences or a short list; this is read on a console mid-draft.`;
+The DRAFT DATA in the message is split into tagged sections — [DRAFT-STATUS], [POOLS], [CLIENTS],
+[PICK-#5 HISTORY 2018-25], [TEAM MIN], and the like. Hard rules:
+- Answer ONLY from those tagged sections. Never estimate, extrapolate, or fill gaps from memory.
+- After every number or fact, cite the section tag it came from in brackets, e.g. "($8.34M [POOLS])".
+- If no section covers what's asked, say plainly "not in the provided data" and name what's missing.
+Keep the war-room tone: direct, quantitative, tight — a few sentences or a short list, read on a console mid-draft.`;
+
+// Oversized context: drop whole trailing sections (a line starting with "[" opens a section)
+// until it fits — never a raw byte slice that cuts a section mid-row.
+function truncateContext(context, maxBytes) {
+  if (Buffer.byteLength(context, "utf8") <= maxBytes) return context;
+  const sections = []; let cur = [];
+  for (const ln of context.split("\n")) {
+    if (ln.startsWith("[") && cur.length) { sections.push(cur.join("\n")); cur = []; }
+    cur.push(ln);
+  }
+  if (cur.length) sections.push(cur.join("\n"));
+  let dropped = 0;
+  while (sections.length > 1 && Buffer.byteLength(sections.join("\n"), "utf8") > maxBytes) { sections.pop(); dropped++; }
+  return sections.join("\n") + `\n[TRUNCATED: ${dropped} sections dropped]`;
+}
 
 module.exports = async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -28,10 +46,7 @@ module.exports = async (req, res) => {
     const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {});
     const question = (body.question || "").trim();
     if (!question) return res.status(400).json({ error: "question required" });
-    let context = String(body.context || "");
-    if (Buffer.byteLength(context, "utf8") > MAX_CONTEXT_BYTES) {
-      context = context.slice(0, MAX_CONTEXT_BYTES);
-    }
+    const context = truncateContext(String(body.context || ""), MAX_CONTEXT_BYTES);
 
     const r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -59,3 +74,4 @@ module.exports = async (req, res) => {
     return res.status(500).json({ error: String(err.message || err) });
   }
 };
+module.exports.truncateContext = truncateContext;   // exported for tests

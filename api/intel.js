@@ -15,7 +15,8 @@ const TABLE = "draft_intel_events";
 // bonus = a rumored or confirmed signing bonus (offer_type carries "rumored"|"confirmed", amount = $)
 // agency (note = representing agency name, "" clears) is a player-scoped setting shared
 // across the war room; latest event per player wins.
-const KINDS = ["interest_sought", "interest_received", "rule_out", "strike_window", "offer", "medical", "range", "bonus", "agency"];
+// note = free-form war-room notebook entry; player_name/team optional tags, note text required.
+const KINDS = ["interest_sought", "interest_received", "rule_out", "strike_window", "offer", "medical", "range", "bonus", "agency", "note"];
 
 function rest(path, opts = {}) {
   return fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
@@ -48,10 +49,11 @@ module.exports = async (req, res) => {
     if (req.method === "POST") {
       const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {});
       if (!body.kind || !KINDS.includes(body.kind)) return res.status(400).json({ error: "invalid or missing kind" });
-      if (!body.player_name) return res.status(400).json({ error: "player_name required" });
+      if (!body.player_name && body.kind !== "note") return res.status(400).json({ error: "player_name required" });
+      if (body.kind === "note" && !String(body.note || "").trim()) return res.status(400).json({ error: "note text required" });
       const row = {
         player_id: body.player_id ?? null,
-        player_name: body.player_name,
+        player_name: body.player_name ?? null,
         team: body.team ?? null,
         kind: body.kind,
         strength: body.strength ?? null,

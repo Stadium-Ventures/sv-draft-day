@@ -71,6 +71,7 @@
   h2 { font-size:13px; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); margin:22px 0 8px; }
   .placeholder { color:var(--muted); font-size:13px; border:1px dashed var(--line); border-radius:10px; padding:12px; background:#fff; }
   .idot { width:12px; height:12px; border-radius:50%; border:1px solid rgba(0,0,0,.15); display:inline-block; }
+  .idot.nr { background:transparent; border:1.5px dashed rgba(0,0,0,.35); }  /* unranked client — hollow ring in his intel color */
   .idot[data-intel-key] { cursor:help; }
   .pdw { font-size:10px; font-weight:800; color:var(--red); border:1px solid var(--red); border-radius:4px; padding:1px 5px; }
   .pdw.cmb { color:#3949ab; border-color:#3949ab; margin-left:4px; }
@@ -153,6 +154,9 @@
   .cl-int .cl-pk.na { color:#c2c7cd; }
   .cl-none { color:#c2c7cd; }
   .cl-rng { color:var(--muted); font-weight:700; font-size:11px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .cl-rngedit { display:inline-flex; align-items:center; gap:3px; font-size:11px; font-weight:700; color:var(--muted); white-space:nowrap; }
+  .cl-rngedit input { width:46px; padding:3px 4px; border:1px solid var(--line); border-radius:5px; font:inherit; font-size:11px; }
+  .cl-rngedit .ctl { padding:3px 7px; font-size:10px; }
   /* player page — in-page version of the team-card look (stat band, numbered quadrants, foot) */
   .pp-stats { margin-top:12px; border-top:1px solid var(--line); padding-top:10px; }
   .pp-stats .tc-stat:first-child { border-left:none; padding-left:0; }
@@ -186,6 +190,9 @@
   .stat .k { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; }
   .stat .v { font-size:20px; font-weight:800; font-variant-numeric:tabular-nums; margin-top:2px; }
   .cols { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px; }
+  .cols > .colstack { display:flex; flex-direction:column; gap:14px; min-width:0; }
+  .td-upwrap { max-height:420px; overflow-y:auto; }                       /* all remaining picks — scroll, don't truncate */
+  .td-win { font-size:10px; font-weight:700; color:var(--muted); margin-left:6px; }  /* data-window label on tendency rows */
   .panel { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; }
   .panel h3 { margin:0 0 10px; font-size:12px; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); }
   .chips { display:flex; flex-wrap:wrap; gap:6px; }
@@ -503,16 +510,15 @@
   .pi-ovr { color:var(--muted); font-weight:600; margin-left:2px; }
   /* split proportion bar (Panel 2 mix metrics) — team share + league-avg tick */
   /* Team Profile metrics: label · Pct% · ± MLB avg · Rank, aligned in one clean grid */
-  .tc-vgrid { display:grid; grid-template-columns:1fr auto auto auto; column-gap:22px; align-items:baseline; margin-top:3px; }
+  .tc-vgrid { display:grid; grid-template-columns:1fr auto auto; column-gap:22px; align-items:baseline; margin-top:3px; }
   .tc-vgrid > div { padding:6px 0; border-top:1px solid var(--line); }
   .tc-vgrid .mh { border-top:none; padding:0 0 5px; font-size:8px; font-weight:800; text-transform:uppercase;
     letter-spacing:.4px; color:var(--muted); text-align:right; white-space:nowrap; }
   .tc-vgrid .mh:first-child { text-align:left; }
   .tc-vgrid .mk { font-size:12px; color:var(--muted); font-weight:700; }
-  .tc-vgrid .mv, .tc-vgrid .md, .tc-vgrid .mr { text-align:right; font-variant-numeric:tabular-nums; font-weight:800; }
+  .tc-vgrid .mv, .tc-vgrid .mr { text-align:right; font-variant-numeric:tabular-nums; font-weight:800; }
   .tc-vgrid .mv { font-size:13px; color:var(--ink); }
   .tc-vgrid .mv .ms { font-size:10px; color:var(--muted); margin-left:1px; }
-  .tc-vgrid .md { font-size:12.5px; color:var(--ink); }
   .tc-vgrid .mr { font-size:12.5px; color:var(--ink); }
   .tc-vgrid .mr .rk-hi { color:#1a7f37; } .tc-vgrid .mr .rk-lo { color:#c8102e; }
   /* 4-way HS/COL × Hitter/Pitcher heat matrix — a compact, right-anchored support graphic */
@@ -621,6 +627,7 @@
   #askOut:not(:empty) { margin-top:10px; padding-top:10px; border-top:1px solid var(--line); font-size:var(--fs-3); line-height:1.5; white-space:pre-wrap; }
   #askOut .ask-q { font-size:var(--fs-1); font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px; }
   #askOut .ask-err { color:var(--red); font-weight:700; }
+  #askOut .ask-tag { color:var(--muted); font-size:10px; font-weight:700; }
   .res-findin { flex:1 1 auto; min-width:0; font:inherit; font-size:var(--fs-3); font-weight:600; padding:5px 9px; border:1px solid #c9c9c7; border-radius:8px; }
   .res-findin:focus { outline:none; border-color:var(--red); }
   .res-findmenu { position:absolute; left:0; right:0; top:100%; margin-top:4px; z-index:31; background:#fff; border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,.15); overflow:hidden; }
@@ -656,8 +663,13 @@
   .res-subtab:hover { color:var(--ink); }
   .res-subtab.on { color:var(--red); border-bottom-color:var(--red); }
   /* Team-fit module — controls + heat grid (players × orgs) */
-  .rf-controls { margin-bottom:12px; }
+  /* Whole control stack sticks under the app chrome (mirrors .res-filters; --theadTop is
+     measured live) so the grid scrolls under it; page bg keeps the seam clean. */
+  #rfControls { position:sticky; top:var(--theadTop, 128px); z-index:10; background:var(--bg); padding-bottom:2px; }
+  body.mob #rfControls { position:static; }
+  .rf-controls { margin-bottom:8px; }
   .rf-controls .tc-wizgrp { margin-bottom:5px; }
+  .rf-fsep { font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); margin-left:12px; flex-shrink:0; }
   .rf-grade { -webkit-appearance:none; appearance:none; height:4px; border-radius:2px; background:var(--line); flex:0 0 150px; margin:0 4px; }
   .rf-grade::-webkit-slider-thumb { -webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:#fff; border:2.5px solid var(--red); cursor:pointer; }
   .rf-grade::-moz-range-thumb { width:12px; height:12px; border-radius:50%; background:#fff; border:2.5px solid var(--red); cursor:pointer; }
@@ -706,7 +718,7 @@
   .rf-wval { font-size:12px; font-weight:900; font-variant-numeric:tabular-nums; width:42px; text-align:right; flex:0 0 auto; }
   .rf-wfoot { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:6px; font-size:10px; color:var(--muted); font-weight:600; }
   .rf-note { font-size:10px; font-weight:700; color:var(--muted); margin:8px 2px 2px; text-transform:uppercase; letter-spacing:.3px; }
-  .rf-gridwrap { overflow:auto; border:1px solid #c9c9c7; border-radius:12px; max-height:calc(100vh - 260px); }
+  .rf-gridwrap { overflow:auto; border:1px solid #c9c9c7; border-radius:12px; max-height:calc(100vh - 330px); }
   .hf-scroll { max-height:62vh; overflow-y:auto; }
   .hf-scroll thead th { position:sticky; top:0; background:var(--card); z-index:2; }
   table.rf-grid { border-collapse:separate; border-spacing:0; }
@@ -752,6 +764,9 @@
   .fc2-strip { padding:8px 22px; border-top:1px solid var(--line); font-size:12.5px; color:var(--ink); display:flex; flex-wrap:wrap; align-items:center; gap:4px 7px; }
   .fc2-sk { font-size:9.5px; font-weight:900; letter-spacing:.5px; color:var(--muted); margin-right:4px; }
   .fc2-dim { color:var(--muted); font-weight:600; font-size:11px; }
+  .fc2-picks { margin-top:6px; font-size:10.5px; color:var(--muted); font-weight:600; line-height:1.55; }
+  .fc2-picks summary { cursor:pointer; font-weight:800; color:var(--ink); user-select:none; }
+  .fc2-legend { padding:6px 22px 10px; border-top:1px solid var(--line); font-size:10px; color:var(--muted); font-weight:600; }
   @media (max-width:640px){ .fc2-tiles { grid-template-columns:repeat(2,1fr); } .fc2-badge { font-size:16px; } }
   body.mob .fc2-tiles { grid-template-columns:repeat(2,1fr); }
   body.mob .fc2 { height:100dvh; overflow-y:auto; }
@@ -1115,6 +1130,51 @@
     padding:11px 12px; font-size:15px; box-shadow:0 2px 8px rgba(0,0,0,.06); }
   body.mob .ct { flex-wrap:wrap; }
   body.mob .tc-foot.pp-foot { position:static; }
+
+  /* ── war-room notebook: fixed FAB + slide-up panel (tap-first — works on iPad) ── */
+  #nbBtn { position:fixed; right:18px; bottom:18px; z-index:97; width:48px; height:48px; border-radius:50%;
+    border:1px solid var(--line); background:#fff; box-shadow:0 6px 18px rgba(0,0,0,.18); font-size:21px;
+    cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  #nbBtn.on { border-color:var(--red); box-shadow:0 6px 18px rgba(200,16,46,.25); }
+  body.tv #nbBtn { display:none; }   /* TV screens stay a passive market map */
+  #nbPanel { display:none; position:fixed; right:18px; bottom:76px; z-index:98; width:380px; max-width:calc(100vw - 24px);
+    max-height:min(560px, 72vh); flex-direction:column; overflow:hidden; background:#fff;
+    border:1px solid var(--line); border-radius:14px; box-shadow:0 16px 44px rgba(0,0,0,.24); }
+  #nbPanel.on { display:flex; }
+  .nb-head { display:flex; align-items:center; gap:8px; padding:10px 12px; border-bottom:1px solid var(--line);
+    font-weight:800; font-size:13px; }
+  .nb-head .x { margin-left:auto; border:0; background:none; font-size:16px; cursor:pointer; color:var(--muted); padding:2px 6px; }
+  .nb-comp { padding:10px 12px; border-bottom:1px solid var(--line); }
+  .nb-comp textarea { width:100%; box-sizing:border-box; font:inherit; font-size:13px; padding:7px 9px;
+    border:1px solid #c9c9c7; border-radius:8px; resize:vertical; min-height:44px; }
+  .nb-comp textarea:focus { outline:none; border-color:var(--red); }
+  .nb-tagrow { display:flex; gap:6px; align-items:center; margin-top:7px; flex-wrap:wrap; }
+  .nb-chip { border:1px solid var(--line); background:#fff; border-radius:999px; padding:4px 10px;
+    font:inherit; font-size:11px; font-weight:700; color:#6b7280; cursor:pointer; }
+  .nb-chip.on { border-color:var(--red); color:var(--red); background:#fff5f6; }
+  .nb-picker { margin-top:7px; }
+  .nb-picker input { width:100%; box-sizing:border-box; font:inherit; font-size:12px; padding:6px 9px;
+    border:1px solid #c9c9c7; border-radius:8px; }
+  .nb-picklist { max-height:150px; overflow-y:auto; margin-top:4px; }
+  .nb-pickrow { padding:6px 9px; font-size:12px; font-weight:600; cursor:pointer; border-radius:6px; }
+  .nb-pickrow:hover { background:#f4f4f4; }
+  .nb-teamgrid { display:grid; grid-template-columns:repeat(6,1fr); gap:4px; }
+  .nb-teamgrid .nb-chip { text-align:center; padding:4px 0; border-radius:7px; }
+  .nb-filters { display:flex; gap:6px; padding:8px 12px; border-bottom:1px solid var(--line); }
+  #nbFeed { overflow-y:auto; padding:6px 12px 10px; flex:1; min-height:60px; }
+  .nb-note { padding:7px 0; border-bottom:1px solid #f0f0ef; font-size:12px; }
+  .nb-note .m { display:flex; gap:7px; align-items:center; margin-bottom:2px; }
+  .nb-note .t { color:var(--muted); font-size:10px; font-weight:700; }
+  .nb-note .tag { border-radius:999px; padding:1px 8px; font-size:10px; font-weight:800; background:#f1f2f4; color:#374151; }
+  .nb-note .tag.lnk { cursor:pointer; color:var(--red); background:#fff5f6; }
+  .nb-note .del { margin-left:auto; border:0; background:none; color:#b6bcc4; cursor:pointer; font-size:13px; padding:0 4px; }
+  .nb-note .txt { white-space:pre-wrap; word-break:break-word; }
+  .nb-mini h5 { margin:0 0 4px; font-size:10px; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); }
+  .nb-mini .nb-note { border-bottom:none; padding:3px 0; }
+  .nb-mini-more { font-size:11px; font-weight:700; color:var(--red); cursor:pointer; margin-top:3px; }
+  body.mob #nbBtn { right:12px; bottom:calc(122px + env(safe-area-inset-bottom)); }   /* clears #mtabs + #mJump */
+  body.mob #nbPanel { left:0; right:0; bottom:0; width:auto; max-width:none; border-radius:14px 14px 0 0;
+    max-height:78dvh; z-index:75; padding-bottom:env(safe-area-inset-bottom); }
 </style>
 
 <header>
@@ -1282,6 +1342,10 @@
   <button data-view="research" onclick="setView('research')"><span class="mi">⌕</span>Research</button>
 </nav>
 
+<!-- War-room notebook: shared free-form notes over /api/intel (kind:"note") — every view -->
+<button id="nbBtn" onclick="toggleNotebook()" aria-label="War-room notebook">📝</button>
+<div id="nbPanel"></div>
+
 <div id="orgTip"></div>
 <div id="ticker"></div>
 <div id="rksTip"></div>
@@ -1350,9 +1414,11 @@
   let RANGES = {};   // normName -> { lo, hi }  (pick numbers)
   try { RANGES = JSON.parse(localStorage.getItem("dd:ranges") || "{}"); } catch (e) {}
   // Effective hard-range for the engine: local manual range wins; else a captured strike window.
+  // Accepts a comp/client record (anything with .name) or a bare normName key — unranked
+  // clients (comp:null) resolve by key, so their manual ranges/strike windows still surface.
   const rangeOf = (comp) => {
     if (!comp) return null;
-    const k = normName(comp.name);
+    const k = typeof comp === "string" ? comp : normName(comp.name);
     if (RANGES[k]) return RANGES[k];
     const s = (typeof INTEL !== "undefined" && INTEL.byKey) ? INTEL.byKey.get(k) : null;
     return (s && s.window && (s.window.lo || s.window.hi)) ? { lo: s.window.lo, hi: s.window.hi } : null;
@@ -1360,10 +1426,12 @@
   // Effective landing window wherever interest is DISPLAYED: manual range / strike window
   // first, else the engine's estimate around his rank (est:true). The mock engine's hard
   // locks keep reading rangeOf directly — an estimate must never force a pick.
+  // No rank (unranked client / bare key) → no estimate: window exists only if set.
   const effRangeOf = (comp) => {
     const rg = rangeOf(comp);
     if (rg && (rg.lo || rg.hi)) return { lo: rg.lo || 1, hi: rg.hi || 9999, est: false };
-    return (comp && comp.rank) ? { lo: Math.max(1, comp.rank - 7), hi: comp.rank + 45, est: true } : null;
+    const rank = (comp && typeof comp === "object") ? comp.rank : null;
+    return rank ? { lo: Math.max(1, rank - 7), hi: rank + 45, est: true } : null;
   };
   const roundSpan = (r) => { const ps=(ORDER?.picks||[]).filter(p=>String(p.round)===String(r)); return ps.length?{first:Math.min(...ps.map(p=>p.overall)), last:Math.max(...ps.map(p=>p.overall))}:null; };
   const roundOfPick = (n) => (ORDER?.picks||[]).find(p=>p.overall===n)?.round;
@@ -1440,11 +1508,11 @@
   // sv-teamintel per-pick whitelist when one exists.
   // Is this pick inside the client's plausible landing band? Locked range / strike window
   // when set, else the engine window around his rank — mirrors the Our Clients Range column.
-  // Unranked clients have no window to enforce.
+  // Unranked clients: manual range / strike window only (no rank → no estimate), else no window.
   function inRangeAt(key, overall) {
-    const comp = DATA.compByName.get(key); if (!comp) return true;
-    const rg = effRangeOf(comp); if (!rg) return true;
-    return overall >= rg.lo && overall <= rg.hi;
+    const comp = DATA.compByName.get(key);
+    const rg = effRangeOf(comp || key); if (!rg) return true;
+    return overall >= (rg.lo || 1) && overall <= (rg.hi || 9999);
   }
   function tiInPlayAt(key, team, overall) {
     if (!inRangeAt(key, overall)) return false;   // out of his landing window -> never in play here
@@ -1457,10 +1525,10 @@
   // teamintel color with this team is green/light green AND who are in play at this specific pick.
   function tiClientsAt(pk, state) {
     const drafted = new Set(state.picks.filter(x=>x.isDrafted&&x.player).map(x=>normName(x.player)));
-    return DATA.clientList.filter(c => c.comp && !drafted.has(c.key)
+    return DATA.clientList.filter(c => (c.comp || rangeOf(c.key)) && !drafted.has(c.key)
         && intelColorRank(c.key, pk.team) <= 1
         && tiInPlayAt(c.key, pk.team, pk.overall))
-      .sort((a,b)=> intelColorRank(a.key,pk.team)-intelColorRank(b.key,pk.team) || a.comp.rank-b.comp.rank);
+      .sort((a,b)=> intelColorRank(a.key,pk.team)-intelColorRank(b.key,pk.team) || (a.comp?.rank ?? 1e9)-(b.comp?.rank ?? 1e9));
   }
   // Historical draft-slot signings (2018–25): per-pick bonus vs slot. CORS-open, so fetch directly.
   const SLOT_HISTORY_URL = "https://mdecicco-sv.github.io/draft-slot-tracker/data.csv";
@@ -1878,13 +1946,29 @@
   }
   // Header pick clock (live + mock). Frozen at the remaining time while a mock is paused;
   // hidden pre-draft (the banner carries that countdown) and when the draft is complete.
+  // Clicking the chip toggles the live countdown digits (persisted); mock always shows them.
+  let liveClock = "on";
+  try { liveClock = localStorage.getItem("dd:liveClock") || "on"; } catch (e) {}
+  window.toggleLiveClock = () => {
+    liveClock = liveClock === "on" ? "off" : "on";
+    try { localStorage.setItem("dd:liveClock", liveClock); } catch (e) {}
+    renderCountdown();
+  };
   function renderCountdown() {
     const el = $("hdrClock"); if (!el) return;
     const oc = currentState && currentState.onClock;
     if (!oc || !timer.pick || isPreDraft()) { el.style.display = "none"; return; }
+    el.style.display = "";
+    el.style.cursor = "pointer";
+    el.onclick = window.toggleLiveClock;
+    if (MODE === "live" && liveClock === "off") {
+      el.title = "pick clock hidden — tap to show";
+      el.innerHTML = `<span class="hc-lab">on the clock</span><span class="hc-tm">#${oc.overall} ${oc.team||"—"} · R${oc.round}</span>`;
+      return;
+    }
     const leftMs = timer.endsAt != null ? (timer.endsAt - Date.now()) : timer.remainingMs;  // frozen when paused
     const left = Math.max(0, Math.round(leftMs/1000));
-    el.style.display = "";
+    el.title = "unofficial — resets when a pick arrives from MLB";
     el.innerHTML = `<span class="hc-tm">${oc.team||"—"}</span><span class="hc-lab">on the clock</span>
       <span class="hc-cd${left<=15?" low":""}">${Math.floor(left/60)}:${String(left%60).padStart(2,"0")}</span>`;
   }
@@ -2171,6 +2255,8 @@
   const WH_BANDS = [[1,5],[6,10],[11,20],[21,32],[33,50],[51,75],[76,110],[111,160],[161,230],[231,315]];
   const whBandKey = (rank) => { const r = Math.min(Math.max(rank||999,1),315);
     for (const [lo,hi] of WH_BANDS) if (r>=lo && r<=hi) return `${lo}-${hi}`; return null; };
+  const whBandIdx = (rank) => { const r = Math.min(Math.max(rank||999,1),315);
+    return WH_BANDS.findIndex(([lo,hi]) => r>=lo && r<=hi); };
   const whSig = (cell) => Math.max(0, Math.min(1, 0.5 + 0.35*(cell.woe||0)));
   function warSignal(team, g, rank, level) {
     const W = DATA.warhist && DATA.warhist.orgs && DATA.warhist.orgs[team];
@@ -2282,13 +2368,16 @@
     let posN = (comp.pos || "").toUpperCase().split(/[\/,-]/)[0].trim();
     if (isP) posN = "P"; else if (["RF","CF","LF"].includes(posN)) posN = "OF";
     // draftdb.hs_or_college domain is {"HS","C"} (verified) — NOT "College"
-    return { isP, posN, lvl: comp.level === "HS" ? "HS" : "C" };
+    return { isP, posN, lvl: comp.level === "HS" ? "HS" : "C", bi: whBandIdx(comp.rank) };
   }
   const dfPickIsP = (p) => (p.position_normalized || "").toUpperCase() === "P" || (p.position_normalized || "").toUpperCase().includes("P");
   function dfMatch(p, pl, gran) {
     const pickP = dfPickIsP(p);
     if (gran === "broad") return pl.isP === pickP;
     if (gran === "medium") return pl.isP === pickP && p.hs_or_college === pl.lvl;
+    // band: fine + pick-price proximity — the pick's overall lands in the client's
+    // expected band (whBandKey buckets over composite rank) or an adjacent one
+    if (gran === "band") return dfMatch(p, pl, "fine") && pl.bi >= 0 && Math.abs(whBandIdx(p.overall) - pl.bi) <= 1;
     if (pl.isP) return pickP && p.hs_or_college === pl.lvl;
     return (p.position_normalized || "").toUpperCase() === pl.posN && p.hs_or_college === pl.lvl;
   }
@@ -2305,16 +2394,17 @@
       const w = p.total_war || 0;
       if (w >= 1) { tot += 3; w1++; } if (w >= 2) { tot += 3; w2++; } if (w >= 3) { tot += 3; w3++; }
     }
-    return { score: tot / m.length, n: m.length, mlb, rate: mlb / m.length, w1, w2, w3, names };
+    return { score: tot / m.length, n: m.length, mlb, rate: mlb / m.length, w1, w2, w3, names, gran, picks: m };
   }
   function dfDevRaw(team, pl) {
     const picks = dfPicks(team);
     const broad = dfDevSlice(picks, pl, "broad"), med = dfDevSlice(picks, pl, "medium"), fine = dfDevSlice(picks, pl, "fine");
+    const band = dfDevSlice(picks, pl, "band");   // finest: + pick-band proximity (display slice only — scoring blend unchanged)
     let s = 0, w = 0;
     if (broad) { s += broad.score * 0.25; w += 0.25; }
     if (med) { s += med.score * 0.35; w += 0.35; }
     if (fine) { s += fine.score * 0.40; w += 0.40; }
-    const best = fine || med || broad;
+    const best = band || fine || med || broad;
     // Exposure adjustment: the 2021-25 DB is young, and regime windows differ in age —
     // a 2023-start regime has had no time to produce debuts. Score per pick per
     // year-of-exposure so old windows don't win on maturity alone.
@@ -2342,6 +2432,22 @@
     }
     const o = all[team];
     return o ? { dev01: o.dev01, best: o.best, rg: o.rg, lgRate: all._lgRate, known: !!o.best } : { dev01: 0.5, known: false };
+  }
+  // ---- slice provenance: say exactly what "like him" matched, never looser than the truth ----
+  const dfYY = (y) => String(y).slice(2);
+  function dfBandRange(rank) {   // client's band ± one adjacent, as an overall-pick span
+    const i = whBandIdx(rank); if (i < 0) return null;
+    return `${WH_BANDS[Math.max(0, i-1)][0]}–${WH_BANDS[Math.min(WH_BANDS.length-1, i+1)][1]}`;
+  }
+  function dfSliceCrit(dd, comp, rg) {   // e.g. "College P · picks 6–50 · since '22 (regime)"
+    if (!dd || !comp) return "";
+    const pl = dfPlayerOf(comp), lvl = pl.lvl === "HS" ? "HS" : "College", pos = pl.isP ? "P" : pl.posN;
+    const m = dd.gran === "band" ? `${lvl} ${pos} · picks ${dfBandRange(comp.rank)}`
+      : dd.gran === "fine" ? `${lvl} ${pos} · any pick #`
+      : dd.gran === "medium" ? `${lvl} ${pl.isP ? "P" : "hitters"} · any pick # · loose match`
+      : `${pl.isP ? "pitchers" : "hitters"} any level · any pick # · loose match`;
+    const win = rg ? (rg.borrowed ? `${rg.source} '${dfYY(rg.start)}–'${dfYY(rg.end)} (regime)` : `since '${dfYY(rg.start)} (regime)`) : "";
+    return win ? `${m} · ${win}` : m;
   }
   // spending: avg bonus-vs-slot % over the regime window, clamped ±20% → 0-1 (cache)
   const _dfSpendCache = new Map();
@@ -2371,7 +2477,7 @@
     const n = at.length;
     return { depth01: Math.max(0, 1 - n / 15), n, known: true,
       block: n >= 6 ? "high" : n >= 3 ? "medium" : "low",
-      names: at.slice(0, 4).map(p => p.name) };
+      names: at.slice(0, 4).map(p => p.name), items: at.slice(0, 4) };
   }
   // geography: haversine home state ↔ spring-training site (0.10 weight HS, 0.02 College)
   function dfHomeState(comp) {
@@ -2725,11 +2831,14 @@
           + (teams.length>3?`<span class="cl-int cl-more">+${teams.length-3}</span>`:"") + `</div>`
         : `<span class="cl-none">—</span>`;
       // Range: locked intel range when we have one, else the engine's window around his rank.
-      const rg = comp ? rangeOf(comp) : null;
+      // Unranked (NR) rows get an inline lo/hi editor — same setRange semantics as the player page.
+      const rg = rangeOf(comp || c.key);
+      const rngEdit = () => { const qk = c.key.replace(/'/g,"\\'"), cur = rg || {};
+        return `<span class="cl-rngedit" onclick="event.stopPropagation()" title="set landing range (hard lock)">${cur.lo||cur.hi?"🔒":""}#<input type="number" min="1" value="${cur.lo||""}" placeholder="lo">–<input type="number" min="1" value="${cur.hi||""}" placeholder="hi"><button class="ctl" onclick="var i=this.parentElement.querySelectorAll('input');setRange('${qk}',i[0].value,i[1].value)">Set</button>${RANGES[c.key]?`<button class="ctl" onclick="clearRange('${qk}')" title="clear range">✕</button>`:""}</span>`; };
       const range = pk ? `<span class="cl-none">—</span>`
+        : !comp ? rngEdit()
         : rg && (rg.lo||rg.hi) ? `<span class="tg fit" title="known range — your intel (hard lock)">🔒 #${rg.lo||"?"}–${rg.hi||"?"}</span>`
-        : comp ? `<span class="cl-rng" title="engine window around his rank — no intel range set">~#${Math.max(1,comp.rank-7)}–${Math.min(state.picks.length||comp.rank+45, comp.rank+45)}</span>`
-        : `<span class="cl-none">—</span>`;
+        : `<span class="cl-rng" title="engine window around his rank — no intel range set">~#${Math.max(1,comp.rank-7)}–${Math.min(state.picks.length||comp.rank+45, comp.rank+45)}</span>`;
       const status = pk
         ? `<span class="cl-dr">DRAFTED #${pk.overall} · ${pk.team}</span>`
         : `<span class="cl-av">On board</span>`;
@@ -2965,16 +3074,19 @@
   function clientsInPlay(pk, state) {
     const team = pk.team, pool = state.poolsMap[team];
     const drafted = new Set(state.picks.filter(p=>p.isDrafted&&p.player).map(p=>normName(p.player)));
-    return DATA.clientList.filter(c=>c.comp && !drafted.has(c.key)).map(c=>{
+    return DATA.clientList.filter(c=>(c.comp || rangeOf(c.key)) && !drafted.has(c.key)).map(c=>{
       const rec = latestIntel(c.key, team);
       const cap = intelFor(c.key);
       const f = fit(c.comp, team, c.key, state);
-      const bonus = negBonus(c.comp, pk.slot, pk.overall);
-      const ou = bonus - pk.slot;
-      const moneyFits = pool ? pool.room >= bonus : true;     // does the team's pool actually accommodate him
+      const bonus = c.comp ? negBonus(c.comp, pk.slot, pk.overall) : null;
+      const ou = bonus!=null ? bonus - pk.slot : null;
+      const moneyFits = bonus==null ? true : (pool ? pool.room >= bonus : true);   // does the team's pool actually accommodate him
       // talent reach: don't surface a player far outside a plausible window for this slot
       // (rank-7 floor keeps a top guy off picks that would be an implausibly early reach).
-      const reachOk = pk.overall >= c.comp.rank - 7 && pk.overall <= c.comp.rank + 45;
+      // Unranked: his set range IS the window.
+      const rgNr = c.comp ? null : rangeOf(c.key);
+      const reachOk = c.comp ? (pk.overall >= c.comp.rank - 7 && pk.overall <= c.comp.rank + 45)
+                             : (pk.overall >= (rgNr.lo || 1) && pk.overall <= (rgNr.hi || 9999));
       const ruledHere = !!(cap && cap.ruleOuts && cap.ruleOuts.some(r => r.team===team || r.pick===pk.overall));
       return { c, rec, cap, f, ou, bonus, moneyFits, reachOk, ruledHere };
     }).filter(x => {
@@ -3198,14 +3310,14 @@
     const el = $("boardPlayers"); if (!el) return;
     const sel = boardSelClients, bigOn = sel.size===0;
     const drafted = new Set(state.picks.filter(p=>p.isDrafted&&p.player).map(p=>normName(p.player)));
-    const clients = DATA.clientList.filter(c=>c.comp).sort((a,b)=>a.comp.rank-b.comp.rank);
+    const clients = DATA.clientList.filter(c=>c.comp || rangeOf(c.key)).sort((a,b)=>(a.comp?.rank ?? 1e9)-(b.comp?.rank ?? 1e9));
     const value = bigOn ? "All" : `${sel.size} player${sel.size>1?"s":""}`;
     const big = `<div class="pdrop-item ${bigOn?'on':''}" onclick="clearBoardClients(event)">
       <span class="pi-ck">${bigOn?'☑':'☐'}</span><span class="pi-nm">▦ Big Board (all)</span></div><div class="pdrop-sep"></div>`;
     const list = clients.map(c=>{
       const dr=drafted.has(c.key), on=sel.has(c.key);
       return `<div class="pdrop-item ${on?'on':''} ${dr?'dr':''}" onclick="toggleBoardClient('${c.key.replace(/'/g,"\\'")}',event)">
-        <span class="pi-ck">${on?'☑':'☐'}</span><span class="pi-nm">${c.name}</span><span class="pi-rk">#${c.comp.rank}</span></div>`;
+        <span class="pi-ck">${on?'☑':'☐'}</span><span class="pi-nm">${c.name}</span><span class="pi-rk">${c.comp?`#${c.comp.rank}`:"NR"}</span></div>`;
     }).join("");
     el.innerHTML = `<div class="pdrop">
         <button class="pdrop-btn" onclick="togglePlayerMenu(event)">
@@ -3238,10 +3350,10 @@
   // Focus mode → the selected clients, any logged color, still gated by per-pick in-play.
   function pickDots(pk, state) {
     const team = pk.team, sel = boardSelClients;
-    const mk = (c) => ({ key:c.key, name:c.name, rank:intelColorRank(c.key,team), hex:intelColorHex(c.key,team) });
+    const mk = (c) => ({ key:c.key, name:c.name, rank:intelColorRank(c.key,team), hex:intelColorHex(c.key,team), nr:!c.comp });
     let entries;
     if (sel.size===0) entries = tiClientsAt(pk, state).map(mk);
-    else entries = [...sel].map(k=>DATA.clientList.find(c=>c.key===k)).filter(c=>c&&c.comp)
+    else entries = [...sel].map(k=>DATA.clientList.find(c=>c.key===k)).filter(c=>c&&(c.comp||rangeOf(c.key)))
       .filter(c => intelColorRank(c.key,team)<5 && tiInPlayAt(c.key, team, pk.overall))
       .map(mk);
     return entries.sort((a,b)=> a.rank-b.rank || a.name.localeCompare(b.name));
@@ -3342,7 +3454,7 @@
         const entries = pickDots(p, state), shown = entries.slice(0, CAP);
         if (focus && !entries.length) cardCls += " bc-dim";
         if (shown.length) dotsHtml = `<div class="bc-dots">${shown.map(e=>
-          `<span class="bc-pd" data-intel-key="${e.key}" data-intel-team="${p.team}"><span class="idot" style="background:${e.hex}"></span><span class="bc-in">${initials(e.name)}</span></span>`
+          `<span class="bc-pd" data-intel-key="${e.key}" data-intel-team="${p.team}"><span class="idot${e.nr?" nr":""}" style="${e.nr?`border-color:${e.hex}`:`background:${e.hex}`}"></span><span class="bc-in">${initials(e.name)}</span></span>`
         ).join("")}${entries.length>CAP?`<span class="bc-more">+${entries.length-CAP}</span>`:""}</div>`;
         body = onclock ? "⏱ OTC" : (shown.length ? "" : "—");
       }
@@ -3435,7 +3547,7 @@
   // ---------- VIEW: BONUS POOLS ----------
   const POOL_COLS = [["team","Team"],["picksMade","Picks"],["pool","Pool"],["overage","Overage"],["room","Room"],
                      ["committedSlot","Committed slot"],["poolCharge","Spent"],["overUnder","Over/Under"],["pctNum","%"]];
-  let poolSort = { key:"pctNum", dir:-1 };   // dir: -1 desc, 1 asc
+  let poolSort = { key:"room", dir:-1 };   // dir: -1 desc, 1 asc
   window.sortPools = (key) => {
     if (poolSort.key === key) poolSort.dir *= -1;
     else poolSort = { key, dir: key==="team" ? 1 : -1 };
@@ -3469,7 +3581,7 @@
         <td class="hide-sm">${money(t.committedSlot)}</td>
         <td>${money(t.poolCharge)}${t.hasEst?' <span class="outag est atslot">est</span>':""}</td>
         <td><span class="outag ${ouCls}">${ou(t.overUnder)}</span></td>
-        <td><span class="outag ${pctCls}">${t.pctNum>=0?"+":""}${t.pctNum.toFixed(1)}%</span></td>
+        <td>${t.poolCharge ? `<span class="outag ${pctCls}">${t.pctNum>=0?"+":""}${t.pctNum.toFixed(1)}%</span>` : `<span class="sub">—</span>`}</td>
       </tr>`;
     }).join("");
   }
@@ -3495,6 +3607,7 @@
       INTEL.loadedAt = Date.now();
       deriveIntel();
       renderActive();
+      if (nbOpen) renderNbFeed();   // notebook feed rides the existing 12s intel poll
     } catch (e) { /* best-effort; keep prior state */ }
   }
   // Collapse the append-only log into current state per player key (events come newest-first).
@@ -3555,6 +3668,97 @@
       await loadIntel();
       return true;
     } catch (e) { if (!silent) alert("Could not save intel: " + e.message); return false; }
+  }
+
+  // ---------- WAR-ROOM NOTEBOOK — shared free-form notes (kind:"note" via /api/intel) ----------
+  // The panel renders itself only (never from the global render loop), so the composer draft,
+  // tag pick, and open pickers survive live ticks; loadIntel refreshes just the feed list.
+  let nbOpen=false, nbFilter="all", nbDraft="", nbTag=null, nbPicker=null, nbQ="", nbBusy=false;
+  window.toggleNotebook = (open) => {
+    nbOpen = typeof open === "boolean" ? open : !nbOpen;
+    $("nbBtn").classList.toggle("on", nbOpen);
+    $("nbPanel").classList.toggle("on", nbOpen);
+    if (nbOpen) renderNotebook();
+  };
+  const nbNotes = () => INTEL.events.filter(e => e.kind === "note");
+  const nbTime = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`; };
+  function nbTagChip(e) {
+    if (e.player_name) {
+      const k = normName(e.player_name), qk = k.replace(/'/g,"\\'");
+      const go = (DATA.compByName.has(k) || DATA.clients.has(k)) ? `openPlayer('${qk}')` : `setView('clients')`;
+      return `<span class="tag lnk" onclick="toggleNotebook(false);${go}">${_esc(e.player_name)}</span>`;
+    }
+    if (e.team) return `<span class="tag lnk" onclick="toggleNotebook(false);openTeam('${teamAlias(e.team)}')">${teamAlias(e.team)}</span>`;
+    return `<span class="tag">general</span>`;
+  }
+  const nbNoteRow = (e, mini) => `<div class="nb-note"><div class="m"><span class="t">${nbTime(e.created_at)}</span>${nbTagChip(e)}${e.agent?`<span class="t">${_esc(e.agent)}</span>`:""}${mini?"":`<button class="del" onclick="nbDelete(${e.id})" aria-label="delete note">✕</button>`}</div><div class="txt">${_esc(e.note||"")}</div></div>`;
+  function renderNbFeed() {
+    const el = $("nbFeed"); if (!el || !nbOpen) return;
+    let evs = nbNotes();   // API returns newest-first
+    if (nbFilter==="players") evs = evs.filter(e=>e.player_name);
+    else if (nbFilter==="teams") evs = evs.filter(e=>!e.player_name && e.team);
+    else if (nbFilter==="general") evs = evs.filter(e=>!e.player_name && !e.team);
+    el.innerHTML = evs.length ? evs.map(e=>nbNoteRow(e)).join("") : `<div class="placeholder">No notes yet.</div>`;
+  }
+  window.nbSetFilter = (f) => { nbFilter=f; renderNotebook(); };
+  window.nbSetTag = (t) => { nbTag=t; nbPicker=null; nbQ=""; renderNotebook(); };   // one tag at a time
+  window.nbTogglePicker = (w) => { nbPicker = nbPicker===w ? null : w; nbQ=""; renderNotebook(); };
+  window.nbInput = (v) => { nbDraft = v; };
+  window.nbQuery = (v) => { nbQ = v; const el = $("nbPickList"); if (el) el.innerHTML = nbPickRows(); };
+  function nbPickRows() {
+    const q = normName(nbQ); if (!q) return "";
+    const seen = new Set(), all = [];
+    for (const c of DATA.clientList) if (!seen.has(c.key)) { seen.add(c.key); all.push({ key:c.key, name:c.name, sv:true }); }
+    for (const p of DATA.composite) if (!seen.has(p._key)) { seen.add(p._key); all.push({ key:p._key, name:p.name }); }
+    return all.filter(x=>x.key.includes(q)).slice(0,8).map(x =>
+      `<div class="nb-pickrow" onclick="nbSetTag({type:'player',name:'${x.name.replace(/'/g,"\\'")}'})">${_esc(x.name)}${x.sv?' <span class="svtag">SV</span>':""}</div>`).join("")
+      || `<div class="placeholder" style="padding:6px 9px">No match.</div>`;
+  }
+  function nbPickerHtml() {
+    if (nbPicker==="player") return `<div class="nb-picker"><input id="nbPickQ" placeholder="Search players…" autocomplete="off" oninput="nbQuery(this.value)"><div class="nb-picklist" id="nbPickList">${nbPickRows()}</div></div>`;
+    if (nbPicker==="team") return `<div class="nb-picker"><div class="nb-teamgrid">${Object.keys(ABBR_TO_ID).sort().map(t=>`<button class="nb-chip ${nbTag?.type==='team'&&nbTag.abbr===t?"on":""}" onclick="nbSetTag({type:'team',abbr:'${t}'})">${t}</button>`).join("")}</div></div>`;
+    return "";
+  }
+  function renderNotebook() {
+    const el = $("nbPanel"); if (!el) return;
+    const chip = (on, click, label) => `<button class="nb-chip ${on?"on":""}" onclick="${click}">${label}</button>`;
+    el.innerHTML = `<div class="nb-head">📝 War-room notebook<button class="x" onclick="toggleNotebook(false)" aria-label="close">✕</button></div>
+      <div class="nb-comp">
+        <textarea id="nbText" rows="2" placeholder="Note for the room… (⌘/Ctrl-Enter saves)"
+          oninput="nbInput(this.value)" onkeydown="if((event.metaKey||event.ctrlKey)&&event.key==='Enter')nbSave()"></textarea>
+        <div class="nb-tagrow">
+          ${chip(!nbTag, "nbSetTag(null)", "General")}
+          ${chip(nbTag?.type==="player", "nbTogglePicker('player')", nbTag?.type==="player" ? _esc(nbTag.name)+" ▾" : "Player ▾")}
+          ${chip(nbTag?.type==="team", "nbTogglePicker('team')", nbTag?.type==="team" ? nbTag.abbr+" ▾" : "Team ▾")}
+          <button class="ctl primary" style="margin-left:auto;padding:4px 12px" onclick="nbSave()" ${nbBusy?"disabled":""}>Save</button>
+        </div>${nbPickerHtml()}</div>
+      <div class="nb-filters">${["all","players","teams","general"].map(f=>chip(nbFilter===f, `nbSetFilter('${f}')`, f[0].toUpperCase()+f.slice(1))).join("")}</div>
+      <div id="nbFeed"></div>`;
+    $("nbText").value = nbDraft;   // unsent draft survives every re-render
+    if (nbPicker==="player") $("nbPickQ").value = nbQ;
+    renderNbFeed();
+  }
+  window.nbSave = async () => {
+    const text = (($("nbText")||{}).value || "").trim();
+    if (!text || nbBusy) return;
+    nbBusy = true; renderNotebook();
+    const ok = await postIntel({ kind:"note", note:text,
+      player_name: nbTag?.type==="player" ? nbTag.name : null,
+      team: nbTag?.type==="team" ? nbTag.abbr : null });
+    nbBusy = false;
+    if (ok) { nbDraft=""; nbTag=null; nbPicker=null; nbQ=""; }   // failed save keeps the draft
+    renderNotebook();
+  };
+  window.nbDelete = async (id) => {
+    INTEL.events = INTEL.events.filter(e=>e.id!==id); renderNbFeed();   // optimistic; poll reconciles
+    try { const r = await fetch(`/api/intel?id=${id}`, { method:"DELETE" }); if (!r.ok) throw new Error(r.status); }
+    catch (e) { loadIntel(); }
+  };
+  // Latest-3 strip for player cards / team detail — "view all" opens the panel.
+  function nbMiniHtml(evs) {
+    if (!evs.length) return "";
+    return `<div class="panel nb-mini"><h5>War-room notebook</h5>${evs.slice(0,3).map(e=>nbNoteRow(e,true)).join("")}
+      <div class="nb-mini-more" onclick="toggleNotebook(true)">view all in notebook →</div></div>`;
   }
 
   // ---------- VIEW: BOARD — team-card modal (opens on a board tile click) ----------
@@ -3749,7 +3953,7 @@
     // first. "IN PLAY" = the teamintel rule: green/light-green + this pick not ruled out.
     const drafted = new Set(state.picks.filter(p=>p.isDrafted&&p.player).map(p=>normName(p.player)));
     const inPlayKeys = new Set(tiClientsAt(pk, state).map(c=>c.key));
-    const roster = DATA.clientList.filter(c=>c.comp && !drafted.has(c.key)).map(c=>({
+    const roster = DATA.clientList.filter(c=>(c.comp || rangeOf(c.key)) && !drafted.has(c.key)).map(c=>({
       c, f: fit(c.comp, team, c.key, state), inPlay: inPlayKeys.has(c.key)
     })).sort((a,b)=> (b.inPlay - a.inPlay) || (b.f.orgScore - a.f.orgScore));
     // evalPlayer null = team-profile mode; a set key = player-specific mode
@@ -3814,7 +4018,7 @@
         return `<div class="pdrop-item ${on?'on':''}" onclick="selectEval('${qk}',event)">
           <span class="tc-cdot" style="background:${intelColorHex(x.c.key, team)}"></span>
           <span class="pi-nm">${x.c.name}${x.inPlay?'<span class="tc-inplay">IN PLAY</span>':''}</span>
-          <span class="pi-rk">#${x.c.comp.rank} ${x.c.comp.pos}</span></div>`;
+          <span class="pi-rk">${x.c.comp?`#${x.c.comp.rank} ${x.c.comp.pos}`:"NR"}</span></div>`;
       }).join("");
       selHtml = `<div class="tc-selrow"><div class="pdrop tc-pdrop">
           <button class="pdrop-btn" onclick="toggleTcMenu(event)">
@@ -3945,24 +4149,23 @@
     const myName = pk.teamName || "";
     const lt = DATA.leagueTend, tt = lt ? lt.byTeam.get(myName) : null;
     const rankTot = lt ? lt.byTeam.size : 30;
-    // Clean 3-column read: Pct% · ± MLB avg · Rank. For the two mix metrics the Pct% shows the
+    // Clean 2-column read: Pct% · Rank ("14th of 30"). For the two mix metrics the Pct% shows the
     // side that matches the player under evaluation (his pitcher/hitter + HS/college), and the
-    // diff + rank flip to that same side; homegrown & debut are raw team rates.
+    // rank flips to that same side; homegrown & debut are raw team rates.
     const selC = sel && sel.c ? sel.c.comp : null;
     const hitSel = selC ? (selC.posGroup || posGroupOf(selC.pos)) !== "P" : false;
     const colSel = selC ? !!(selC.level && selC.level !== "HS") : false;
-    const mrow = (label, valPct, avgPct, rank, side) => {
+    const mrow = (label, valPct, avgPct, rank, side) => {   // avgPct kept in the signature — callers still pass it
       const val = valPct==null ? (lt ? "—" : "…") : `${Math.round(valPct)}%${side?` <span class="ms">${side}</span>`:""}`;
-      const diff = (valPct==null||avgPct==null) ? "" : `${valPct-avgPct>=0?"+":"−"}${Math.abs(valPct-avgPct).toFixed(1)}%`;
-      const rk = rank ? `<span class="${rkCls(rank)}">${ord(rank)}</span>` : "";
-      return `<div class="mk">${label}</div><div class="mv">${val}</div><div class="md">${diff}</div><div class="mr">${rk}</div>`;
+      const rk = rank ? `<span class="${rkCls(rank)}">${ord(rank)} of 30</span>` : "";
+      return `<div class="mk">${label}</div><div class="mv">${val}</div><div class="mr">${rk}</div>`;
     };
     let rows = "";
     if (hg && hg.fortyManAll) {
       rows += mrow("40-man homegrown", 100*hg.fortyMan/hg.fortyManAll, lgHG.avg40, hg.rank40);
       if (hg.orgAll) rows += mrow("Org homegrown", 100*hg.total/hg.orgAll, lgHG.avgOrg, hg.rankOrg);
     } else {
-      rows += `<div class="mk">Homegrown</div><div class="mv">${o.homegrown!=null?o.homegrown:"—"}</div><div class="md"></div><div class="mr"></div>`;
+      rows += `<div class="mk">Homegrown</div><div class="mv">${o.homegrown!=null?o.homegrown:"—"}</div><div class="mr"></div>`;
     }
     rows += mrow("MLB-debut rate (dev)", dev.mlbDebut!=null?100*dev.mlbDebut:null, DATA.lgDebut?DATA.lgDebut.avg:null, o.rankDebut);
     // Draft WAR lookback ('18+ classes): raw bWAR per pick, ± = vs expected-at-slot
@@ -3971,9 +4174,9 @@
       const W = DATA.warhist && DATA.warhist.orgs && DATA.warhist.orgs[team];
       if (W && W.all && W.all.n) {
         const perPk = W.all.warSum / W.all.n, rk = whRankOf(team);
-        rows += `<div class="mk">Draft WAR/pick ('18+)</div><div class="mv">${perPk.toFixed(1)}</div>`
-          + `<div class="md">${W.all.woe>=0?"+":"−"}${Math.abs(W.all.woe).toFixed(2)}</div>`
-          + `<div class="mr">${rk?`<span class="${rkCls(rk)}">${ord(rk)}</span>`:""}</div>`;
+        // WAR row keeps its ± (vs expected-at-slot), folded into the value cell
+        rows += `<div class="mk">Draft WAR/pick ('18+)</div><div class="mv">${perPk.toFixed(1)} <span class="ms">${W.all.woe>=0?"+":"−"}${Math.abs(W.all.woe).toFixed(2)}</span></div>`
+          + `<div class="mr">${rk?`<span class="${rkCls(rk)}">${ord(rk)} of 30</span>`:""}</div>`;
       }
     }
     rows += tt
@@ -3984,7 +4187,7 @@
       ? (colSel ? mrow("HS vs College", 100-tt.hsPct, 100-lt.avgHS, (rankTot+1)-lt.rankHS(myName), "COL")
                 : mrow("HS vs College", tt.hsPct, lt.avgHS, lt.rankHS(myName), "HS"))
       : mrow("HS vs College", null, null, null);
-    h += `<div class="tc-vgrid"><div class="mh"></div><div class="mh">Pct%</div><div class="mh">± MLB avg</div><div class="mh">Rank</div>${rows}</div>`;
+    h += `<div class="tc-vgrid"><div class="mh"></div><div class="mh">Pct%</div><div class="mh">Rank</div>${rows}</div>`;
     // 4-way distribution: HS/COL × Hitter/Pitcher across 2018-25, shaded by share of the team's picks
     if (tt) {
       const total = tt.hsHit + tt.hsP + tt.colHit + tt.colP;
@@ -4027,7 +4230,7 @@
           <td>${r.diff!=null?`<span class="vsv ${r.diff>50000?'over':r.diff<-50000?'under':'even'}">${r.diff>0?"+":""}${fmtM(r.diff)}</span>`:"—"}</td></tr>`).join("");
       h += `</tbody></table>`;
     }
-    if (sel) {
+    if (sel && sel.c.comp) {   // NR client (no composite entry) → no habit/economics model
       const c = sel.c.comp, isHS = c.level==="HS", p = isPitcher(c.pos);
       const levPct = hsPctRd!=null ? (isHS ? hsPctRd : 100-hsPctRd) : (isHS ? o.hsPct : o.collegePct);
       const withLean = (p && leanPitcher) || (!p && !leanPitcher);
@@ -4045,7 +4248,8 @@
   // bonus vs slot. Numbering shifts with comp rounds year to year — that's the point:
   // it's the precedent for this literal slot on the board.
   function renderTcPickHistory(pk) {
-    let h = `<div class="tc-panel" data-q="pickhist"><h4><span class="n">3</span> Pick History · #${pk.overall}</h4>`;
+    let h = `<div class="tc-panel" data-q="pickhist"><h4><span class="n">3</span> League Pick #${pk.overall} History</h4>
+      <div class="tc-sub">every team's pick at this slot, 2018–25</div>`;
     const H = DATA.slotHistory;
     const trackerUrl = SLOT_HISTORY_URL.replace("/data.csv","/");
     if (!H.length) return h + `<div class="placeholder">Loading historical signings…</div></div>`;
@@ -4054,6 +4258,9 @@
     const avg = n ? wd.reduce((s,r)=>s+r.diff,0)/n : 0;
     const overN = wd.filter(r=>r.diff>0).length;
     h += `<div class="tc-fitline sm"><span>At <b>#${pk.overall}</b> overall, from 2018–25${n?` · <b>${Math.round(100*overN/n)}% over slot</b> · avg ${sgn$(avg)}`:""}</span><span class="tc-nextland"><a href="${trackerUrl}" target="_blank" rel="noopener" style="color:var(--red);font-weight:800">full tracker ↗</a></span></div>`;
+    // Record: the biggest bonus ever signed at this exact overall
+    const rec = rows.filter(r=>r.bonus!=null).sort((a,b)=>b.bonus-a.bonus)[0];
+    if (rec) h += `<div class="tc-fitline sm"><span>Record <b>${fmtM(rec.bonus)}</b> — ${rec.first?rec.first+" ":""}${rec.last}, ${teamAbbrevOf(rec.team)} '${String(rec.year).slice(2)}</span></div>`;
     if (!rows.length) return h + `<div class="placeholder">No history at #${pk.overall} — draft numbering shifts year to year.</div></div>`;
     h += `<table class="tc-upc"><thead><tr><th>Yr</th><th>Player</th><th>Pos</th><th>Team</th><th>Bonus</th><th>vs Slot</th></tr></thead><tbody>`;
     h += rows.map(r=>`<tr>
@@ -4575,15 +4782,9 @@
       return `<div class="res-posrow">${grpBtn}${toks.map(t=>
         `<button class="tc-chip${resFit.pos.has(t)?' on':''}" onclick="rfPosTok('${t}',event)">${t}</button>`).join("")}</div>`;}).join("")}
       ${resFit.pos.size?`<div class="res-posrow"><button class="tc-chip clear" onclick="rfPosClear(event)">✕ any</button></div>`:""}</div>`;
-    const posRow = `<div class="tc-wizgrp res-pdrop"><span class="tc-wizlab">Position</span>
-      <button class="tc-chip${resFit.pos.size?' on':''}" onclick="rfPosOpen(event)">${resFit.pos.size?[...resFit.pos].join(" "):"Any"} ▾</button>${posMenu}</div>`;
-    // Class / Level: population filters over whichever column sides are on (same
-    // classifiers Player Research uses); Composite: rank-band dual slider over the
-    // whole board (clients + rest) — Best Available's composite rankings.
-    const clsRow = `<div class="tc-wizgrp"><span class="tc-wizlab">Class</span>
-      ${["Prep","Early col","JR","SR+"].map(v=>chip(resFit.cls.has(v),v,`rfClsTok('${v.replace(/'/g,"\\'")}')`)).join("")}</div>`;
-    const lvlRow = `<div class="tc-wizgrp"><span class="tc-wizlab">Level</span>
-      ${["HS","College","JuCo"].map(v=>chip(resFit.lvl.has(v),v,`rfLvlTok('${v}')`)).join("")}</div>`;
+    // Filters: one flex row — Position dropdown, Class + Level chips, Composite rank
+    // dropdown (each keeps its own menu/behavior; res-pdrop wrappers anchor the menus).
+    // Class / Level filter whichever column sides are on; Composite spans the whole board.
     const rkMax = rfRkMax(), rkHi = resFit.rkHi || rkMax;
     const rkActive = resFit.rkLo > 1 || rkHi < rkMax;
     const rankMenu = !rfRankMenu ? "" : `<div class="res-posmenu rf-menu rf-rankmenu" onclick="event.stopPropagation()">
@@ -4591,17 +4792,20 @@
         <div class="dual"><input type="range" id="rfRkLo" min="1" max="${rkMax}" step="1" value="${resFit.rkLo}" oninput="rfRankSlide()">
         <input type="range" id="rfRkHi" min="1" max="${rkMax}" step="1" value="${rkHi}" oninput="rfRankSlide()"></div></div>
       ${rkActive?`<div class="res-posrow"><button class="tc-chip clear" onclick="rfRankClear(event)">✕ full board</button></div>`:""}</div>`;
-    const rankRow = `<div class="tc-wizgrp res-pdrop"><span class="tc-wizlab rf-lab-air">Composite</span>
-      <button class="tc-chip${rkActive?' on':''}" onclick="rfRankOpen(event)">${rkActive?`#${resFit.rkLo}–#${rkHi}`:"Any rank"} ▾</button>${rankMenu}</div>`;
+    const filtersRow = `<div class="tc-wizgrp"><span class="tc-wizlab">Filters</span>
+      <span class="res-pdrop"><button class="tc-chip${resFit.pos.size?' on':''}" onclick="rfPosOpen(event)">Pos: ${resFit.pos.size?[...resFit.pos].join(" "):"Any"} ▾</button>${posMenu}</span>
+      <span class="rf-fsep">Class</span>${["Prep","Early col","JR","SR+"].map(v=>chip(resFit.cls.has(v),v,`rfClsTok('${v.replace(/'/g,"\\'")}')`)).join("")}
+      <span class="rf-fsep">Level</span>${["HS","College","JuCo"].map(v=>chip(resFit.lvl.has(v),v,`rfLvlTok('${v}')`)).join("")}
+      <span class="rf-fsep">Composite</span><span class="res-pdrop"><button class="tc-chip${rkActive?' on':''}" onclick="rfRankOpen(event)">${rkActive?`#${resFit.rkLo}–#${rkHi}`:"Any rank"} ▾</button>${rankMenu}</span></div>`;
     // Outlooks = the four questions — click to select/deselect (multi-select averages them);
-    // none selected (or all four) reads as "Overall".
+    // none selected (or all four) reads as "Overall". Grade floor rides the same row.
     const tileStrip = `<div class="tc-wizgrp"><span class="tc-wizlab">Outlook</span><div class="rf-otiles">
       ${Object.entries(RF_OUTLOOKS).map(([k,o])=>`<button class="rf-otile${resFit.sel.has(k)&&!resFit.custom?' sel':''}" onclick="rfTileToggle('${k}')"><span class="rf-otk">${o.label}</span></button>`).join("")}
-      ${chip(resFit.hidden,"◎ Hidden fits","rfHidden()","match")}</div></div>`;
-    const selCap = `<div class="rf-selcap">Showing: <b>${rfLabel()}</b>${resFit.custom?"":" — select multiple to see the overlap"}</div>`;
-    const gradeRow = `<div class="tc-wizgrp"><span class="tc-wizlab">Grade ≥</span>
+      ${chip(resFit.hidden,"◎ Hidden fits","rfHidden()","match")}</div>
+      <span class="rf-fsep">Grade ≥</span>
       <input type="range" class="rf-grade" min="0" max="100" step="1" value="${resFit.gradeMin}" oninput="rfGrade(this.value)">
       <span class="res-slab" id="rfGradeLab">${resFit.gradeMin}</span></div>`;
+    const selCap = `<div class="rf-selcap">Showing: <b>${rfLabel()}</b>${resFit.custom?"":" — select multiple to see the overlap"}</div>`;
     // teams filter (collapsible, grouped by division)
     const nOn = 30 - resFit.teamsOff.size;
     const tGrp = (name,ts) => { const allOff = ts.every(t=>resFit.teamsOff.has(t));
@@ -4620,8 +4824,8 @@
       <div class="res-chead" onclick="rfToggleFt()">Fine-tune${resFit.custom?" · custom blend":""}<span>${resFit.ftOpen?"▾":"▸"}</span></div>
       ${resFit.ftOpen?`<div class="rf-wgrid rf-wgrid3">${RF_FACTORS.map(([k,l])=>sl(k,l)).join("")}</div>
       <div class="rf-wfoot"><span>Drag any slider for a Custom blend. Intel-neutral — SV interest never moves a fit grade. Money reads live pool room and sharpens as slots commit during the draft.</span></div>`:""}</div>`;
-    // Row order (per Mike): Columns → filters (Position/Class/Level/Composite) → Outlook → Grade → sliders
-    el.innerHTML = `<div class="rf-controls">${playersRow}${posRow}${clsRow}${lvlRow}${rankRow}${tileStrip}${selCap}${gradeRow}</div>${weightsBox}${teamsBox}`;
+    // Row order (per Mike): Columns → Filters (Position/Class/Level/Composite) → Outlook + Grade → caption → boxes
+    el.innerHTML = `<div class="rf-controls">${playersRow}${filtersRow}${tileStrip}${selCap}</div>${weightsBox}${teamsBox}`;
   }
   function rfWeightLabels() { const w=resFit.weights, s=rfWsum();
     RF_FKEYS.forEach(k=>{ const e=$("rfW_"+k); if(e) e.textContent=(s?Math.round(100*(+w[k]||0)/s):0)+"%"; }); }
@@ -4861,19 +5065,22 @@
     const rg = D.reach && D.reach.d ? D.reach.d.rg : null;
     const dd = D.reach && D.reach.d ? D.reach.d.best : null;
 
-    // ---- four tiles: grade + one-line evidence ----
+    // ---- four tiles: grade + one-line evidence (each carries its data window) ----
+    const ddCrit = dd ? dfSliceCrit(dd, comp, rg) : "";
+    const ddPicks = dd && dd.picks ? [...dd.picks].sort((a,b) => (b.reached_mlb?1:0)-(a.reached_mlb?1:0) || b.year-a.year) : [];
+    const ddTitle = ddPicks.length ? ddPicks.slice(0,12).map(p=>`${p.name} '${dfYY(p.year)} #${p.overall}${p.reached_mlb?" ✓MLB":""}`).join(", ") + (dd.n>12?` +${dd.n-12} more`:"") : "";
     const tiles = [
-      ["reach", "GET TO BIGS", D.reach, dd ? `${dd.mlb} of ${dd.n} like him made it` : "no regime sample"],
+      ["reach", "GET TO BIGS", D.reach, dd ? `${dd.mlb} of ${dd.n} like him made it — ${ddCrit}` : "no regime sample", ddTitle],
       ["develop", "DEVELOP BEST", D.develop, f.war && f.war.known && f.war.pos
-        ? `${f.war.pos.woe>0?"+":""}${f.war.pos.woe.toFixed(2)} WOE/pick (${g})` : "WAR lookback n/a"],
+        ? `${f.war.pos.woe>0?"+":""}${f.war.pos.woe.toFixed(2)} WOE/pick (${g}, '18+)` : "WAR lookback n/a"],
       ["speed", "FASTEST PATH", D.speed, D.speed && D.speed.known
-        ? `${D.speed.med} yr ${D.speed.med===D.speed.lg?"= lg":D.speed.med<D.speed.lg?"< lg "+D.speed.lg:"> lg "+D.speed.lg} (${D.speed.lvl})` : "no debut sample"],
+        ? `${D.speed.med} yr ${D.speed.med===D.speed.lg?"= lg":D.speed.med<D.speed.lg?"< lg "+D.speed.lg:"> lg "+D.speed.lg} (${D.speed.lvl}, '18+)` : "no debut sample"],
       ["value", "MLB VALUE", D.earn, D.earn && D.earn.roi && D.earn.roi.known
-        ? `${D.earn.roi.roi.toFixed(1)}× vs ${D.earn.roi.lg?D.earn.roi.lg.toFixed(1):"—"}× lg` : "no bonus data"],
+        ? `${D.earn.roi.roi.toFixed(1)}× vs ${D.earn.roi.lg?D.earn.roi.lg.toFixed(1):"—"}× lg ('18+)` : "no bonus data"],
     ];
-    const tileHtml = tiles.map(([k, lbl, d, ev]) => {
+    const tileHtml = tiles.map(([k, lbl, d, ev, tt]) => {
       const v = d && d.known !== false ? Math.round(100 * d.v) : null;
-      return `<button class="fc2-tile${fitTile===k?' sel':''}" style="background:${v!=null?rfHeat(v):"var(--card)"}" onclick="fitTileSel('${k}')">
+      return `<button class="fc2-tile${fitTile===k?' sel':''}" style="background:${v!=null?rfHeat(v):"var(--card)"}"${tt?` title="${_esc(tt)}"`:""} onclick="fitTileSel('${k}')">
         <span class="fc2-tk">${lbl}</span><span class="fc2-tv">${v!=null?v:"—"}</span><span class="fc2-tev">${ev}</span></button>`;
     }).join("");
 
@@ -4883,24 +5090,37 @@
     const warRow = (lbl, c) => c ? kv(lbl, `${c.warSum} WAR vs ${c.expSum} exp over ${c.n} · ${woeFmt(c)}/pick`) : "";
     const rgLine = rg ? `Regime: ${_esc(rg.gm||"current FO")}${rg.borrowed?` — history via ${rg.source} '${String(rg.start).slice(2)}–'${String(rg.end).slice(2)}`:` since '${String(rg.start).slice(2)}`}` : null;
     const wComps = warComps(t, comp);
-    const compsLine = wComps.length ? `<b>Their picks like him:</b> ${wComps.map(p=>`${_esc(p.n)} '${String(p.y).slice(2)} #${p.ov} — ${p.aw!=null?p.aw+" aWAR":p.w+" WAR"}`).join(" · ")}` : null;
+    const compsLine = wComps.length ? `<b>Their picks like him ('18+):</b> ${wComps.map(p=>`${_esc(p.n)} '${String(p.y).slice(2)} #${p.ov} — ${p.aw!=null?p.aw+" aWAR":p.w+" WAR"}`).join(" · ")}` : null;
     let drawer = "";
     if (fitTile === "reach") {
-      drawer = (dd ? kv(`${dd.n} regime picks like him`, `${dd.mlb} reached MLB (${pct(dd.rate)})${D.reach.d.lgRate!=null?` vs ${pct(D.reach.d.lgRate)} league`:""}`) : "")
-        + ((DATA.orgs[t]||{}).dev && DATA.orgs[t].dev.mlbDebut!=null ? kv("Org MLB-debut rate (all)", `${pct(DATA.orgs[t].dev.mlbDebut)}${DATA.lgDebut?` vs ${Math.round(DATA.lgDebut.avg)}% lg`:""}`) : "")
+      const pickLine = (p) => `${_esc(p.name)} '${dfYY(p.year)} #${p.overall} — ${p.reached_mlb?"reached MLB":"not yet"}`;
+      const picksBlock = ddPicks.length ? `<details class="fc2-picks"><summary>Name the ${dd.n} picks ▾</summary>${ddPicks.slice(0,12).map(pickLine).join("<br>")}${dd.n>12?`<br>+${dd.n-12} more`:""}</details>` : "";
+      drawer = (dd ? kv(`${dd.n} like him — ${ddCrit}`, `${dd.mlb} reached MLB (${pct(dd.rate)})${D.reach.d.lgRate!=null?` vs ${pct(D.reach.d.lgRate)} league`:""}`) : "")
+        + ((DATA.orgs[t]||{}).dev && DATA.orgs[t].dev.mlbDebut!=null ? kv("Org MLB-debut rate (all-time)", `${pct(DATA.orgs[t].dev.mlbDebut)}${DATA.lgDebut?` vs ${Math.round(DATA.lgDebut.avg)}% lg`:""}`) : "")
+        + picksBlock
         + (rgLine ? `<div class="fc-note">${rgLine} — earlier front offices don't count.</div>` : "");
     } else if (fitTile === "develop") {
-      drawer = (f.war && f.war.known ? warRow(`${g} picks ('18+)`, f.war.pos) + (f.war.band?warRow(`Picks ${f.war.band.key}`, f.war.band):"") + (f.war.lvl?warRow(`${f.war.lvl.key} picks`, f.war.lvl):"") : "")
-        + (f.war && f.war.expAt!=null ? kv(`Expected at ≈#${comp.rank}`, `${f.war.expAt} career WAR <span class="sub">(league mean, his band)</span>`) : "")
+      drawer = (f.war && f.war.known ? warRow(`${g} picks ('18+)`, f.war.pos) + (f.war.band?warRow(`Picks ${f.war.band.key} ('18+)`, f.war.band):"") + (f.war.lvl?warRow(`${f.war.lvl.key} picks ('18+)`, f.war.lvl):"") : "")
+        + (f.war && f.war.expAt!=null ? kv(`Expected at ≈#${comp.rank}`, `${f.war.expAt} career WAR <span class="sub">(league mean, his band, '18+)</span>`) : "")
         + (f.war && f.war.awRecent ? kv("Recent aWAR/pick ('18–24)", `${f.war.awRecent.perPick} <span class="sub">(${f.war.awRecent.n} picks · SV metric)</span>`) : "")
-        + (compsLine ? `<div class="fc-note">${compsLine}</div>` : "");
+        + (compsLine ? `<div class="fc-note">${compsLine}</div>` : "")
+        + (f.war && f.war.known && D.develop && D.develop.d && D.develop.d.known ? `<div class="fc-note">Grade blends '18+ WAR history (60%) with regime-window development (40%).</div>` : "");
     } else if (fitTile === "speed") {
+      const dep = D.depthInfo && D.depthInfo.known ? D.depthInfo : null;
+      const farmLine = dep && dep.items && dep.items.length ? `<div class="fc-note"><b>In their system at his spot (farm):</b> ${dep.items.map(p=>`${_esc(p.name)}${p.fv!=null?` FV${p.fv}`:""}${p.eta?` · ETA ${p.eta}`:""}`).join(" · ")}</div>` : "";
+      // warhist picks carry no debut year — list debuted picks at his level (nonzero bWAR or an aWAR record), newest first
+      const Wo = DATA.warhist && DATA.warhist.orgs && DATA.warhist.orgs[t];
+      const lvlW = comp.level === "HS" ? "HS" : "College";
+      const deb = Wo ? Wo.picks.filter(p=>p.lvl===lvlW && (p.aw!=null || (p.w!=null && p.w!==0))).sort((a,b)=>b.y-a.y).slice(0,3) : [];
+      const debLine = deb.length ? `<div class="fc-note"><b>Debuted picks behind the median (his level, '18+):</b> ${deb.map(p=>`${_esc(p.n)} '${dfYY(p.y)} #${p.ov} — reached MLB`).join(" · ")}</div>` : "";
       drawer = (D.speed && D.speed.known ? kv(`Median yrs to debut (${D.speed.lvl})`, `${D.speed.med} vs ${D.speed.lg} league <span class="sub">(n=${D.speed.n}, '18+ classes)</span>`) : `<div class="fc-note">No mature debut sample for his level.</div>`)
+        + farmLine + debLine
         + `<div class="fc-note">Speed = how fast this org moves ${comp.level==="HS"?"prep":"college"} picks to the majors, not roster opportunism — pair with Farm depth for the open-lane read.</div>`;
     } else if (fitTile === "value") {
       drawer = (D.earn && D.earn.roi && D.earn.roi.known ? kv("Bonuses → value ('18+)", `${fmtM(D.earn.roi.cost)} in → ${fmtM(D.earn.roi.val)} out · ${D.earn.roi.roi.toFixed(1)}× <span class="sub">(lg ${D.earn.roi.lg.toFixed(1)}×)</span>`) : "")
-        + (D.earn && D.earn.spend && D.earn.spend.known ? kv("Over-slot habit", `${D.earn.spend.avgPct>0?"+":""}${D.earn.spend.avgPct}% vs slot <span class="sub">(${D.earn.spend.n} picks)</span>`) : "")
+        + (D.earn && D.earn.spend && D.earn.spend.known ? kv("Over-slot habit", `${D.earn.spend.avgPct>0?"+":""}${D.earn.spend.avgPct}% vs slot <span class="sub">(${D.earn.spend.n} picks, regime)</span>`) : "")
         + (pv ? kv("His value at his price", `<b>${pv.ratio?Math.round(pv.ratio)+"×":"—"}</b> <span class="sub">FV${pv.fv} ${pv.kind==="pit"?"arm":"bat"} ≈ ${fmtM(pv.surplus)} surplus vs ~${pv.cost?fmtM(pv.cost):"—"} to sign (FG Jul-'26 valuation)</span>`) : "")
+        + `<div class="fc-note">ROI = '18+ draft bonuses in vs career WAR × $8.5M (FG $/WAR) out. Surplus = FG Jul-'26 valuation for his FV bucket vs our est. bonus to sign.</div>`
         + `<div class="fc-note">Value credited to the drafting org — the draft-day question is whether THEY turn picks into careers.</div>`;
     } else {
       const ps = orgPosSystem(t), B = leagueBaselines();
@@ -4924,9 +5144,13 @@
 
     // ---- header ----
     const rt = rankTrendOf(comp), rc = rt ? rtConsensus(rt) : null, ra = rt ? rtArrow(rt) : null;
+    // FV provenance: projection.json = SV NCAA model; fv.json = graded feed (FG/SVM per fvMeta)
+    const fvMeta = fvMetaOf(comp);
+    const fvProv = cal.fv==null ? null : cal.src==="NCAA model" ? "SV NCAA model · Jul '26"
+      : fvMeta && fvMeta.source==="FG" ? "FG grade" : fvMeta && fvMeta.source==="SVM" ? "SVM grade" : "FV feed";
     const calLine = [
       cal.calib01!=null?`caliber <b>${Math.round(100*cal.calib01)}</b>`:null,
-      cal.fv!=null?`FV ${cal.fv}${cal.tier?` · ${_esc(String(cal.tier))}`:""}`:null,
+      cal.fv!=null?`<span title="20-80 scouting scale; NCAA-model output for college players">FV ${(+cal.fv).toFixed(1)}${cal.tier?` · ${_esc(String(cal.tier))}`:""}${fvProv?` <span class="fc2-dim">(${fvProv})</span>`:""}</span>`:null,
       rc!=null?`board #${Math.round(rc*10)/10} <span class="${ra.cls}">${ra.ch}</span>`:null,
     ].filter(Boolean).join(" · ");
 
@@ -4943,6 +5167,7 @@
       <div class="fc2-tiles">${tileHtml}</div>
       <div class="fc2-drawer">${drawer}</div>
       ${logistics}${intel}
+      <div class="fc2-legend">Windows: regime = ${rg ? `${rg.borrowed?`${rg.source} '${dfYY(rg.start)}–'${dfYY(rg.end)}`:`since '${dfYY(rg.start)}`}${rg.gm?` under ${_esc(rg.gm)}`:""}` : "current FO"} (drafts) · '18+ = 2018–25 classes (WAR history) · farm = current system</div>
     </div>`;
     bd.classList.add("on");
   }
@@ -4950,22 +5175,26 @@
   // Packs a compact snapshot (draft status, pools, client book, slot-history aggregates —
   // never the raw ~2,500 tracker rows) and POSTs it with the question to /api/ask.
   let askBusy = false;
-  function packAskContext(state) {
+  // Each section opens with a bracketed source tag ([POOLS], [CLIENTS], …) — the model is
+  // instructed to answer only from these and cite the tag after every figure. The question
+  // steers extra slices: pick numbers pull that slot's full 2018-25 history, team mentions
+  // pull the team's pool/picks/regime dossier.
+  function packAskContext(state, question) {
+    const q = question || "";
     const L = [];
     if (state) {
       const oc = state.onClock;
-      L.push(`## Draft status (${state.year})`,
-        `Picks made: ${state.madeCount} of ${state.picks.length}. ${oc?`On the clock: pick #${oc.overall} (R${oc.round}) ${oc.teamName||oc.team}, slot ${fmtM(oc.slot)}.`:"Draft complete."}`);
+      L.push(`[DRAFT-STATUS] ${state.year} — picks made ${state.madeCount} of ${state.picks.length}. ${oc?`On the clock: pick #${oc.overall} (R${oc.round}) ${oc.teamName||oc.team}, slot ${fmtM(oc.slot)}.`:"Draft complete."}`);
       const made = state.picks.filter(p=>p.isDrafted).slice(-10);
-      if (made.length) L.push(`Last picks: ` + made.map(p=>`#${p.overall} ${p.team} ${p.player}${p.slot>0?` (slot ${fmtM(p.slot)})`:""}`).join("; "));
+      if (made.length) L.push(`[PICKS-RECENT] ` + made.map(p=>`#${p.overall} ${p.team} ${p.player}${p.slot>0?` (slot ${fmtM(p.slot)})`:""}`).join("; "));
       const up = state.picks.filter(p=>!p.isDrafted).slice(0,10);
-      if (up.length) L.push(`Next picks: ` + up.map(p=>`#${p.overall} ${p.team} slot ${fmtM(p.slot)}`).join("; "));
-      if (state.pools?.length) L.push(`## Bonus pools (team: pool / spent / room / over-under)`,
+      if (up.length) L.push(`[PICKS-NEXT] ` + up.map(p=>`#${p.overall} ${p.team} slot ${fmtM(p.slot)}`).join("; "));
+      if (state.pools?.length) L.push(`[POOLS] team: pool / spent / room / over-under\n` +
         state.pools.map(p=>`${p.team}: ${fmtM(p.pool)} / ${fmtM(p.poolCharge)} / ${fmtM(p.room)} / ${p.overUnder>0?"+":""}${fmtM(p.overUnder)}`).join("; "));
     }
     const clients = DATA.clientList.filter(c=>c.comp);
     if (clients.length) {
-      L.push(`## SV clients (rank · pos · level · age · est. market · floor · status · top interest)`);
+      L.push(`[CLIENTS] SV clients (rank · pos · level · age · est. market · floor · status · top interest)`);
       for (const c of clients) {
         const comp = c.comp;
         const pk = state && state.picks.find(p=>p.isDrafted && normName(p.player)===c.key);
@@ -4977,14 +5206,41 @@
     }
     if (DATA.slotHistory.length) {
       const lt = DATA.leagueTend;
-      L.push(`## Slot-history tracker (2018-25, ${DATA.slotHistory.length} signings)`);
-      if (lt) L.push(`League avg: ${lt.avgP?.toFixed(0)}% pitchers, ${lt.avgHS?.toFixed(0)}% HS.`);
+      L.push(`[SLOT-AGG 2018-25] ${DATA.slotHistory.length} signings.${lt?` League avg: ${lt.avgP?.toFixed(0)}% pitchers, ${lt.avgHS?.toFixed(0)}% HS.`:""}`);
       const rows = researchRows();
       const anyOn = research.pos.size||research.cls.size||research.lvl.size||research.money.size||research.round.size
         || research.ageLo>16||research.ageHi<25||research.bnLo>0||research.bnHi<BN_MAX;
       if (anyOn && rows.length) {
-        L.push(`Current Research lenses match ${rows.length} signings; top 30:`);
-        L.push(rows.slice(0,30).map(r=>`'${String(r.year).slice(2)} #${r.overall} ${r.first?r.first[0]+".":""}${r.last} ${posDispB(r)} ${r.level} ${teamAbbrevOf(r.team)} ${r.bonus!=null?fmtM(r.bonus):"unsigned"}${r.diff!=null?` (${r.diff>0?"+":""}${fmtM(r.diff)} vs slot)`:""}`).join("; "));
+        L.push(`[RESEARCH-ROWS] current Research lenses match ${rows.length} signings; top 30:\n` +
+          rows.slice(0,30).map(r=>`'${String(r.year).slice(2)} #${r.overall} ${r.first?r.first[0]+".":""}${r.last} ${posDisp(r)} ${r.level} ${teamAbbrevOf(r.team)} ${r.bonus!=null?fmtM(r.bonus):"unsigned"}${r.diff!=null?` (${r.diff>0?"+":""}${fmtM(r.diff)} vs slot)`:""}`).join("; "));
+      }
+    }
+    // Pick numbers in the question ("pick 5", "#43", "this pick/slot") → that slot's full history.
+    const nums = [];
+    const re = /(?:\bpick\s*#?|#|\boverall\s+#?)(\d{1,3})\b/gi;
+    let m; while ((m = re.exec(q))) { const n = +m[1]; if (n>=1 && n<=650 && !nums.includes(n)) nums.push(n); }
+    if (state && state.onClock && /\bthis (pick|slot)\b/i.test(q) && !nums.includes(state.onClock.overall)) nums.unshift(state.onClock.overall);
+    for (const n of nums.slice(0,3)) {
+      const rows = DATA.slotHistory.filter(r=>r.overall===n);
+      if (rows.length) L.push(`[PICK-#${n} HISTORY 2018-25]\n` + rows.map(r=>
+        `${r.year} · ${r.first} ${r.last} · ${posDisp(r)} · ${r.level} · ${teamAbbrevOf(r.team)} · ${r.bonus!=null?fmtM(r.bonus):"unsigned"} · slot ${r.slot!=null?fmtM(r.slot):"—"} · ${r.diff!=null?sgn$(r.diff):"—"}`).join("\n"));
+    }
+    // Team mentions (abbr exact-case, or team name/nickname) → pool + next picks + regime.
+    if (state && state.pools?.length) {
+      const rxEsc = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const hits = state.pools.filter(p => {
+        if (new RegExp(`\\b${p.team}\\b`).test(q)) return true;   // abbr stays case-sensitive ("min" ≠ MIN)
+        const w = (p.teamName||"").split(" ");
+        return [p.teamName, w.slice(-2).join(" "), w[w.length-1]].filter(s=>s && s.length>=4)
+          .some(s => new RegExp(`\\b${rxEsc(s)}\\b`, "i").test(q));
+      });
+      for (const p of hits.slice(0,2)) {
+        const up3 = state.picks.filter(k=>k.team===p.team && !k.isDrafted).slice(0,3);
+        const rg = (DATA.regime && DATA.regime[p.team]) ? dfRegime(p.team) : null;
+        L.push(`[TEAM ${p.team}] ${p.teamName||""}\n` +
+          `Pool ${fmtM(p.pool)} / spent ${fmtM(p.poolCharge)} / room ${fmtM(p.room)} / over-under ${p.overUnder>0?"+":""}${fmtM(p.overUnder)}` +
+          (up3.length ? `\nNext picks: ${up3.map(k=>`#${k.overall} (R${k.round}) slot ${fmtM(k.slot)}`).join("; ")}` : `\nNo picks left.`) +
+          (rg && rg.gm ? `\nRegime: GM ${rg.gm}, drafts since ${rg.start}${rg.borrowed?` (history via ${rg.source} through ${rg.end})`:""}` : ""));
       }
     }
     return L.join("\n");
@@ -4997,11 +5253,13 @@
     try {
       const r = await fetch("/api/ask", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: q, context: packAskContext(currentState) }),
+        body: JSON.stringify({ question: q, context: packAskContext(currentState, q) }),
       });
       const data = await r.json();
       if (!r.ok || data.error) throw new Error(data.error || `HTTP ${r.status}`);
-      out.innerHTML = `<div class="ask-q">${_esc(q)}</div>${_esc(data.answer)}`;
+      // post-escape: mute the [SECTION-TAG] citations (uppercase/digits/#/- only — no markup risk)
+      const ans = _esc(data.answer).replace(/\[([A-Z0-9#\- ]{2,40})\]/g, '<span class="ask-tag">[$1]</span>');
+      out.innerHTML = `<div class="ask-q">${_esc(q)}</div>${ans}`;
     } catch (e) {
       out.innerHTML = `<div class="ask-q">${_esc(q)}</div><span class="ask-err">${_esc(String(e.message||e))}</span> <button class="ctl" style="padding:2px 8px;font-size:11px" onclick="askDraft()">retry</button>`;
     } finally { askBusy = false; $("askBtn").disabled = false; }
@@ -5199,7 +5457,7 @@
 
     // ── player settings bar, right under the header (combine medical + range hard lock) ──
     const rOpts = (sel) => Array.from({length:20},(_,i)=>i+1).map(r=>`<option ${String(r)===String(sel)?"selected":""}>${r}</option>`).join("");
-    const rgm = comp ? RANGES[c.key] : null;
+    const rgm = RANGES[c.key] || null;   // unranked clients can carry a manual range too
     h += `<div class="tc-foot pp-foot"><span class="tc-qa">Player settings</span>
       <span style="font-size:12px;font-weight:700;color:#6b7280">Combine medical</span>
       <span class="seg">
@@ -5285,62 +5543,83 @@
       ? `<div class="pp-cols"><div class="pp-col">${p1}${p3}${p4}</div><div class="pp-col">${p2}</div></div>`
       : `<div class="pp-cols"><div class="pp-col">${p1}${p3}</div><div class="pp-col">${p4}</div></div>`, ppPanelOpen);
 
+    h += nbMiniHtml(nbNotes().filter(e => normName(e.player_name||"")===c.key));   // war-room notes on him
+
     $("detailBody").innerHTML = h;
   }
 
   function renderTeamDetail(state) {
     const t = selected.id, pool = state.poolsMap[t], o = DATA.orgs[t] || {};
     const teamName = (state.pools.find(p=>p.team===t)||{}).teamName || "";
-    let h = `<div class="cc"><div class="detail-head">${teamLogo(t,34)}<span class="big">${t}</span><span class="pl">${teamName}</span></div>`;
-    if (pool) h += `<div class="pool-row">${[
+    let h = `<div class="cc"><div class="detail-head">${teamLogo(t,34)}<span class="big">${t}</span><span class="pl">${teamName}</span></div></div>`;
+
+    // ── LEFT column: pool stat row + all remaining picks + tendencies ──
+    let L = "";
+    if (pool) L += `<div class="panel"><h3>Bonus pool</h3><div class="pool-row" style="margin-top:0">${[
       ["Pool", fmt$(pool.pool)], ["Spent", fmt$(pool.poolCharge)+(pool.hasEst?" est":"")],
       ["Room (ammo)", fmt$(pool.room)], ["Overage (5% cushion)", fmt$(pool.overage)],
       ["Over/under", fmtOU(pool.overUnder)], ["Picks", `${pool.picksMade}/${pool.picksTotal}`],
-    ].map(([k,v])=>`<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("")}</div>`;
-    h += `</div>`;
+    ].map(([k,v])=>`<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("")}</div></div>`;
 
     const up = teamUpcoming(state, t);
-    h += `<div class="panel" style="margin-top:14px"><h3>Upcoming picks (${up.length})</h3>`;
-    h += up.length ? `<div class="ba" style="gap:4px">${up.slice(0,16).map(p =>
+    L += `<div class="panel"><h3>Upcoming picks (${up.length})</h3>`;
+    L += up.length ? `<div class="ba td-upwrap" style="gap:4px">${up.map(p =>
       `<div class="ct"><span class="ov" style="min-width:46px;color:var(--red);font-weight:800">#${p.overall}</span>
        <span style="color:#6b7280">R${p.round}</span><span class="nx">slot ${p.slot>0?fmt$(p.slot):"—"}</span></div>`).join("")}</div>`
       : `<div class="placeholder">No picks remaining.</div>`;
-    h += `</div>`;
+    L += `</div>`;
 
-    h += `<div class="cols" style="margin-top:14px"><div class="panel"><h3>Tendencies</h3>`;
-    const chips = [];
-    if (o.orgRank!=null) chips.push(["Org dev rank","#"+o.orgRank]);
-    if (o.earlyPitcherPct!=null) chips.push(["Early picks pitchers",o.earlyPitcherPct+"%"]);
-    if (o.hsPct!=null) chips.push(["HS",o.hsPct+"%"]);
-    if (o.collegePct!=null) chips.push(["College",o.collegePct+"%"]);
-    h += `<div class="chips">${chips.map(([l,v])=>`<span class="chip"><span class="lab">${l}</span> <b>${v}</b></span>`).join("")||"<span class='placeholder'>No profile.</span>"}</div>`;
-    h += (o.recentR1||[]).length ? `<div class="r1"><div style="font-weight:700;color:#14161a">Recent 1st-rounders</div>${o.recentR1.map(r=>`<div>${r.year} · ${r.player} (${r.pos})</div>`).join("")}</div>` : "";
-    h += `</div>`;
+    // Tendencies as labeled rows — each carries the window its number covers. Numeric only.
+    const yy = (y) => String(y).slice(2);
+    const ord = n => n + (n%100>=11 && n%100<=13 ? "th" : ["th","st","nd","rd"][n%10] || "th");
+    const trow = (k, v, win) => `<div class="tc-kv"><span class="k">${k}</span><span class="v">${v}${win?` <span class="td-win">${win}</span>`:""}</span></div>`;
+    const mix = (m) => m ? ["P","C","IF","OF"].filter(g=>m[g]!=null).map(g=>`${g} ${Math.round(100*m[g])}%`).join(" · ") : null;
+    let rows = "";
+    const rg = dfReady() ? dfRegime(t) : null;
+    if (rg) rows += trow("Regime", `GM ${rg.gm||"—"}`,
+      rg.borrowed ? `history via ${rg.source} '${yy(rg.start)}–'${yy(rg.end)}` : `drafts since '${yy(rg.start)}`);
+    if (mix(o.posDraft)) rows += trow("Draft mix", mix(o.posDraft), "all classes");
+    if (mix(o.posDraftEarly)) rows += trow("Early-pick mix", mix(o.posDraftEarly), "all classes");
+    if (o.hsPct!=null || o.collegePct!=null) rows += trow("HS / College", `${o.hsPct!=null?o.hsPct:"—"}% HS · ${o.collegePct!=null?o.collegePct:"—"}% COL`, "all classes");
+    const sp = dfSpend(t);
+    if (sp.known) rows += trow("Over-slot habit", `${sp.avgPct>0?"+":""}${sp.avgPct}% vs slot (${sp.n} picks, regime)`,
+      rg ? (rg.borrowed ? `${rg.source} '${yy(rg.start)}–'${yy(rg.end)}` : `since '${yy(rg.start)}`) : "");
+    const W = DATA.warhist && DATA.warhist.orgs && DATA.warhist.orgs[t];
+    if (W && W.all && W.all.n) { const rk = whRankOf(t);
+      rows += trow("Draft WAR/pick", `${(W.all.warSum/W.all.n).toFixed(1)}${rk?` · ${ord(rk)} of 30`:""}`, "'18+ classes"); }
+    L += `<div class="panel"><h3>Tendencies</h3>`;
+    L += rows || `<div class="placeholder">No profile.</div>`;
+    L += (o.recentR1||[]).length ? `<div class="r1"><div style="font-weight:700;color:#14161a">Recent 1st-rounders</div>${o.recentR1.map(r=>`<div>${r.year} · ${r.player} (${r.pos})</div>`).join("")}</div>` : "";
+    L += `</div>`;
 
+    // ── RIGHT column: our clients they like + picks made ──
     const clients = DATA.clientList.filter(c=>latestIntel(c.key,t)).map(c => {
       const rec=latestIntel(c.key,t); const dr=state.picks.find(p=>p.isDrafted&&normName(p.player)===c.key);
       return { c, rec, dr, f:fit(c.comp,t,c.key,state), cr:intelColorRank(c.key,t) };
     }).sort((a,b)=>(a.cr-b.cr) || b.f.score-a.f.score);
-    h += `<div class="panel"><h3>Our clients they like (${clients.length})</h3>`;
+    let R = `<div class="panel"><h3>Our clients they like (${clients.length})</h3>`;
     let lastCr = -1;
-    h += clients.length ? clients.map(x => {
+    R += clients.length ? clients.map(x => {
       const hdr = x.cr!==lastCr ? intGroupHdr(x.cr) : ""; lastCr = x.cr;
-      const nx=teamPickInRange(state,t,x.c.comp?effRangeOf(x.c.comp):null); const ou=(x.c.comp&&nx)?negBonus(x.c.comp,nx.slot,nx.overall)-nx.slot:null;
+      const nx=teamPickInRange(state,t,effRangeOf(x.c.comp||x.c.key)); const ou=(x.c.comp&&nx)?negBonus(x.c.comp,nx.slot,nx.overall)-nx.slot:null;
       return `${hdr}<div class="ct">${intelDot(x.c.key, t)}
         <span class="nm">${playerLink(x.c.name)}</span>${contactBadges(x.c.key, t)}
         <span class="nx">${x.dr?`drafted #${x.dr.overall}`:(ou!=null?ouTag(ou,true):"")}</span></div>`;
     }).join("") : `<div class="placeholder">None on file.</div>`;
-    h += `</div></div>`;
+    R += `</div>`;
+    R += nbMiniHtml(nbNotes().filter(e => !e.player_name && teamAlias(e.team||"")===t));   // war-room notes on this org
 
     const made = teamMade(state, t);
     if (made.length) {
-      h += `<div class="panel" style="margin-top:14px"><h3>Picks made (${made.length})</h3>`;
-      h += made.map(p => { const ours=DATA.clients.has(normName(p.player||""));
+      R += `<div class="panel"><h3>Picks made (${made.length})</h3>`;
+      R += made.map(p => { const ours=DATA.clients.has(normName(p.player||""));
         return `<div class="ct"><span class="ov" style="min-width:46px;color:var(--red);font-weight:800">#${p.overall}</span>
           <span>${ours?playerLink(p.player):(p.player||"—")}</span>${ours?'<span class="svtag">SV</span>':""}
           <span class="nx">${moneyCell(p)}</span></div>`; }).join("");
-      h += `</div>`;
+      R += `</div>`;
     }
+
+    h += `<div class="cols"><div class="colstack">${L}</div><div class="colstack">${R}</div></div>`;
     $("detailBody").innerHTML = h;
   }
 
