@@ -1691,7 +1691,7 @@
 
   async function loadStatic() {
     try {
-      const [c, o, lev, hg, meta, pros, dh] = await Promise.all([
+      const [c, o, lev, hg, meta, pros, dh, wh] = await Promise.all([
         fetch("/data/composite.json").then(r=>r.json()),
         fetch("/data/orgs.json").then(r=>r.json()),
         fetch("/data/leverage.json").then(r=>r.json()).catch(()=>null),
@@ -1699,10 +1699,12 @@
         fetch("/data/meta.json").then(r=>r.json()).catch(()=>null),
         fetch("/data/prospects.json").then(r=>r.json()).catch(()=>null),
         fetch("/data/drafthist.json").then(r=>r.json()).catch(()=>null),
+        fetch("/data/warhist.json").then(r=>r.json()).catch(()=>null),
       ]);
       DATA.composite = c; DATA.orgs = o; DATA.leverage = lev; DATA.meta = meta;
       DATA.prospects = pros || {};   // Org Review MLB.com T30 per org (build_prospects.py)
       DATA.drafthist = dh;           // 2018-25 rounds 1-10 picks + outcomes (build_drafthist.py)
+      DATA.warhist = wh;             // 2008-25 career-WAR draft lookback + aWAR (build_warhist.py)
       // homegrown-by-level (baked from MLB StatsAPI, keyed by team id) → org records,
       // with each team's league rank on the two homegrown percentages
       if (hg) {
@@ -2087,6 +2089,65 @@
     if (sigs.length) out.histN = sigs.reduce((a,b)=>a+b,0)/sigs.length;
     return out;
   }
+  // ---- WAR lookback (warhist.json, 2008-25): the long-run half of the Track-record lens.
+  // Career bWAR per pick vs expectation-at-pick (mature classes '08-'19), per org ×
+  // pos group / pick band / HS-College — "how much big-league value have they actually
+  // extracted from picks like him?" Cells arrive pre-shrunk (K=8) from the builder;
+  // woe (WAR-over-expected per pick) maps to 0-1 via a 0.35 gain: LAD's league-best
+  // +1.07 ≈ 0.87, the worst ≈ 0.30. Complements the hit-rate half (recent classes).
+  const WH_BANDS = [[1,5],[6,10],[11,20],[21,32],[33,50],[51,75],[76,110],[111,160],[161,230],[231,315]];
+  const whBandKey = (rank) => { const r = Math.min(Math.max(rank||999,1),315);
+    for (const [lo,hi] of WH_BANDS) if (r>=lo && r<=hi) return `${lo}-${hi}`; return null; };
+  const whSig = (cell) => Math.max(0, Math.min(1, 0.5 + 0.35*(cell.woe||0)));
+  function warSignal(team, g, rank, level) {
+    const W = DATA.warhist && DATA.warhist.orgs && DATA.warhist.orgs[team];
+    if (!W) return { warN:0.5, known:false };
+    const out = { warN:0.5, known:true, all:W.all, awRecent:W.awRecent }, sigs = [];
+    if (g && g!=="?" && W.byG[g]) { out.pos = W.byG[g]; sigs.push(whSig(W.byG[g])); }
+    const bk = whBandKey(rank);
+    if (bk && W.byB[bk]) { out.band = { ...W.byB[bk], key:bk }; sigs.push(whSig(W.byB[bk])); }
+    const lv = level==="HS" ? "HS" : level ? "College" : null;
+    if (lv && W.byLvl[lv]) { out.lvl = { ...W.byLvl[lv], key:lv }; sigs.push(whSig(W.byLvl[lv])); }
+    if (!sigs.length && W.all) sigs.push(whSig(W.all));
+    if (sigs.length) out.warN = sigs.reduce((a,b)=>a+b,0)/sigs.length;
+    const eb = whBandKey(rank);   // expected career WAR at his projected pick band
+    out.expAt = eb && DATA.warhist.expMean ? DATA.warhist.expMean[eb] : null;
+    return out;
+  }
+  // league rank of an org's overall WAR-over-expected (1 = best), cached per load
+  let _whRank = null;
+  function whRankOf(team) {
+    const O = DATA.warhist && DATA.warhist.orgs; if (!O) return null;
+    if (!_whRank) {
+      const rows = Object.entries(O).map(([t,o]) => ({ t, w: o.all ? o.all.woe : -9 }));
+      _whRank = {}; for (const r of rows) _whRank[r.t] = 1 + rows.filter(x=>x.w>r.w).length;
+    }
+    return _whRank[team] || null;
+  }
+  // WAR comps: the org's most recent picks that look like this player (same cascade
+  // idea as findComp, over the 2008-25 sweep), with the career value each returned.
+  // aWAR shown when the comp carries it (recent classes), else bWAR.
+  function warComps(team, comp, limit=3) {
+    const W = DATA.warhist && DATA.warhist.orgs && DATA.warhist.orgs[team];
+    if (!W || !comp) return [];
+    const g = comp.posGroup || posGroupOf(comp.pos);
+    const lv = comp.level==="HS" ? "HS" : comp.level ? "College" : null;
+    const bk = whBandKey(comp.rank);
+    const mature = (DATA.warhist.meta && DATA.warhist.meta.matureThrough) || 2019;
+    // mature classes first (a '24 pick's 0.0 bWAR says nothing about development),
+    // newest within each half — picks arrive pre-sorted newest-first
+    const order = (hits) => [...hits.filter(p=>p.y<=mature), ...hits.filter(p=>p.y>mature)];
+    const tiers = [
+      p => p.g===g && (!lv||p.lvl===lv) && whBandKey(p.ov)===bk,
+      p => p.g===g && (!lv||p.lvl===lv),
+      p => p.g===g,
+    ];
+    for (const test of tiers) {
+      const hits = W.picks.filter(test);
+      if (hits.length >= Math.min(limit,2)) return order(hits).slice(0, limit);
+    }
+    return order(W.picks.filter(p=>p.g===g)).slice(0, limit);
+  }
   // Pipeline lens: how much of the player's position group the org's Top-30 already carries,
   // vs the league norm for that group (a SS isn't judged against pitcher counts). More than
   // the field = they collect his type.
@@ -2158,6 +2219,11 @@
     const pb = comp ? playerBucket(comp) : { est:null, idx:-1 };
     const hist = comp ? histSignal(team, g, pb.idx) : { histN:0.5, known:false };
     const pipe = comp ? pipeSignal(team, g) : { pipeN:0.5, known:false };
+    // Track record = recent hit-rate ('18-25) blended 50/50 with the long-run WAR
+    // lookback ('08-19 classes) when warhist.json is loaded; hit-rate alone otherwise.
+    const war = comp ? warSignal(team, g, comp.rank, comp.level) : { warN:0.5, known:false };
+    const histN = war.known && hist.known ? 0.5*hist.histN + 0.5*war.warN
+                : war.known ? war.warN : hist.histN;
     const pool = state.poolsMap[team];
     const moneyN = pool && pool.ceiling ? Math.max(0, Math.min(1, pool.room/pool.ceiling)) : 0.5;
     const score = Math.round(100*(0.45*interestN + 0.20*devN + 0.15*typeN + 0.20*moneyN));
@@ -2165,7 +2231,7 @@
     // fit surface at a slot even when the team's money doesn't work.
     const orgScore = Math.round(100*(0.45*interestN + 0.20*devN + 0.15*typeN)/0.80);
     return { score, orgScore, interestN, devN, typeN, moneyN, flavorN, fvN, fvKnown,
-      histN:hist.histN, hist, pipeN:pipe.pipeN, pipe, bucketEst:pb.est, bucketIdx:pb.idx };
+      histN, hist, war, pipeN:pipe.pipeN, pipe, bucketEst:pb.est, bucketIdx:pb.idx };
   }
 
   // "Is player Y team X's flavor, and why?" — verdict + 2-4 concise reason strings.
@@ -3495,6 +3561,17 @@
       rows += `<div class="mk">Homegrown</div><div class="mv">${o.homegrown!=null?o.homegrown:"—"}</div><div class="md"></div><div class="mr"></div>`;
     }
     rows += mrow("MLB-debut rate (dev)", dev.mlbDebut!=null?100*dev.mlbDebut:null, DATA.lgDebut?DATA.lgDebut.avg:null, o.rankDebut);
+    // Draft WAR lookback ('08-19 classes): raw bWAR per pick, ± = vs expected-at-slot
+    // (league expectation is the baseline, so the delta IS the vs-league read).
+    {
+      const W = DATA.warhist && DATA.warhist.orgs && DATA.warhist.orgs[team];
+      if (W && W.all && W.all.n) {
+        const perPk = W.all.warSum / W.all.n, rk = whRankOf(team);
+        rows += `<div class="mk">Draft WAR/pick ('08-19)</div><div class="mv">${perPk.toFixed(1)}</div>`
+          + `<div class="md">${W.all.woe>=0?"+":"−"}${Math.abs(W.all.woe).toFixed(2)}</div>`
+          + `<div class="mr">${rk?`<span class="${rkCls(rk)}">${ord(rk)}</span>`:""}</div>`;
+      }
+    }
     rows += tt
       ? (hitSel ? mrow("Pitchers vs hitters", 100-tt.pPct, 100-lt.avgP, (rankTot+1)-lt.rankP(myName), "H")
                 : mrow("Pitchers vs hitters", tt.pPct, lt.avgP, lt.rankP(myName), "P"))
@@ -4126,6 +4203,8 @@
       whyBullets.push(`${g} track record: ${P.hit} of ${P.n} hits since '18 (${pct(P.hit/Math.max(P.n,1))} vs ${pct(P.lgRate)} league).`); }
     if (f.hist && f.hist.bucket) { const B=f.hist.bucket;
       whyBullets.push(`At his price (${B.label}): ${B.hit} of ${B.n} hits (${pct(B.n?B.hit/B.n:null)} vs ${pct(B.lgRate)} league).`); }
+    if (f.war && f.war.known && (f.war.pos || f.war.all)) { const W = f.war.pos || f.war.all;
+      whyBullets.push(`WAR lookback ('08-19 ${f.war.pos?g+" ":""}picks): ${W.warSum} WAR vs ${W.expSum} expected over ${W.n} — ${W.woe>=0.15?"they develop his kind":W.woe<=-0.15?"they've underdelivered on his kind":"about league rate"}.`); }
     if (f.pipe && f.pipe.known)
       whyBullets.push(`Pipeline: ${f.pipe.count} ${g} in their Top-30 vs ${f.pipe.lgAvg.toFixed(1)} league — ${f.pipeN>=0.58?"they collect his type":f.pipeN<=0.42?"light on his group":"about the field's mix"}.`);
     if (pool && bonus!=null)
@@ -4156,15 +4235,31 @@
     const compBlock = theComp ? (()=>{ const p=theComp.pick;
       return `<div class="fc-note" style="margin-top:8px"><b>The comp</b> (${theComp.match}): ${_esc(p.name)} — ${p.y} R${p.rd} (#${p.ov}), ${p.pos} ${p.lvl==="HS"?"HS":"COL"}${p.b?`, ${p.g==="P"?"throws "+(p.t||"?"):"bats "+p.b}`:""}, ${p.bon?fmtM(p.bon):"bonus n/a"} ${outChip(p.out)}</div>`; })()
       : `<div class="fc-note" style="margin-top:8px">No comparable pick found — ${t} hasn't taken a ${g} like him in rounds 1-10 since 2018.</div>`;
+    // WAR lookback block: org's long-run value extraction on picks like him + comps
+    // with actual career value (aWAR when the comp has it, else bWAR).
+    const woeFmt = (c) => `<span class="vsv ${c.woe>=0.12?'over':c.woe<=-0.12?'under':'even'}">${c.woe>0?"+":""}${c.woe.toFixed(2)}</span>`;
+    const warRow = (lbl, c) => c ? `<div class="tc-kv"><span class="k">${lbl}</span><span class="v">${c.warSum} WAR vs ${c.expSum} exp over ${c.n} · ${woeFmt(c)}/pick</span></div>` : "";
+    const wComps = f.war && f.war.known ? warComps(t, comp) : [];
+    const warVal = (p) => p.aw!=null ? `${p.aw} aWAR` : `${p.w} WAR`;
+    const warBlock = f.war && f.war.known ? `
+      <div class="tc-chart-h" style="margin-top:10px">WAR lookback · '08–'19 classes</div>
+      ${warRow(`${g} picks`, f.war.pos)}
+      ${f.war.band?warRow(`Picks ${f.war.band.key}`, f.war.band):""}
+      ${f.war.lvl?warRow(`${f.war.lvl.key} picks`, f.war.lvl):""}
+      ${f.war.expAt!=null?`<div class="tc-kv"><span class="k">Expected at ≈#${comp.rank}</span><span class="v">${f.war.expAt} career WAR <span class="sub">(league mean, his pick band)</span></span></div>`:""}
+      ${f.war.awRecent?`<div class="tc-kv"><span class="k">Recent aWAR/pick ('18–24)</span><span class="v">${f.war.awRecent.perPick} <span class="sub">(${f.war.awRecent.n} picks · SV metric)</span></span></div>`:""}
+      ${wComps.length?`<div class="fc-note" style="margin-top:8px"><b>Their picks like him:</b> ${wComps.map(p=>`${_esc(p.n)} '${String(p.y).slice(2)} #${p.ov} — ${warVal(p)}`).join(" · ")}</div>`:""}`
+      : "";
     const p3 = `<div class="tc-panel" data-q="hist"><h4><span class="n">3</span> Track record — his position & price</h4>
       ${f.hist&&f.hist.known?`
       ${histRow(`${g} picks since '18`, f.hist.pos)}
       ${f.hist.bucket?histRow(`${f.hist.bucket.label} picks`, f.hist.bucket):""}
       <div class="tc-kv"><span class="k">His price bucket</span><span class="v">${f.bucketIdx>=0?HIST_BUCKETS[f.bucketIdx][2]:"—"}${f.bucketEst?` <span class="sub">(market ≈ ${fmtM(f.bucketEst)} at #${comp.rank})</span>`:""}</span></div>
-      <div class="tc-kv"><span class="k">Lens grade</span><span class="v">${Math.round(100*f.histN)}</span></div>
-      ${compBlock}
-      <div class="fc-note">A "hit" = reached MLB or sits on a current Top-30. Small samples are shrunk toward the league rate, so 2-for-3 doesn't read as elite.</div>`
-      :`<div class="fc-note">Draft-history feed not loaded — this lens reads neutral (50).</div>`}</div>`;
+      ${compBlock}`
+      :`<div class="fc-note">Draft-history feed not loaded — recent hit-rates read neutral.</div>`}
+      ${warBlock}
+      <div class="tc-kv" style="margin-top:6px"><span class="k">Lens grade</span><span class="v">${Math.round(100*f.histN)}${f.war&&f.war.known&&f.hist&&f.hist.known?` <span class="sub">(recent hit-rate × long-run WAR, 50/50)</span>`:""}</span></div>
+      <div class="fc-note">A "hit" = reached MLB or current Top-30 ('18-25). WAR lookback = career bWAR vs the league's expected return at that draft slot ('08-19 classes, shrunk); aWAR is the SV metric on recent comps — the long-run development read.</div></div>`;
 
     // Panel 4 — Pipeline: his position group in their current Top-30, vs the league norm.
     const p4 = `<div class="tc-panel" data-q="pipe"><h4><span class="n">4</span> Pipeline — his group in their Top-30</h4>
