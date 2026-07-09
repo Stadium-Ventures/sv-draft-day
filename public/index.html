@@ -3,7 +3,7 @@
 <title>SV Draft Day</title>
 <link rel="icon" href="/favicon.svg" />
 <link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials" />
-<meta name="theme-color" content="#ff2a22" />
+<meta name="theme-color" content="#ffffff" />
 <link rel="apple-touch-icon" href="/icons/icon-180.png" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
@@ -505,14 +505,16 @@
     text-shadow:0 0 2px #fff, 0 0 2px #fff; pointer-events:none; }
   .tc-mixbar .tick::after { content:""; position:absolute; left:50%; top:11px; width:1px; height:14px;
     background:var(--ink); transform:translateX(-50%); }
-  /* 4-way HS/COL × Hitter/Pitcher heat matrix — kept subtle so it reads as a support graphic */
-  .tc-mat { display:grid; grid-template-columns:auto 1fr 1fr; gap:2px; margin-top:6px; max-width:200px; }
-  .tc-mat .hd { font-size:7.5px; font-weight:800; text-transform:uppercase; letter-spacing:.3px;
+  .tc-mixbar .tick .tkd { position:absolute; top:1px; font-size:8px; font-weight:800; color:var(--muted);
+    white-space:nowrap; text-shadow:none; }
+  /* 4-way HS/COL × Hitter/Pitcher heat matrix — a compact, right-anchored support graphic */
+  .tc-mat { display:grid; grid-template-columns:auto 74px 74px; gap:3px; margin:7px 0 0 auto; width:max-content; }
+  .tc-mat .hd { font-size:8px; font-weight:800; text-transform:uppercase; letter-spacing:.3px;
     color:var(--muted); display:flex; align-items:center; justify-content:center; }
-  .tc-mat .cell { display:flex; align-items:center; justify-content:center; height:13px; border-radius:3px;
-    border:1px solid var(--line); font-size:8px; font-weight:800; font-variant-numeric:tabular-nums; color:var(--ink); }
+  .tc-mat .cell { display:flex; align-items:center; justify-content:center; height:17px; border-radius:3px;
+    border:1px solid var(--line); font-size:9.5px; font-weight:800; font-variant-numeric:tabular-nums; color:var(--ink); }
   /* compound selector so it beats the later, equal-specificity .tc-sub rule (font + margin) */
-  .tc-sub.tc-mat-cap { margin:8px 0 2px; font-size:6.5px; letter-spacing:.2px; }
+  .tc-sub.tc-mat-cap { margin:6px 0 2px; font-size:6.5px; letter-spacing:.2px; text-align:right; }
   .tc-feed-row { display:flex; gap:8px; align-items:flex-start; padding:6px 0; border-top:1px solid var(--line); }
   .tc-feed-row:first-child { border-top:none; }
   .tc-feed-meta { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.3px; color:var(--muted); }
@@ -540,6 +542,9 @@
   #teamCard .tc-upc td.pl { max-width:none; width:auto; overflow:visible; }
   #teamCard .tc-upc td.pl .plwrap { display:inline-flex; }
   #teamCard .tc-upc td.pl .plwrap .pln { overflow:visible; text-overflow:clip; }
+  /* Prospects (panel 4): shrink the table to its content so POS/LVL/AGE sit just right of the
+     names instead of being pushed to the panel's right edge by a full-width auto-layout. */
+  #teamCard .tc-panel[data-q="prospects"] .tc-upc { width:auto; }
   .tc-upc td.cur { color:var(--red); }
   .tc-cur-tag { font-size:9px; font-weight:800; color:var(--red); border:1px solid var(--red); border-radius:4px; padding:1px 5px; margin-left:6px; }
   .tc-fit-strip { margin:0 22px 16px; border:1px solid var(--line); border-radius:12px; padding:13px 16px; display:flex; gap:22px; align-items:center; flex-wrap:wrap; background:#fbfbfc; }
@@ -732,7 +737,7 @@
   .tc-dfno small { font-size:8px; font-weight:700; color:var(--muted); text-transform:uppercase; white-space:nowrap; }
   .tc-dfwho { flex:1; min-width:0; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .tc-dfsub { font-size:10px; font-weight:600; color:var(--muted); margin-left:5px; }
-  .tc-dffits { flex:1; min-width:0; display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+  .tc-dffits { flex:1; min-width:0; display:flex; align-items:center; justify-content:center; gap:7px; flex-wrap:wrap; }
   .tc-dffits.none { color:var(--muted); font-weight:600; }
   .tc-dffit { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:800; color:#374151; white-space:nowrap; cursor:help; }
   .tc-dffit.sel { color:var(--red); }
@@ -3474,10 +3479,14 @@
     const mixBar = (label, leftShort, rightShort, leftPct, avgLeftPct, rank) => {
       if (leftPct==null) return `<div class="tc-kv"><span class="k">${label}</span><span class="v">${avgLeftPct==null?"…":"—"}</span></div>`;
       const lp = clamp(leftPct), tick = clamp(avgLeftPct);
+      const d = leftPct - avgLeftPct;   // team's lean vs league, in points, shown by the tick
+      const dLbl = `${d>=0?"+":"−"}${Math.abs(d).toFixed(1)}`;
+      // put the delta on whichever side of the tick has room (left of arrow when it sits past mid)
+      const dStyle = tick > 55 ? "right:100%;margin-right:4px" : "left:100%;margin-left:4px";
       return `<div class="tc-mixbar"><div class="top"><span class="k">${label}</span>
         <span class="v">${Math.round(leftPct)}% ${leftShort}${rank?` <span class="hg-pct ${rkCls(rank)}">· ${ord(rank)}</span>`:""}</span></div>
         <div class="track"><span class="seg-l" style="width:${lp}%">${leftShort}</span><span class="seg-r">${rightShort}</span>
-        <span class="tick" style="left:${tick}%" title="league avg ${avgLeftPct.toFixed(1)}%">▲</span></div></div>`;
+        <span class="tick" style="left:${tick}%" title="league avg ${avgLeftPct.toFixed(1)}%">▲<span class="tkd" style="${dStyle}">${dLbl}</span></span></div></div>`;
     };
     h += `<div class="tc-sub">vs league average · rank of 30</div>`;
     // homegrown = drafted by this org & still with them (MLB StatsAPI bake)
