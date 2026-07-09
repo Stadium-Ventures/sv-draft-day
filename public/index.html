@@ -1565,6 +1565,10 @@
   const posGroupOf = (pos) => { const p=(pos||"").toUpperCase();
     if (/P|RHP|LHP|SP|RP/.test(p)) return "P"; if (p==="C") return "C";
     if (/1B|2B|3B|SS|IF|INF/.test(p)) return "IF"; if (/OF|CF|LF|RF/.test(p)) return "OF"; return "?"; };
+  // every group a multi-listed position covers ("1B/OF" -> IF+OF) — posGroupOf alone keeps
+  // only the first bucket, which drops the OF half of two-way listings in position matching
+  const posGroupsOf = (pos) => { const s=new Set();
+    String(pos||"").toUpperCase().split(/[\/,+\s]+/).forEach(t=>{ const g=posGroupOf(t); if(g!=="?") s.add(g); }); return s; };
   function parseCsvLine(line) {
     const out=[]; let cur="", q=false;
     for (let i=0;i<line.length;i++){ const ch=line[i];
@@ -5080,7 +5084,7 @@
   window.fitPicksTgl = (el) => { fitPicksOpen = el.open; };
   // Current org Top-30 at the player's position group (prospects.json is rank-ordered)
   const t30AtSpot = (team, g, lim=4) =>
-    ((DATA.prospects && DATA.prospects[team]) || []).filter(p => posGroupOf(p.pos) === g).slice(0, lim);
+    ((DATA.prospects && DATA.prospects[team]) || []).filter(p => posGroupsOf(p.pos).has(g)).slice(0, lim);
   window.openFitCard = (key, team) => { fitSel = { key, team }; fitTile = null; fitPicksOpen = false; renderFitCard(); };
   window.closeFitCard = () => { fitSel = null; const bd=$("fitCard"); if(bd){ bd.classList.remove("on"); bd.innerHTML=""; } };
   // ================= FIT CARD — "four questions first" (redesigned 7/10) =================
@@ -5325,7 +5329,7 @@
     const selGrp = sel && sel.c.comp ? (sel.c.comp.posGroup || posGroupOf(sel.c.comp.pos)) : null;
     h += `<table class="tc-upc"><thead><tr><th>#</th><th>Player</th><th>Pos</th><th>Lvl</th><th>Age</th></tr></thead><tbody>`;
     h += rows.slice(0,30).map(r=>{
-      const match = selGrp && posGroupOf(r.pos)===selGrp;
+      const match = selGrp && posGroupsOf(r.pos).has(selGrp);
       const nm = tcInitialName(r.name);
       return `<tr${match?' style="background:#fff5f6"':''}>
         <td style="color:var(--muted)">${r.rank}</td>
@@ -5337,7 +5341,7 @@
     h += `</tbody></table>`;
     if (selGrp) {
       const shown = rows.slice(0,30);
-      const nm = shown.filter(r=>posGroupOf(r.pos)===selGrp).length;
+      const nm = shown.filter(r=>posGroupsOf(r.pos).has(selGrp)).length;
       const last = tcInitialName(sel.c.name).split(" ").slice(-1)[0];
       h += `<div class="tc-feed-more">${nm} of ${shown.length} in ${last}'s position group</div>`;
     }
