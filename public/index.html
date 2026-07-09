@@ -2159,10 +2159,17 @@
     const g = comp.posGroup || posGroupOf(comp.pos);
     const lv = comp.level==="HS" ? "HS" : comp.level ? "College" : null;
     const bk = whBandKey(comp.rank);
-    const mature = (DATA.warhist.meta && DATA.warhist.meta.matureThrough) || 2019;
-    // mature classes first (a '24 pick's 0.0 bWAR says nothing about development),
-    // newest within each half — picks arrive pre-sorted newest-first
-    const order = (hits) => [...hits.filter(p=>p.y<=mature), ...hits.filter(p=>p.y>mature)];
+    // Comps era = the slot-history range: draft classes 2018→present (first debut
+    // Nico Hoerner, Sept '19) — same window as the tracker + aWAR coverage, one
+    // coherent modern era. ESTABLISHED players first (debuted: nonzero bWAR or an
+    // aWAR record), newest within each half; pre-2018 classes only as a last resort.
+    const ERA_FROM = 2018;
+    const established = (p) => p.aw != null || (p.w != null && p.w !== 0);
+    const order = (hits) => {
+      const era = hits.filter(p => p.y >= ERA_FROM);
+      const pool = era.length >= Math.min(limit, 2) ? era : hits;
+      return [...pool.filter(established), ...pool.filter(p => !established(p))];
+    };
     const tiers = [
       p => p.g===g && (!lv||p.lvl===lv) && whBandKey(p.ov)===bk,
       p => p.g===g && (!lv||p.lvl===lv),
@@ -2391,18 +2398,81 @@
     return { v: Math.max(0, Math.min(1, 0.5 + 0.25 * (lg - cell.medianYears))), known: true,
       med: cell.medianYears, n: cell.n, lg, lvl };
   }
-  function dirEarn(team, comp) {    // best shot at a HIGH-EARNING career
-    // v1 = spending (over-slot habit) + reach-arbitration rate; the WAR→earnings proxy is
-    // gated on methodology approval and NOT included yet.
-    const s = dfSpend(team), o = DATA.orgs[team] || {};
-    const parts = [];
-    if (s.known) parts.push(s.spend01);
-    if (o.dev && o.dev.arb != null) {
-      const lgArb = (() => { const vs = Object.values(DATA.orgs).map(x => x.dev && x.dev.arb).filter(v => v != null);
-        return vs.length ? vs.reduce((a, b) => a + b, 0) / vs.length : null; })();
-      if (lgArb != null) parts.push(Math.max(0, Math.min(1, 0.5 + 2.0 * (o.dev.arb - lgArb))));
+  // ---- acquisition cost vs proven value (FanGraphs prospect-valuation frame, Jul-2026
+  // update; approved). FG values the PROSPECT side (FV tier → surplus $, 2026 dollars);
+  // the acquisition-cost side (signing bonus / expected bonus) is ours.
+  // FV → expected surplus $M during team control, hitters vs pitchers:
+  const FGV = {
+    hit: { 70:195, 65:95, 60:82, 55:55, 50:45, 47.5:18.5, 45:14.5, 42.5:8, 40:5.5, 37.5:2 },
+    pit: { 70:195, 65:95, 60:70, 55:45, 50:33.5, 47.5:15, 45:9.5, 42.5:7, 40:4, 37.5:1.5 },
+  };
+  const FG_DPW = 8.5e6;   // blended realized-$/WAR (FG uses $7M/$8.5M/$13M by win level)
+  // player's FV bucket: prefer graded FV (fv.json, real 20-80 scale); fall back to the
+  // NCAA model TIER (Impact→55, Regular→50, Role→45, Org→40) — never raw NCAA FV,
+  // whose scale runs hot vs the FG ladder.
+  function fgBucketOf(comp) {
+    const raw = fvRawOf(comp);
+    if (raw != null && DATA.fvScale !== 100) {
+      const keys = [70,65,60,55,50,47.5,45,42.5,40,37.5];
+      return keys.reduce((b, k) => Math.abs(k - raw) < Math.abs(b - raw) ? k : b, 40);
     }
-    return { v: parts.length ? parts.reduce((a, b) => a + b, 0) / parts.length : 0.5, known: !!parts.length, spend: s };
+    const pj = projOf(comp);
+    const t = pj && (pj.tier || "");
+    if (/Tier 1/.test(t)) return 55;
+    if (/Tier 2/.test(t)) return 50;
+    if (/Tier 3/.test(t)) return 45;
+    if (/Tier 4/.test(t)) return 40;
+    return null;
+  }
+  // expected surplus $ vs expected acquisition cost (his market bonus) — the draft-day read
+  function playerValue(comp) {
+    if (!comp) return null;
+    const b = fgBucketOf(comp);
+    if (b == null) return null;
+    const kind = isPitcher(comp.pos) ? "pit" : "hit";
+    const surplus = FGV[kind][b] * 1e6;
+    const cost = demandFor(comp);
+    return { fv: b, surplus, cost, net: cost ? surplus - cost : null,
+      ratio: cost ? surplus / cost : null, kind };
+  }
+  // org realized ROI: bonus $ paid vs career-WAR value returned, draft classes 2018+
+  // (the slot-history era — first debut Nico Hoerner '19; bonus coverage 99% here).
+  // Value credited to the DRAFTING org (draft-day lens; retention split is a noted
+  // follow-up — B-Ref carries per-season team_ID). All orgs share the class mix, so
+  // the cross-org ranking is exposure-fair even though recent classes deflate levels.
+  let _dfROI = null;
+  function dfROI(team) {
+    const W = DATA.warhist && DATA.warhist.orgs;
+    if (!W) return { known: false };
+    if (!_dfROI) {
+      _dfROI = {};
+      const eraFrom = 2018;
+      let lgCost = 0, lgVal = 0;
+      for (const [t, o] of Object.entries(W)) {
+        let cost = 0, val = 0, n = 0;
+        for (const p of o.picks) {
+          if (p.y < eraFrom || !p.bon) continue;
+          cost += p.bon; val += Math.max(p.w, 0) * FG_DPW; n++;
+        }
+        _dfROI[t] = cost ? { roi: val / cost, cost, val, n, known: true } : { known: false };
+        lgCost += cost; lgVal += val;
+      }
+      _dfROI._lg = lgCost ? lgVal / lgCost : null;
+    }
+    const r = _dfROI[team] || { known: false };
+    return r.known ? { ...r, lg: _dfROI._lg } : r;
+  }
+  function dirEarn(team, comp) {    // acquisition cost vs proven value
+    // Org side: realized ROI on 2018+ classes vs league (primary), over-slot spending
+    // willingness (secondary — they pay to acquire). Player surplus rides on the card.
+    const roi = dfROI(team), s = dfSpend(team);
+    const parts = [];
+    if (roi.known && roi.lg) parts.push(Math.max(0, Math.min(1, 0.5 + 0.35 * Math.log2(roi.roi / roi.lg))));
+    if (s.known) parts.push(s.spend01);
+    const v = parts.length ? (roi.known && roi.lg && s.known
+      ? 0.7 * parts[0] + 0.3 * s.spend01
+      : parts.reduce((a, b) => a + b, 0) / parts.length) : 0.5;
+    return { v, known: !!parts.length, roi, spend: s };
   }
   // empirical composite (Kent weights, HS vs College), ratio-compressed around league avg like the source
   const _dfCompCache = new Map();
@@ -4207,9 +4277,9 @@
   // questions, each an empirical read from the sv-draft-fit port (regime-aware draft DB,
   // farm depth, live pools) + warhist/orgs. None of the new ones touch the Combined blend.
   const RF_LENSES = [["combined","Combined"],["interest","Interest"],["hist","Track record"],["war","WAR"],["pipe","Pipeline"],["money","Money"],
-    ["reach","Reach MLB"],["develop","Development"],["speed","Pipeline speed"],["earn","Earnings"],["emp","Org fit (emp)"]];
+    ["reach","Reach MLB"],["develop","Development"],["speed","Pipeline speed"],["earn","Cost vs value"],["emp","Org fit (emp)"]];
   const RF_LENSLBL = { combined:"Combined fit", interest:"Interest", hist:"Track record", war:"WAR lookback", pipe:"Pipeline", money:"Money",
-    reach:"Reach MLB", develop:"Development", speed:"Pipeline speed", earn:"Earnings", emp:"Empirical org fit" };
+    reach:"Reach MLB", develop:"Development", speed:"Pipeline speed", earn:"Cost vs value", emp:"Empirical org fit" };
   const RF_WDEF = { interest:40, hist:25, pipe:10, money:25 };
   const RF_DEF = () => ({ clientsSide:true, clientsOff:new Set(), boardSide:false, boardOn:new Set(),
     pos:new Set(), teamsOff:new Set(), gradeMin:0, lens:"combined", weights:{...RF_WDEF},
@@ -4653,10 +4723,11 @@
         <div class="tc-kv"><span class="k">Reach MLB</span><span class="v">${grade(D.reach)}${dd?` <span class="sub">${dd.mlb} of ${dd.n} like him reached (${Math.round(100*dd.rate)}%)</span>`:""}</span></div>
         <div class="tc-kv"><span class="k">Development</span><span class="v">${grade(D.develop)}${dd&&(dd.w1||dd.w2||dd.w3)?` <span class="sub">${dd.w1}/${dd.w2}/${dd.w3} at 1/2/3+ WAR</span>`:""}</span></div>
         <div class="tc-kv"><span class="k">Pipeline speed</span><span class="v">${grade(D.speed)}${D.speed.known?` <span class="sub">median ${D.speed.med} yrs to debut (${D.speed.lvl}) vs ${D.speed.lg} league</span>`:""}</span></div>
-        <div class="tc-kv"><span class="k">Earnings</span><span class="v">${grade(D.earn)}${D.earn.spend&&D.earn.spend.known?` <span class="sub">${D.earn.spend.avgPct>0?"+":""}${D.earn.spend.avgPct}% vs slot habit</span>`:""}</span></div>
+        <div class="tc-kv"><span class="k">Cost vs value</span><span class="v">${grade(D.earn)}${D.earn.roi&&D.earn.roi.known?` <span class="sub">${D.earn.roi.roi.toFixed(1)}× ROI on '18+ bonuses vs ${D.earn.roi.lg?D.earn.roi.lg.toFixed(1):"—"}× league</span>`:""}</span></div>
+        ${(()=>{ const pv = playerValue(comp); return pv ? `<div class="tc-kv"><span class="k">His value at his price</span><span class="v"><b>${pv.ratio?Math.round(pv.ratio)+"×":"—"}</b> <span class="sub">FV${pv.fv} ${pv.kind==="pit"?"arm":"bat"} ≈ ${fmtM(pv.surplus)} surplus vs ~${pv.cost?fmtM(pv.cost):"—"} to sign</span></span></div>` : ""; })()}
         <div class="tc-kv"><span class="k">Empirical org fit</span><span class="v">${grade(D.emp)} <span class="sub">(dev·pool·spend·depth·geo, ${comp.level==="HS"?"HS":"college"} weights)</span></span></div>
         ${rgNote?`<div class="fc-note">Regime: ${_esc(rgNote)} — history before that front office doesn't count against (or for) them.</div>`:""}
-        <div class="fc-note">Earnings = spending habit + reach-arbitration rate; the WAR→earnings career model is pending methodology approval.</div></div>`;
+        <div class="fc-note">Cost vs value = bonuses paid vs career-WAR value returned ('18+ classes, value credited to the drafting org — draft-day lens) + over-slot willingness. Player surplus per the FanGraphs Jul-'26 prospect-valuation update.</div></div>`;
     }
 
     bd.innerHTML = `<div class="tc-card fc-card">
