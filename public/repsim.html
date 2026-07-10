@@ -97,6 +97,10 @@
   #nb { background:#fff; border:1px solid var(--line); border-radius:9px; overflow:hidden; }
   #nb .nb-head { display:flex; align-items:center; gap:7px; padding:7px 11px; border-bottom:1px solid var(--line); font-size:12px; font-weight:800; }
   #nb .nb-live { margin-left:auto; font-size:9.5px; font-weight:800; letter-spacing:.5px; color:var(--good); }
+  .nb-chip { font:inherit; font-size:11px; font-weight:800; color:var(--muted); background:#fafafa; border:1px solid var(--line);
+    border-radius:999px; padding:2px 10px; cursor:pointer; }
+  .nb-chip.on { color:var(--amber-ink); background:var(--amber-chip); border-color:var(--amber); }
+  .nb-chip.spot { animation:btnGlow 1.2s ease-in-out infinite; }
   #nb .nb-empty { padding:14px 12px; color:var(--muted); font-size:12.5px; }
   .nb-note { padding:8px 11px; border-bottom:1px solid #f0f0ee; font-size:13px; animation:noteIn .4s ease-out; }
   .nb-note:last-child { border-bottom:0; }
@@ -148,7 +152,7 @@
 <div id="rail">
   <span class="st" id="railStep">Step 0 · Pre</span>
   <span class="cap" id="railCap">Draft night, pick 3. Lead chip on the tile → engage from the pick card → VALIDATED → official. Notebook keeps the record.</span>
-  <span id="dots"><i></i><i></i><i></i><i></i><i></i></span>
+  <span id="dots"><i></i><i></i><i></i><i></i><i></i><i></i></span>
   <button id="btnPlay" onclick="togglePlay()">⏸ Pause</button>
   <button onclick="replay()">↺ Replay</button>
 </div>
@@ -170,7 +174,9 @@
     <div>
       <h4>War-room notebook</h4>
       <div id="nb">
-        <div class="nb-head">📝 Shared notebook <span class="nb-live">● live via /api/intel</span></div>
+        <div class="nb-head">📝 Shared notebook
+          <button class="nb-chip on" id="nbX" onclick="toggleX()" title="show/hide auto-filed X intel reports">⚡ X</button>
+          <span class="nb-live">● live via /api/intel</span></div>
         <div id="nbFeed"><div class="nb-empty">Every incoming X lead files here automatically — even ones that resolve to no open pick.</div></div>
       </div>
     </div>
@@ -210,6 +216,8 @@ const BA = [
 // pick-3 state through the flow:
 //   "" | "lead" (flashing chip) | "engaged" (card open, steady chip) | "validated" | "official"
 let p3 = "", cardOpen = false, notes = [], clockLeft = 252, clockHeld = false, nextClock = false;
+let showX = true, spotX = false;   // the ⚡ X chip: hide/show auto-filed lead reports (human notes stay)
+function toggleX() { showX = !showX; render(); }
 
 function render() {
   document.getElementById("board").innerHTML = PICKS.map(p => {
@@ -245,9 +253,14 @@ function render() {
     return `<tr class="${gone ? "gone" : ""}"><td class="rk">#${b.rk}</td><td>${b.name}</td><td class="sub">${b.sub}</td></tr>`;
   }).join("");
 
-  document.getElementById("nbFeed").innerHTML = notes.length ? notes.map(n => `
+  const chipEl = document.getElementById("nbX");
+  chipEl.classList.toggle("on", showX);
+  chipEl.classList.toggle("spot", spotX);
+  const shown = notes.filter(n => showX || !n.x);
+  document.getElementById("nbFeed").innerHTML = shown.length ? shown.map(n => `
     <div class="nb-note"><div class="nm"><span class="tag">${n.tag}</span><span class="tm">${n.tm}</span></div>
     <div class="tx">${n.tx}</div></div>`).join("")
+    : notes.length ? `<div class="nb-empty">⚡ X reports hidden — ${notes.filter(n=>n.x).length} tucked behind the chip.</div>`
     : `<div class="nb-empty">Every incoming X lead files here automatically — even ones that resolve to no open pick.</div>`;
 
   const ck = document.getElementById("clock");
@@ -266,18 +279,19 @@ function setRail(step, label, cap) {
 // ---- timeline ----
 const STEPS = [
   { t: 0, run() {
-      p3 = ""; cardOpen = false; notes = []; clockHeld = false; clockLeft = 252;
+      p3 = ""; cardOpen = false; notes = []; clockHeld = false; clockLeft = 252; showX = true; spotX = false;
       document.getElementById("ticker").classList.remove("show");
       setRail(0, "Step 0 · Pre", "Pick 3, <b>Twins</b> on the clock. The X capture script is watching the insider list. No banner — intel lands on the board itself.");
   }},
   { t: 3500, run() {
       p3 = "lead";
-      notes = [{ tag:"Vahn Lackey", tm:"7:41 PM", tx:"⚡ X lead: Vahn Lackey → Minnesota Twins at #3 per @JeffPassan <span class='sub'>— Hearing the Twins are locked in on Vahn Lackey at 3.</span>" }];
+      notes = [{ x:true, tag:"Vahn Lackey", tm:"7:41 PM", tx:"⚡ X lead: Vahn Lackey → Minnesota Twins at #3 per @JeffPassan <span class='sub'>— Hearing the Twins are locked in on Vahn Lackey at 3.</span>" }];
       setRail(1, "Step 1 · Lead", "@JeffPassan reports. The lead resolves to pick #3 → <b>flashing ⚡ chip on the tile</b>, and the raw report files to the <b>notebook</b>, tagged to the player.");
   }},
   { t: 9000, run() {
       p3 = "engaged"; cardOpen = true;
-      setRail(2, "Step 2 · Engage", "The room clicks the tile. The pick card opens with the <b>lead row</b> — ✓ Validate or ✕ Dismiss. Chip stays amber but <b>stops flashing</b>.");
+      notes = [{ tag:"MIN", tm:"7:41 PM", tx:"Room note: our guy has the Twins on Lackey all week — tracks." }, ...notes];
+      setRail(2, "Step 2 · Engage", "The room clicks the tile. The pick card opens with the <b>lead row</b> — ✓ Validate or ✕ Dismiss. Chip stays amber but <b>stops flashing</b>. A human note lands alongside.");
   }},
   { t: 14500, run() {
       p3 = "validated"; cardOpen = false; clockHeld = true;
@@ -289,8 +303,12 @@ const STEPS = [
       document.getElementById("ticker").classList.add("show");
       setRail(4, "Step 4 · Official", "MLB feed confirms — chip clears to a normal drafted card, ticker fires, clock restarts for <b>SF at #4</b>. The notebook keeps the paper trail.");
   }},
-  { t: 26000, run() { document.getElementById("ticker").classList.remove("show"); }},
-  { t: 28500, run() { replay(); }},
+  { t: 25500, run() { document.getElementById("ticker").classList.remove("show"); }},
+  { t: 26500, run() {
+      showX = false; spotX = true;
+      setRail(5, "Step 5 · Notebook", "Feed getting noisy? The <b>⚡ X chip</b> hides the auto-filed lead reports — <b>human notes and validation records stay</b>. Sticky per device; click it yourself.");
+  }},
+  { t: 32000, run() { replay(); }},
 ];
 
 let timers = [], playing = true, startedAt = 0, pausedAt = 0;
