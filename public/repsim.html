@@ -6,7 +6,7 @@
 <title>SV Draft Day — Reported-Pick Simulation</title>
 <link rel="icon" href="/favicon.svg">
 <style>
-  /* Visual rehearsal of the reported-media-pick ladder. Styles are lifted verbatim
+  /* Visual rehearsal of the reported-media-pick flow. Styles are lifted verbatim
      from index.html so what you see here is what the war room sees on draft night. */
   @font-face { font-family:'Satoshi'; src:url('/fonts/Satoshi-Regular.otf') format('opentype'); font-weight:400; font-display:swap; }
   @font-face { font-family:'Satoshi'; src:url('/fonts/Satoshi-Medium.otf') format('opentype'); font-weight:500; font-display:swap; }
@@ -32,7 +32,7 @@
 
   /* narration rail — the only element that isn't part of the real app */
   #rail { display:flex; align-items:center; gap:12px; padding:9px 16px; background:var(--ink); color:#fff; font-size:13.5px; min-height:44px; }
-  #rail .st { flex:0 0 auto; font-size:10px; font-weight:900; letter-spacing:.8px; color:#e8c46a; text-transform:uppercase; min-width:118px; }
+  #rail .st { flex:0 0 auto; font-size:10px; font-weight:900; letter-spacing:.8px; color:#e8c46a; text-transform:uppercase; min-width:130px; }
   #rail .cap { flex:1; font-weight:500; }
   #rail .cap b { font-weight:800; }
   #rail button { flex:0 0 auto; font:inherit; font-size:12px; font-weight:800; color:#fff; background:none; border:1px solid #555; border-radius:7px; padding:4px 12px; cursor:pointer; }
@@ -40,18 +40,6 @@
   #dots { display:flex; gap:5px; flex:0 0 auto; }
   #dots i { width:7px; height:7px; border-radius:50%; background:#4a4a4a; }
   #dots i.on { background:#e8c46a; }
-
-  /* lead strip — verbatim from index.html */
-  #leadStrip { display:none; flex-direction:column; gap:5px; padding:7px 16px; background:#fffaf0; border-bottom:1px solid #ecd9ac; }
-  .lead-chip { display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; font-size:13px; color:var(--ink); }
-  .lead-chip .lc-flag { background:#e8920e; color:#fff; font-weight:900; font-size:10.5px; letter-spacing:.5px; padding:2.5px 7px; border-radius:5px; }
-  .lead-chip .lc-rk, .lead-chip .lc-pick { color:var(--muted); font-weight:700; font-size:12px; }
-  .lead-chip .lc-arrow { color:#c8871c; font-weight:900; }
-  .lead-chip .lc-src { color:var(--muted); font-size:11.5px; font-weight:600; margin-left:auto; }
-  .lead-chip .lc-x { border:0; background:none; color:var(--muted); font-size:13px; cursor:pointer; padding:1px 5px; }
-  .lead-chip .lc-val { border:1px solid var(--amber); background:var(--amber-bg); color:var(--amber-ink); font-weight:800; font-size:11.5px; border-radius:6px; padding:2px 9px; cursor:pointer; }
-  .lead-chip { animation:chipIn .45s ease-out; }
-  @keyframes chipIn { from { opacity:0; transform:translateY(-7px); } to { opacity:1; transform:none; } }
 
   main { padding:16px; max-width:960px; margin:0 auto; }
   h4 { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); margin:18px 0 6px; }
@@ -67,11 +55,35 @@
   .bcard .bc-meta { font-size:9px; color:var(--muted); font-weight:600; line-height:1.3; margin-top:1px; }
   .bc-rep { display:inline-block; font-size:9px; font-weight:800; letter-spacing:.4px; color:var(--amber-ink); background:var(--amber-chip); border:1px solid var(--amber); border-radius:4px; padding:0 4px; vertical-align:1px; }
   .bc-rep.soft { background:none; border-style:dashed; }
+  /* on-tile X-lead chip — verbatim from index.html (no banner anywhere) */
+  .bcard.lead { border-color:var(--amber); background:#fffdf4; }
+  .bc-lead { display:inline-flex; align-items:center; gap:4px; font-size:10.5px; font-weight:800; letter-spacing:.3px;
+    color:var(--amber-ink); background:var(--amber-chip); border:1px solid var(--amber); border-radius:5px; padding:1px 6px; white-space:nowrap; }
+  .bc-lead.flash { animation:leadpulse 1.5s ease-in-out infinite; }
+  @keyframes leadpulse { 0%,100% { box-shadow:0 0 0 0 rgba(227,181,5,.5); } 50% { box-shadow:0 0 0 5px rgba(227,181,5,0); } }
   .tlogo { vertical-align:middle; }
   .bcard.bc-land { animation:bcLand .7s ease-out; }
   @keyframes bcLand { 0% { box-shadow:0 0 0 3px rgba(255,42,34,.7); transform:scale(1.06); } 100% { box-shadow:none; transform:none; } }
 
-  table.ba { border-collapse:collapse; width:100%; max-width:430px; background:#fff; border:1px solid var(--line); border-radius:9px; overflow:hidden; }
+  /* the expanded pick card's lead row — verbatim .tc-reprow language from index.html */
+  #pickCard { display:none; margin:10px 0 2px; background:#fff; border:1px solid var(--line); border-radius:12px; padding:10px 0 12px; box-shadow:0 10px 30px rgba(0,0,0,.10); animation:cardIn .3s ease-out; }
+  #pickCard.on { display:block; }
+  @keyframes cardIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:none; } }
+  #pickCard .tc-top { display:flex; align-items:center; gap:9px; padding:0 14px 9px; border-bottom:1px solid var(--line); margin-bottom:9px; font-size:13px; }
+  #pickCard .tc-abbr { font-weight:900; font-size:16px; }
+  #pickCard .tc-ttl { color:var(--muted); font-weight:700; }
+  .tc-reprow { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 14px; padding:8px 12px;
+    background:var(--amber-bg); border:1px dashed var(--amber); border-radius:8px; font-size:13px; }
+  .tc-reprow b { font-weight:800; }
+  .tc-rep-btn { border:1px solid var(--amber); background:var(--amber-bg); color:var(--amber-ink); font-weight:800; font-size:12px;
+    border-radius:7px; padding:4px 10px; cursor:pointer; white-space:nowrap; font-family:inherit; }
+  .tc-rep-btn.on, .tc-rep-btn:hover { background:#ffedb8; }
+  .btn-glow { animation:btnGlow 1.2s ease-in-out infinite; }
+  @keyframes btnGlow { 0%,100% { box-shadow:0 0 0 0 rgba(227,181,5,.55); } 50% { box-shadow:0 0 0 5px rgba(227,181,5,0); } }
+
+  .cols { display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap; }
+  .cols > div { flex:1 1 300px; min-width:280px; }
+  table.ba { border-collapse:collapse; width:100%; background:#fff; border:1px solid var(--line); border-radius:9px; overflow:hidden; }
   table.ba th { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); text-align:left; padding:6px 10px; border-bottom:1px solid var(--line); }
   table.ba td { padding:6px 10px; font-size:13px; border-bottom:1px solid #f0f0ee; }
   table.ba tr:last-child td { border-bottom:0; }
@@ -81,11 +93,19 @@
   table.ba tr.gone td:nth-child(2) { text-decoration:line-through; }
   .svtag { font-size:10px; font-weight:800; color:#fff; background:var(--red); border-radius:4px; padding:1px 5px; }
 
-  /* notebook toast — the ⚡ validated record */
-  #note { position:fixed; left:16px; bottom:76px; z-index:70; background:#fff; border:1px solid var(--line); border-left:4px solid var(--amber); border-radius:9px;
-          box-shadow:0 8px 24px rgba(0,0,0,.14); padding:9px 13px; font-size:13px; max-width:340px; opacity:0; transform:translateY(8px); transition:opacity .3s, transform .3s; pointer-events:none; }
-  #note.show { opacity:1; transform:none; }
-  #note .nb { font-size:10px; font-weight:800; letter-spacing:.4px; text-transform:uppercase; color:var(--muted); margin-bottom:2px; }
+  /* war-room notebook panel — mirrors index.html's shared notebook (kind:"note" via /api/intel) */
+  #nb { background:#fff; border:1px solid var(--line); border-radius:9px; overflow:hidden; }
+  #nb .nb-head { display:flex; align-items:center; gap:7px; padding:7px 11px; border-bottom:1px solid var(--line); font-size:12px; font-weight:800; }
+  #nb .nb-live { margin-left:auto; font-size:9.5px; font-weight:800; letter-spacing:.5px; color:var(--good); }
+  #nb .nb-empty { padding:14px 12px; color:var(--muted); font-size:12.5px; }
+  .nb-note { padding:8px 11px; border-bottom:1px solid #f0f0ee; font-size:13px; animation:noteIn .4s ease-out; }
+  .nb-note:last-child { border-bottom:0; }
+  @keyframes noteIn { from { opacity:0; transform:translateY(-6px); background:var(--amber-bg); } to { opacity:1; transform:none; } }
+  .nb-note .nm { display:flex; align-items:center; gap:7px; margin-bottom:2px; }
+  .nb-note .tag { font-size:10px; font-weight:800; color:#374151; background:#f3f4f6; border:1px solid var(--line); border-radius:999px; padding:1px 8px; }
+  .nb-note .tm { margin-left:auto; color:var(--muted); font-size:10.5px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .nb-note .tx { line-height:1.4; }
+  .nb-note .tx .sub { color:var(--muted); font-size:11.5px; }
 
   #ticker { position:fixed; left:0; right:0; bottom:0; z-index:80; transform:translateY(115%); transition:transform .38s cubic-bezier(.2,.7,.3,1); pointer-events:none; }
   #ticker.show { transform:translateY(0); }
@@ -103,14 +123,12 @@
     #rail { flex-wrap:wrap; padding:9px 12px; }
     #rail .st { min-width:0; }
     #rail .cap { flex-basis:100%; order:3; }
-    #leadStrip { padding:6px 10px; }
-    .lead-chip .lc-src { flex-basis:100%; margin-left:0; }
     main { padding:12px; }
     .bcard { width:calc(33.33% - 4px); }
   }
   @media (prefers-reduced-motion: reduce) {
-    .lead-chip, .bcard.bc-land { animation:none; }
-    #ticker, #note { transition:none; }
+    .bc-lead.flash, .btn-glow, .bcard.bc-land, .nb-note, #pickCard { animation:none; }
+    #ticker { transition:none; }
   }
 </style>
 </head>
@@ -129,26 +147,35 @@
 
 <div id="rail">
   <span class="st" id="railStep">Step 0 · Pre</span>
-  <span class="cap" id="railCap">Draft night, pick 3. Watch the ladder: media lead → soft REPORTED → auto-VALIDATED → official.</span>
-  <span id="dots"><i></i><i></i><i></i><i></i></span>
+  <span class="cap" id="railCap">Draft night, pick 3. Lead chip on the tile → engage from the pick card → VALIDATED → official. Notebook keeps the record.</span>
+  <span id="dots"><i></i><i></i><i></i><i></i><i></i></span>
   <button id="btnPlay" onclick="togglePlay()">⏸ Pause</button>
   <button onclick="replay()">↺ Replay</button>
 </div>
-
-<div id="leadStrip"></div>
 
 <main>
   <h4>Round 1</h4>
   <div class="board-grid" id="board"></div>
 
-  <h4>Best available</h4>
-  <table class="ba">
-    <tr><th></th><th>Player</th><th>Pos · School</th></tr>
-    <tbody id="baBody"></tbody>
-  </table>
-</main>
+  <div id="pickCard"></div>
 
-<div id="note"><div class="nb">Notebook</div><span id="noteTxt"></span></div>
+  <div class="cols">
+    <div>
+      <h4>Best available</h4>
+      <table class="ba">
+        <tr><th></th><th>Player</th><th>Pos · School</th></tr>
+        <tbody id="baBody"></tbody>
+      </table>
+    </div>
+    <div>
+      <h4>War-room notebook</h4>
+      <div id="nb">
+        <div class="nb-head">📝 Shared notebook <span class="nb-live">● live via /api/intel</span></div>
+        <div id="nbFeed"><div class="nb-empty">Every incoming X lead files here automatically — even ones that resolve to no open pick.</div></div>
+      </div>
+    </div>
+  </div>
+</main>
 
 <div id="ticker"><div class="tk-inner">
   <span class="tk-badge">PICK 3</span>
@@ -180,32 +207,18 @@ const BA = [
   { rk:7, name:"Drew Burress",  sub:"OF · Georgia Tech" },
 ];
 
-// pick-3 state through the ladder: "" | "soft" | "validated" | "official"
-let p3 = "", leads = [], clockLeft = 252, clockHeld = false, nextClock = false;
-
-function chip(l) {
-  return `<div class="lead-chip" title="${l.text}">
-    <span class="lc-flag">⚡ REPORTED</span>
-    <b>Vahn Lackey</b><span class="lc-rk">#2</span>
-    <span class="lc-arrow">→</span> ${logo("MIN")}<b>MIN</b>
-    <span class="lc-pick">at #3</span>
-    <span class="lc-src">per @${l.src} · ${l.ago} · unofficial</span>
-    <span class="lc-val">✓ Validate</span>
-    <button class="lc-x">✕</button>
-  </div>`;
-}
+// pick-3 state through the flow:
+//   "" | "lead" (flashing chip) | "engaged" (card open, steady chip) | "validated" | "official"
+let p3 = "", cardOpen = false, notes = [], clockLeft = 252, clockHeld = false, nextClock = false;
 
 function render() {
-  const strip = document.getElementById("leadStrip");
-  strip.style.display = leads.length ? "flex" : "none";
-  strip.innerHTML = leads.map(chip).join("");
-
   document.getElementById("board").innerHTML = PICKS.map(p => {
     let cls = "bcard", body = "";
     if (p.drafted) body = `<div class="bc-player">${p.player}</div><div class="bc-meta">${p.meta}</div>`;
-    else if (p.ov === 3 && p3 === "soft") {
-      cls += " rep soft";
-      body = `<div class="bc-player">Vahn Lackey <span class="bc-rep soft">REPORTED</span></div><div class="bc-meta">C · Georgia Tech · #2</div>`;
+    else if (p.ov === 3 && (p3 === "lead" || p3 === "engaged")) {
+      cls += " lead";
+      body = `<div class="bc-player"><span class="bc-lead${p3 === "lead" ? " flash" : ""}" title="Hearing the Twins are locked in on Vahn Lackey at 3.">⚡ Vahn Lackey</span></div>
+        <div class="bc-meta">C · Georgia Tech · per @JeffPassan</div>`;
     } else if (p.ov === 3 && p3 === "validated") {
       cls += " rep";
       body = `<div class="bc-player">Vahn Lackey <span class="bc-rep">VALIDATED</span></div><div class="bc-meta">C · Georgia Tech · #2</div>`;
@@ -213,16 +226,29 @@ function render() {
       cls += " bc-land";
       body = `<div class="bc-player">Vahn Lackey</div><div class="bc-meta">C · Georgia Tech</div>`;
     } else body = `<div class="bc-player" style="color:#c9c9c9">—</div>`;
-    const onClock = p3 === "official" ? p.ov === 4 : p.ov === 3;
-    if (onClock && !p.drafted && p3 !== "official" || (p3 === "official" && p.ov === 4)) cls += " oc";
+    if ((p3 !== "official" && p.ov === 3 && !p.drafted) || (p3 === "official" && p.ov === 4)) cls += " oc";
     return `<div class="${cls}"><div class="bc-no">#${p.ov} · RD 1</div>
       <div class="bc-team">${logo(p.ab)}${p.ab}</div><div class="bc-slot">${p.slot} slot</div>${body}</div>`;
   }).join("");
+
+  // expanded pick card: the lead row is where the room engages — ✓ Validate / ✕ Dismiss
+  const card = document.getElementById("pickCard");
+  card.classList.toggle("on", cardOpen);
+  if (cardOpen) card.innerHTML = `
+    <div class="tc-top">${logo("MIN",26)}<span class="tc-abbr">MIN</span><span class="tc-ttl">Pick #3 · Minnesota Twins</span></div>
+    <div class="tc-reprow">⚡ <b>Vahn Lackey</b> lead here per @JeffPassan — unofficial X report
+      <button class="tc-rep-btn btn-glow">✓ Validate</button>
+      <button class="tc-rep-btn">✕ Dismiss</button></div>`;
 
   document.getElementById("baBody").innerHTML = BA.map(b => {
     const gone = b.name === "Vahn Lackey" && (p3 === "validated" || p3 === "official");
     return `<tr class="${gone ? "gone" : ""}"><td class="rk">#${b.rk}</td><td>${b.name}</td><td class="sub">${b.sub}</td></tr>`;
   }).join("");
+
+  document.getElementById("nbFeed").innerHTML = notes.length ? notes.map(n => `
+    <div class="nb-note"><div class="nm"><span class="tag">${n.tag}</span><span class="tm">${n.tm}</span></div>
+    <div class="tx">${n.tx}</div></div>`).join("")
+    : `<div class="nb-empty">Every incoming X lead files here automatically — even ones that resolve to no open pick.</div>`;
 
   const ck = document.getElementById("clock");
   ck.classList.toggle("held", clockHeld);
@@ -236,42 +262,35 @@ function setRail(step, label, cap) {
   document.getElementById("railCap").innerHTML = cap;
   document.querySelectorAll("#dots i").forEach((d, i) => d.classList.toggle("on", i <= step));
 }
-function toast(txt) {
-  document.getElementById("noteTxt").innerHTML = txt;
-  const n = document.getElementById("note");
-  n.classList.add("show");
-  setTimeout(() => n.classList.remove("show"), 4200);
-}
 
 // ---- timeline ----
 const STEPS = [
   { t: 0, run() {
-      p3 = ""; leads = []; clockHeld = false; clockLeft = 252;
+      p3 = ""; cardOpen = false; notes = []; clockHeld = false; clockLeft = 252;
       document.getElementById("ticker").classList.remove("show");
-      setRail(0, "Step 0 · Pre", "Pick 3, <b>Twins</b> on the clock. The X capture script is watching the insider list.");
+      setRail(0, "Step 0 · Pre", "Pick 3, <b>Twins</b> on the clock. The X capture script is watching the insider list. No banner — intel lands on the board itself.");
   }},
-  { t: 3000, run() {
-      leads = [{ src:"JeffPassan", ago:"0m ago", text:"Hearing the Twins are locked in on Vahn Lackey at 3." }];
-      p3 = "soft";
-      setRail(1, "Step 1 · Lead", "One source → lead chip + a <b>dashed soft REPORTED</b> chip files on the board. Clock keeps running.");
+  { t: 3500, run() {
+      p3 = "lead";
+      notes = [{ tag:"Vahn Lackey", tm:"7:41 PM", tx:"⚡ X lead: Vahn Lackey → Minnesota Twins at #3 per @JeffPassan <span class='sub'>— Hearing the Twins are locked in on Vahn Lackey at 3.</span>" }];
+      setRail(1, "Step 1 · Lead", "@JeffPassan reports. The lead resolves to pick #3 → <b>flashing ⚡ chip on the tile</b>, and the raw report files to the <b>notebook</b>, tagged to the player.");
   }},
-  { t: 8000, run() {
-      leads = [{ src:"kileymcd", ago:"0m ago", text:"Lackey to Minnesota, per sources." },
-               { src:"JeffPassan", ago:"5m ago", text:"Hearing the Twins are locked in on Vahn Lackey at 3." }];
-      setRail(1, "Step 1 · Lead", "A <b>second source</b> lands (@kileymcd). The server groups leads by resolved team…");
+  { t: 9000, run() {
+      p3 = "engaged"; cardOpen = true;
+      setRail(2, "Step 2 · Engage", "The room clicks the tile. The pick card opens with the <b>lead row</b> — ✓ Validate or ✕ Dismiss. Chip stays amber but <b>stops flashing</b>.");
   }},
-  { t: 10500, run() {
-      leads = []; p3 = "validated"; clockHeld = true;
-      setRail(2, "Step 2 · Auto-validate", "2 sources → server <b>auto-validates</b>: solid VALIDATED chip, Lackey off Best Available, <b>clock HELD</b> awaiting MLB.");
-      toast("⚡ validated: Vahn Lackey → MIN at #3 <span class='sub'>· auto (@JeffPassan @kileymcd)</span>");
+  { t: 14500, run() {
+      p3 = "validated"; cardOpen = false; clockHeld = true;
+      notes = [{ tag:"Vahn Lackey", tm:"7:42 PM", tx:"⚡ validated: Vahn Lackey → MIN at #3 <span class='sub'>· via lead (@JeffPassan)</span>" }, ...notes];
+      setRail(3, "Step 3 · Validate", "✓ Validate promotes the lead into the reported ladder: solid <b>VALIDATED</b> chip, Lackey off Best Available, <b>clock HELD</b>, record in the notebook. (A 2nd source would auto-validate with no click.)");
   }},
-  { t: 16000, run() {
+  { t: 20500, run() {
       p3 = "official"; clockHeld = false; clockLeft = 240; nextClock = true;
       document.getElementById("ticker").classList.add("show");
-      setRail(3, "Step 3 · Official", "MLB feed confirms — chip clears to a normal drafted card, ticker fires, clock restarts for <b>SF at #4</b>.");
+      setRail(4, "Step 4 · Official", "MLB feed confirms — chip clears to a normal drafted card, ticker fires, clock restarts for <b>SF at #4</b>. The notebook keeps the paper trail.");
   }},
-  { t: 21500, run() { document.getElementById("ticker").classList.remove("show"); }},
-  { t: 24000, run() { replay(); }},
+  { t: 26000, run() { document.getElementById("ticker").classList.remove("show"); }},
+  { t: 28500, run() { replay(); }},
 ];
 
 let timers = [], playing = true, startedAt = 0, pausedAt = 0;
