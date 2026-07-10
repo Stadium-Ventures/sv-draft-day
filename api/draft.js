@@ -107,6 +107,24 @@ async function fetchLive(year) {
   return normalize(await res.json(), year);
 }
 
+// War-room reported picks (/api/reported) overlaid onto the payload. Self-GC:
+// once the feed confirms a pick (isDrafted), its record is dropped — the
+// official feed always wins, whatever name it carries.
+async function attachReported(r, state, year) {
+  state.reported = [];
+  if (!r) return;
+  try {
+    const key = `dd:reported:${year}`;
+    const raw = await r.hgetall(key);
+    for (const [ov, json] of Object.entries(raw || {})) {
+      const pick = state.picks.find((p) => p.overall === Number(ov));
+      if (!pick || pick.isDrafted) { await r.hdel(key, ov); continue; }
+      try { state.reported.push(JSON.parse(json)); } catch (e) {}
+    }
+    state.reported.sort((a, b) => a.overall - b.overall);
+  } catch (e) {}
+}
+
 module.exports = async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   const year = (req.query?.year && /^\d{4}$/.test(req.query.year)) ? req.query.year : DEFAULT_YEAR;
@@ -122,6 +140,7 @@ module.exports = async (req, res) => {
       }
     }
     const state = await fetchLive(year);
+    await attachReported(r, state, year);
     if (r) await r.set(key, JSON.stringify(state), "PX", CACHE_TTL_MS);
     res.setHeader("X-Cache", "miss");
     // Cache-miss = we just saw fresh upstream truth (~once per TTL across the war

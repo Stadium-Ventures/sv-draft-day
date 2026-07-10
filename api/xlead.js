@@ -28,7 +28,7 @@ const LOCK_KEY = "dd:xlead:lock";        // TTL lock -> one refresh per window
 const DISMISS_KEY = "dd:xlead:dismissed";
 const MAX_LEADS = 60;
 const MAX_PARSE_PER_RUN = 40;            // cap Haiku batch size per refresh
-const PARSE_MODEL = process.env.XLEAD_MODEL || "claude-haiku-4-5";
+const PARSE_MODEL = process.env.XLEAD_MODEL || "claude-sonnet-5";   // Sonnet minimum for lead parsing (per Brandon, 7/10)
 
 let redis = null;
 function getRedis() {
