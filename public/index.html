@@ -5028,24 +5028,30 @@
       ${td(r.bonus!=null?fmt$(r.bonus):"unsigned","r")}
       ${td(r.diff!=null?(r.diff>0?"+":"")+fmtM(r.diff):"—","r")}
       ${td(slotPctFmt(r)||"—","r")}
-      ${xcols.map(([,,cell])=>td(_esc(String(cell(r))))).join("")}</tr>`).join("");
+      ${xcols.map(([k,,cell])=>td(_esc(String(cell(r))), k==="school"?"w":"")).join("")}</tr>`).join("");
     const w = window.open("", "_blank");
     if (!w) { alert("Popup blocked — allow popups for this site to export."); return; }
+    // auto-fit: orientation + type scale follow the column count so every column stays
+    // on one page width — extra columns flip to landscape and step the font down
+    const nCols = 8 + xcols.length;
+    const fs = nCols <= 8 ? 10.5 : nCols <= 10 ? 9.8 : nCols <= 12 ? 9 : 7.8;
+    const pad = nCols <= 10 ? 9 : nCols <= 12 ? 6 : 5;
     w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>SV Draft Day — Research export</title><style>
-      body { font:10.5px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; color:#141414; margin:26px; }
+      body { font:${fs}px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; color:#141414; margin:26px; }
       h1 { font-size:16px; margin:0 0 3px; }
       .sub { color:#555; font-size:10.5px; margin:1px 0; }
       table { border-collapse:collapse; width:100%; margin-top:12px; }
       thead { display:table-header-group; }
-      th { text-align:left; font-size:8.5px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:#555;
-           border-bottom:1.5px solid #888; padding:4px 9px; white-space:nowrap; }
-      td { padding:3.5px 9px; border-bottom:.5px solid #ddd; white-space:nowrap; vertical-align:baseline; }
+      th { text-align:left; font-size:${Math.round(fs*0.82*10)/10}px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:#555;
+           border-bottom:1.5px solid #888; padding:4px ${pad}px; white-space:nowrap; }
+      td { padding:3.5px ${pad}px; border-bottom:.5px solid #ddd; white-space:nowrap; vertical-align:baseline; }
       td.r, th.r { text-align:right; font-variant-numeric:tabular-nums; }
       td.nm { font-weight:700; }
-      td .lv { font-weight:600; color:#888; font-size:8.5px; }
+      td.w { white-space:normal; }
+      td .lv { font-weight:600; color:#888; font-size:${Math.round(fs*0.82*10)/10}px; }
       tbody tr:nth-child(even) td { background:#fafafa; }
       tr { break-inside:avoid; }
-      @page { margin:13mm 10mm; }
+      @page { size:${nCols > 8 ? "letter landscape" : "letter portrait"}; margin:13mm 10mm; }
     </style></head><body>
       <h1>SV Draft Day — Research</h1>
       <div class="sub">${_esc(resFilterDesc())}</div>
