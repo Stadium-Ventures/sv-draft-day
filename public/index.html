@@ -126,6 +126,11 @@
   .bcard .bc-lens { display:flex; align-items:center; gap:4px; margin-top:5px; flex-wrap:wrap; }
   .brow .idot { margin:0 2px; }
   /* ESPN-style pick ticker — bottom, slides up on each new pick (live + mock), any page */
+  /* client near-miss net: a drafted feed name that doesn't key to a client but looks like one */
+  #nearMiss { display:none; }
+  #nearMiss .nm-row { background:#fff7e0; border:1px solid #e3b505; border-radius:8px; padding:8px 12px;
+    margin:8px 12px 0; font-size:13px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  #nearMiss .nm-row b { font-weight:800; }
   #ticker { position:fixed; left:0; right:0; bottom:0; z-index:80; transform:translateY(115%); transition:transform .38s cubic-bezier(.2,.7,.3,1); pointer-events:none; }
   #ticker.show { transform:translateY(0); }
   #ticker .tk-inner { margin:0 auto; max-width:920px; display:flex; align-items:center; gap:13px; background:#141414; color:#fff; border-top:3px solid var(--red); border-radius:12px 12px 0 0; padding:12px 20px; box-shadow:0 -8px 26px rgba(0,0,0,.28); font-size:16px; pointer-events:auto; touch-action:none; cursor:grab; }
@@ -1247,6 +1252,7 @@
   <!-- hidden pill: kept only as the load-error surface (pollLive unhides it) -->
   <span class="badge" id="yearBadge" style="display:none">2026 MLB DRAFT</span>
 </header>
+<div id="nearMiss"></div>
 
 <nav class="tabs">
   <button id="tabBoard" class="on" onclick="setView('board')">Board</button>
@@ -1903,6 +1909,7 @@
         for (const g of al.nickGroups||[]) for (let i=1;i<g.length;i++) NICK[g[i]] = g[0];
         for (const k in (al.players||{})) PLAYER_ALIAS[mergeInitials(baseNorm(k))] = mergeInitials(baseNorm(al.players[k]));
       }
+      Object.assign(PLAYER_ALIAS, LIVE_ALIASES);   // war-room "It's ours — link" runtime aliases (device-local)
       const rekey = (m) => { for (const k of Object.keys(m)) { const nk = normName(k); if (nk!==k) { m[nk]=m[k]; delete m[k]; } } };
       [DRAFT_COMPS, CLIENT_BATS, MEDICALS, RANGES, AGENCIES].forEach(rekey);
     } catch (e) {}
@@ -5894,8 +5901,66 @@
     if (s && s.onClock) { if (s.onClock.overall !== timer.pick) setClockForPick(s.onClock); }
     else timer.pick = null;
     if (s) detectNewPicks(s);
+    renderNearMiss(s);
     renderActive();
   }
+  // ---- client near-miss net ----------------------------------------------------
+  // The live feed publishes no player names until pick time, so a client whose MLB
+  // registration spelling differs from teamintel can't be pre-verified. This net
+  // scans every drafted pick that does NOT resolve to a client and flags ones that
+  // look like a client (same last name + first initial, or same first name + last
+  // name within one typo). "Link" writes a runtime alias (device-local, persisted)
+  // into PLAYER_ALIAS so every name-keyed join resolves on the next paint; the
+  // permanent fix for push + all devices is still an aliases.json entry.
+  const NEAR_DISMISS = new Set((()=>{ try { return JSON.parse(localStorage.getItem("dd:nearDismiss")||"[]"); } catch(e){ return []; } })());
+  let LIVE_ALIASES = {};
+  try { LIVE_ALIASES = JSON.parse(localStorage.getItem("dd:liveAliases")||"{}") || {}; } catch(e) {}
+  const lev1 = (a,b) => { if (a===b) return true; if (Math.abs(a.length-b.length)>1) return false;
+    const [s,l] = a.length<=b.length ? [a,b] : [b,a];
+    let i=0,j=0,edits=0;
+    while (i<s.length && j<l.length) {
+      if (s[i]===l[j]) { i++; j++; }
+      else { if (++edits>1) return false; if (s.length===l.length) { i++; j++; } else j++; }
+    }
+    return edits + (l.length-j) <= 1; };
+  function nearClientHits(state) {
+    if (!state || !DATA.clientList.length) return [];
+    const hits = [];
+    for (const p of state.picks) {
+      if (!p.isDrafted || !p.player) continue;
+      const k = normName(p.player);
+      if (DATA.clients.has(k)) continue;
+      const kt = k.split(" "), kf = kt[0]||"", kl = kt[kt.length-1]||"";
+      if (kt.length < 2) continue;
+      for (const c of DATA.clientList) {
+        const ct = c.key.split(" "), cf = ct[0]||"", cl = ct[ct.length-1]||"";
+        if (ct.length < 2) continue;
+        const near = (kl===cl && kf[0]===cf[0]) || (kf===cf && lev1(kl, cl));
+        if (near && !NEAR_DISMISS.has(p.overall+"|"+c.key)) hits.push({ pick:p, client:c });
+      }
+    }
+    return hits;
+  }
+  function renderNearMiss(state) {
+    const el = $("nearMiss"); if (!el) return;
+    const hits = nearClientHits(state);
+    const esc = s => String(s).replace(/'/g,"\\'").replace(/"/g,"&quot;");
+    el.innerHTML = hits.map(h => `<div class="nm-row">⚠️ Pick #${h.pick.overall} ${h.pick.team||""} — feed says <b>${h.pick.player}</b>, close to client <b>${h.client.name}</b>
+      <button class="tc-chip" onclick="nmLink('${esc(h.pick.player)}','${esc(h.client.key)}')">It's ours — link</button>
+      <button class="tc-chip" onclick="nmDismiss(${h.pick.overall},'${esc(h.client.key)}')">Not ours ✕</button></div>`).join("");
+    el.style.display = hits.length ? "" : "none";
+  }
+  window.nmLink = (feed, ckey) => {
+    const fk = mergeInitials(baseNorm(feed));
+    LIVE_ALIASES[fk] = ckey; PLAYER_ALIAS[fk] = ckey;
+    localStorage.setItem("dd:liveAliases", JSON.stringify(LIVE_ALIASES));
+    renderNearMiss(currentState); renderActive();
+  };
+  window.nmDismiss = (overall, ckey) => {
+    NEAR_DISMISS.add(overall+"|"+ckey);
+    localStorage.setItem("dd:nearDismiss", JSON.stringify([...NEAR_DISMISS]));
+    renderNearMiss(currentState);
+  };
   // Fire the ESPN-style ticker for any pick newly drafted since the last update (live or mock).
   // First state after load/mode-switch seeds silently so we don't replay the whole board.
   let announcedPicks = null;
