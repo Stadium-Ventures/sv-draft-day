@@ -716,6 +716,9 @@
   .posb { font-size:8px; font-weight:800; color:#9aa2ae; vertical-align:1px; }
   .res-out { min-width:0; }
   .res-slider { display:flex; align-items:center; gap:4px; flex-wrap:wrap; margin-bottom:7px; }
+  .res-agein { flex-basis:100%; display:flex; align-items:center; gap:6px; }
+  .res-agein input { width:70px; padding:4px 6px; border:1px solid var(--line); border-radius:7px; font:inherit; font-size:13px; font-variant-numeric:tabular-nums; }
+  .res-agein span { color:var(--muted); font-size:11px; font-weight:700; }
   .res-slab { font-size:11px; font-weight:800; font-variant-numeric:tabular-nums; }
   .res-slider .dual { flex-basis:100%; }
   .dual { position:relative; height:22px; }
@@ -4706,7 +4709,7 @@
   // the shared resSlide handler, and the range filters (active only when narrowed;
   // rows missing the value drop out only while the slider is active)
   const RES_SLIDERS = [
-    { key:"age", lab:"Age",     min:16,   max:25,     step:0.1,   fmt:v=>v.toFixed(1),               of:r=>wizAgeOf(r) },
+    { key:"age", lab:"Age",     min:16,   max:25,     step:0.1,   fmt:v=>v.toFixed(1),               of:r=>wizAgeOf(r), input:true },
     { key:"bn",  lab:"Bonus",   min:0,    max:BN_MAX, step:50000, fmt:v=>v>=BN_MAX?"$10M+":fmtM(v),  of:r=>r.bonus },
     { key:"yr",  lab:"Year",    min:2018, max:2025,   step:1,     fmt:v=>"'"+String(v).slice(2),     of:r=>r.year },
     { key:"ov",  lab:"Overall", min:1,    max:OV_MAX, step:1,     fmt:v=>"#"+v,                      of:r=>r.overall },
@@ -4802,9 +4805,26 @@
     const a = parseFloat(compAge(c.born, 2026));
     if (Number.isFinite(a)) { research.ageLo = Math.max(16, Math.round((a-1)*10)/10); research.ageHi = Math.min(25, Math.round((a+1)*10)/10); }
     renderResearch(); };
+  // Age is typed, not slid: two decimal inputs sharing the ageLo/ageHi state. Repaint
+  // results only — a full re-render would wipe the field mid-typing. onchange (commit)
+  // normalizes the display: clamp 16–25, swap lo>hi, always one decimal.
+  window.resAgeType = (commit) => {
+    const loEl = $("resAgeLo"), hiEl = $("resAgeHi"); if (!loEl || !hiEl) return;
+    const clamp = v => Math.min(25, Math.max(16, Math.round(v*10)/10));
+    let lo = parseFloat(loEl.value), hi = parseFloat(hiEl.value);
+    lo = Number.isFinite(lo) ? clamp(lo) : 16;
+    hi = Number.isFinite(hi) ? clamp(hi) : 25;
+    if (lo > hi) [lo, hi] = [hi, lo];
+    research.ageLo = lo; research.ageHi = hi;
+    research.client = null; research.hist = null;   // manual tweak drops the active lens
+    resShown = 50;
+    if (commit === true) { loEl.value = lo.toFixed(1); hiEl.value = hi.toFixed(1); }
+    renderResearchResults();
+  };
   window.resSlide = () => {
     const upd = {};
     for (const s of RES_SLIDERS) {
+      if (s.input) continue;   // typed inputs (age) keep their own handler/state
       const id = resSlId(s.key);
       let lo = parseFloat($(id+"Lo").value), hi = parseFloat($(id+"Hi").value);
       if (lo > hi) [lo, hi] = [hi, lo];
@@ -4930,13 +4950,17 @@
       ${chipRow("thr", "Throws", ["R","L"])}
       ${colsBtn}
       ${RES_SLIDERS.map(s => { const id = resSlId(s.key);
+        if (s.input) return `<div class="res-slider"><span class="tc-wizlab">${s.lab}</span>
+          <div class="res-agein"><input type="number" id="${id}Lo" min="${s.min}" max="${s.max}" step="${s.step}" inputmode="decimal" value="${research[s.key+"Lo"].toFixed(1)}" oninput="resAgeType()" onchange="resAgeType(true)">
+          <span>to</span>
+          <input type="number" id="${id}Hi" min="${s.min}" max="${s.max}" step="${s.step}" inputmode="decimal" value="${research[s.key+"Hi"].toFixed(1)}" oninput="resAgeType()" onchange="resAgeType(true)"></div></div>`;
         return `<div class="res-slider"><span class="tc-wizlab">${s.lab}</span><span class="res-slab" id="${id}Lab"></span>
         <div class="dual"><input type="range" id="${id}Lo" min="${s.min}" max="${s.max}" step="${s.step}" value="${research[s.key+"Lo"]}" oninput="resSlide()">
         <input type="range" id="${id}Hi" min="${s.min}" max="${s.max}" step="${s.step}" value="${research[s.key+"Hi"]}" oninput="resSlide()"></div></div>`; }).join("")}
       ${anyOn?`<div class="tc-wizgrp"><button class="tc-chip clear" onclick="resReset()">✕ clear all</button></div>`:""}
     </div></div></div>${cBox}`;
-    for (const s of RES_SLIDERS) $(resSlId(s.key)+"Lab").textContent =
-      `${s.fmt(research[s.key+"Lo"])} – ${s.fmt(research[s.key+"Hi"])}`;
+    for (const s of RES_SLIDERS) { if (s.input) continue; $(resSlId(s.key)+"Lab").textContent =
+      `${s.fmt(research[s.key+"Lo"])} – ${s.fmt(research[s.key+"Hi"])}`; }
     if (resFindQ) resFindInput(resFindQ);   // rebuild the typeahead menu after the innerHTML swap
     renderResearchResults();
   }
