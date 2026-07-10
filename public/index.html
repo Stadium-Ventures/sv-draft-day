@@ -3515,7 +3515,7 @@
       const rows = precedentRows(comp, blk.ctx);
       const pops = rows.filter(r=>presented.has(normName(r.full || (r.first+" "+r.last))));
       h += `<div class="cmp-emh">Historical precedent — ${blk.title}</div>`;
-      if (pops.length) h += `<div class="cmp-popnote">★ Presented comp pops here: <b>${pops.map(r=>r.full||(r.first+" "+r.last)).join(", ")}</b></div>`;
+      if (pops.length) h += `<div class="cmp-popnote">★ Presented comp pops here: <b>${pops.map(r=>`<span${histAttr(r)}>${r.full||(r.first+" "+r.last)}</span>`).join(", ")}</b></div>`;
       h += rows.length ? rows.map(r=>{
         const pop = presented.has(normName(r.full || (r.first+" "+r.last)));
         return `<div class="cmp-em-row ${pop?'cmp-pop':''}">
@@ -4715,12 +4715,12 @@
     h += `<div class="tc-fitline sm"><span>At <b>#${pk.overall}</b> overall, from 2018–25${n?` · <b>${Math.round(100*overN/n)}% over slot</b> · avg ${sgn$(avg)}`:""}</span><span class="tc-nextland"><a href="${trackerUrl}" target="_blank" rel="noopener" style="color:var(--red);font-weight:800">full tracker ↗</a></span></div>`;
     // Record: the biggest bonus ever signed at this exact overall
     const rec = rows.filter(r=>r.bonus!=null).sort((a,b)=>b.bonus-a.bonus)[0];
-    if (rec) h += `<div class="tc-fitline sm"><span>Record <b>${fmtM(rec.bonus)}</b> — ${rec.first?rec.first+" ":""}${rec.last}, ${teamAbbrevOf(rec.team)} '${String(rec.year).slice(2)}</span></div>`;
+    if (rec) h += `<div class="tc-fitline sm"><span>Record <b>${fmtM(rec.bonus)}</b> — <span${histAttr(rec)}>${rec.first?rec.first+" ":""}${rec.last}</span>, ${teamAbbrevOf(rec.team)} '${String(rec.year).slice(2)}</span></div>`;
     if (!rows.length) return h + `<div class="placeholder">No history at #${pk.overall} — draft numbering shifts year to year.</div></div>`;
     h += `<table class="tc-upc"><thead><tr><th>Yr</th><th>Player</th><th>Pos</th><th>Team</th><th>Bonus</th><th>vs Slot</th></tr></thead><tbody>`;
     h += rows.map(r=>`<tr>
       <td>'${String(r.year).slice(2)}</td>
-      <td class="pl">${r.first?r.first[0]+". ":""}${r.last} ${lvlTag(r)}</td>
+      <td class="pl"><span${histAttr(r)}>${r.first?r.first[0]+". ":""}${r.last}</span> ${lvlTag(r)}</td>
       <td style="color:var(--muted)">${posDispB(r)}</td>
       <td style="color:var(--muted)">${teamAbbrevOf(r.team)}</td>
       <td>${r.bonus!=null?fmtM(r.bonus):`<span style="color:var(--muted);font-weight:600;font-size:11px">unsigned</span>`}</td>
