@@ -1046,6 +1046,9 @@
   body.mob .board-feed { display:none; }
   /* toolbar: one swipeable row; TV toggle and the jump button (pill replaces it) hidden */
   body.mob #viewBoard .ba-filters { flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:4px; }
+  /* overflow-x:auto forces overflow-y to clip too, which swallows the Players dropdown —
+     lift the clip while the menu is open (row briefly stops swiping; fine, a menu is up) */
+  body.mob #viewBoard .ba-filters.menu-open { overflow:visible; }
   body.mob #viewBoard .ba-filters label, body.mob #viewBoard .ba-filters .count { white-space:nowrap; }
   body.mob #tvCtl, body.mob #viewBoard .ba-filters > button.ctl { display:none; }
   /* Best Available filters on mobile: a tidy collapsible 2-row block (no more clipped controls) */
@@ -3476,6 +3479,8 @@
           <span class="caret">▾</span></button>
         <div class="pdrop-menu" style="display:${playerMenuOpen?'block':'none'}">${big}${list}</div>
       </div>`;
+    // Mobile toolbar is an overflow-x scroller, which also clips vertically — unclip while open.
+    const bar = el.closest(".ba-filters"); if (bar) bar.classList.toggle("menu-open", playerMenuOpen);
     // Selected players' last names inline in the toolbar's open space (chip already names a single pick).
     const names = sel.size>1 ? selC.map(c=>(c.name||"").trim().split(/\s+/).pop()) : [];
     const sn = $("boardSelNames"); if (sn) sn.textContent = names.join(", ");
