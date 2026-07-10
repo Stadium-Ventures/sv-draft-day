@@ -1322,6 +1322,7 @@
     </select>
   </label>
   <button class="ctl" onclick="resetMock()">↺ Reset</button>
+  <button class="ctl" onclick="testSocial()" title="Seed a sample X report onto the board — tile chip, pick-card validate row, notebook record">⚡ Test social</button>
   <span class="note" id="mockNote">Pause, then use a row's Draft button in Best Available to draft manually.</span>
 </div>
 
@@ -6828,6 +6829,30 @@
         at: new Date().toISOString(), text: `(MOCK) Hearing ${c.name} to ${pk.team} at #${pk.overall}.` });
     }
   }
+  // "⚡ Test social" (mock bar): seed ONE sample X report into the real lead pipeline —
+  // tile chip, pick-card validate/dismiss row, notebook record — targeting the next open
+  // pick that doesn't already carry a lead. Each click adds a fresh lead (max 3 chips show).
+  let testSocialN = 0;
+  window.testSocial = () => {
+    if (MODE !== "mock" || !currentState) { alert("Switch to Mock mode first — Test social rehearses the live X-report flow."); return; }
+    const drafted = new Set(currentState.picks.filter(p => p.isDrafted && p.player).map(p => normName(p.player)));
+    for (const p of currentState.picks) if (p.reported) drafted.add(normName(p.reported.player));
+    const leadNames = new Set(MOCKLEADS.map(l => normName(l.player)));
+    let cands = DATA.clientList.filter(c => c.comp && !drafted.has(c.key) && !leadNames.has(c.key)).map(c => c.comp);
+    if (!cands.length) cands = DATA.composite.filter(c => !drafted.has(normName(c.name)) && !leadNames.has(normName(c.name)));
+    const reported = new Set(currentState.picks.filter(p => p.reported).map(p => p.overall));
+    const leadPicks = new Set(MOCKLEADS.map(l => l.pick));
+    const pk = currentState.picks.find(p => !p.isDrafted && !p.isPass && p.team
+      && !reported.has(p.overall) && !leadPicks.has(p.overall));
+    if (!cands.length || !pk) { alert("No open pick / available player left to seed."); return; }
+    const c = cands[0], srcs = ["JeffPassan", "kileymcd", "CarlosACollazo"];
+    const l = { id: `test-${++testSocialN}-${normName(c.name)}`, player: c.name, team: pk.teamName || pk.team,
+      pick: pk.overall, confidence: 0.9, src: srcs[testSocialN % 3], mock: true,
+      at: new Date().toISOString(), text: `(TEST) Hearing ${c.name} to ${pk.team} at #${pk.overall}.` };
+    MOCKLEADS.push(l);
+    noteNewLeads([l]);
+    if (VIEW !== "board") setView("board"); else renderActive();
+  };
   function leadTeamAbbr(t) {
     if (!t) return null;
     const up = teamAlias(t.trim().toUpperCase());
