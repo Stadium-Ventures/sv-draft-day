@@ -5046,10 +5046,19 @@
     document.body.appendChild(a); a.click();
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
   };
+  // SV logo for print exports — fetched once and inlined (the print popup is about:blank,
+  // so relative image URLs wouldn't resolve there)
+  let svLogoSvg = null;
+  const getSvLogo = async () => {
+    if (svLogoSvg != null) return svLogoSvg;
+    try { const t = await fetch("/brand/sv-logo.svg").then(r => r.ok ? r.text() : "");
+      svLogoSvg = t.replace(/<\?xml[^?]*\?>/, ""); } catch (e) { svLogoSvg = ""; }
+    return svLogoSvg;
+  };
   // Print-ready export of the FULL current result set (not the on-screen cap) — opens a
   // clean print window; the browser's Save-as-PDF does the rest. Always carries both
   // vs-Slot readings: $ over/under AND bonus as % of slot.
-  window.resExportPdf = () => {
+  window.resExportPdf = async () => {
     const rows = researchRows();
     if (!rows.length) { alert("No signings match the current lenses — nothing to export."); return; }
     const xcols = RES_XCOLS.filter(([k]) => resCols.has(k));
@@ -5066,8 +5075,9 @@
       ${td(r.diff!=null?(r.diff>0?"+":"")+fmtM(r.diff):"—","r"+vs)}
       ${td(slotPctFmt(r)||"—","r"+vs)}
       ${xcols.map(([k,,cell])=>td(_esc(String(cell(r))), k==="school"?"w":"")).join("")}</tr>`;}).join("");
-    const w = window.open("", "_blank");
+    const w = window.open("", "_blank");   // open synchronously — keeps the click gesture for the popup
     if (!w) { alert("Popup blocked — allow popups for this site to export."); return; }
+    const logo = await getSvLogo();
     // auto-fit: orientation + type scale follow the column count so every column stays
     // on one page width — extra columns flip to landscape and step the font down
     const nCols = 8 + xcols.length;
@@ -5076,6 +5086,8 @@
     w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>SV Draft Day — Research export</title><style>
       body { font:${fs}px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; color:#141414; margin:26px; }
       h1 { font-size:16px; margin:0 0 3px; }
+      .hd { display:flex; align-items:center; gap:12px; }
+      .hd svg { height:36px; width:auto; flex:none; }
       .sub { color:#555; font-size:10.5px; margin:1px 0; }
       table { border-collapse:collapse; width:100%; margin-top:12px; }
       thead { display:table-header-group; }
@@ -5092,9 +5104,11 @@
       tr { break-inside:avoid; }
       @page { size:${nCols > 8 ? "letter landscape" : "letter portrait"}; margin:13mm 10mm; }
     </style></head><body>
+      <div class="hd">${logo}<div>
       <h1>SV Draft Day — Research</h1>
       <div class="sub">${_esc(resFilterDesc())}</div>
       <div class="sub">${rows.length} signings${signed.length?` · avg bonus ${fmtM(avgB)} · ${Math.round(100*overN/signed.length)}% over slot`:""} · exported ${new Date().toLocaleString()}</div>
+      </div></div>
       <table><thead><tr><th>Yr</th><th>Player</th><th>Pos</th><th class="r">Pick</th><th>Team</th><th class="r">Bonus</th><th class="r">vs Slot</th><th class="r">vs Slot %</th>${xcols.map(([,lbl])=>`<th>${lbl}</th>`).join("")}</tr></thead>
       <tbody>${body}</tbody></table>
     </body></html>`);
