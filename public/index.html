@@ -3791,11 +3791,17 @@
       if (p.isDrafted && p.player && DATA.clients.has(normName(p.player))) s.sv.push(p.player);
     }
     const seenRounds = new Set();
+    // The feed labels CBT-moved comp picks by their ORIGIN round (e.g. 35/36/39/40 are
+    // "Round 1"), so a round can complete while its stragglers sit inside the active
+    // round's territory — folding the whole round would vanish them mid-action. Only
+    // fold picks that sit before the first incomplete round's start.
+    let activeStart = Infinity;
+    for (const p of state.picks) { const s = rdStat.get(p.round); if (s.done < s.total) { activeStart = p.overall; break; } }
     for (const p of state.picks) {
       const ours = p.isDrafted && DATA.clients.has(normName(p.player||""));
       if (svOnly && !ours) continue;
       const rs = rdStat.get(p.round), complete = rs.done === rs.total;
-      const folded = complete && !svOnly && !openRounds.has(String(p.round));
+      const folded = complete && p.overall < activeStart && !svOnly && !openRounds.has(String(p.round));
       if (!seenRounds.has(p.round)) {
         seenRounds.add(p.round);
         const sum = complete ? ` <span class="rc-sum">· ✓ ${rs.total} picks${rs.sv.length?` · <b>SV:</b> ${rs.sv.map(_esc).join(", ")}`:""}</span><span class="rc-tgl">${folded?"▸ expand":"▾ collapse"}</span>` : "";
