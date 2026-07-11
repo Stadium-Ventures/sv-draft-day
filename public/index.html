@@ -2236,7 +2236,18 @@
   // Actual bonus if known (mock engine, or live once signed); else a LOGGED bonus
   // (war-room confirmed beats reported/estimated); otherwise our model estimate, flagged est.
   function effectiveBonus(p) {
-    if (!p.isDrafted) return { bonus:null, est:false };
+    if (!p.isDrafted) {
+      // reported-but-unofficial pick: a war-room logged bonus for the reported player
+      // still surfaces (tile chip; pools once validated) — never a model guess pre-confirm
+      if (p.reported) {
+        if (MODE === "mock") return p.reported.bonus != null
+          ? { bonus:p.reported.bonus, est:!p.reported.bonusV, src:p.reported.bonusV ? "confirmed" : "estimated" }
+          : { bonus:null, est:false };
+        const lb = bonusFor(normName(p.reported.player||""));
+        if (lb) return { bonus: lb.amount, est: lb.kind!=="confirmed", src: lb.kind };
+      }
+      return { bonus:null, est:false };
+    }
     if (p.bonus != null) return { bonus:p.bonus, est:false };
     const key = normName(p.player||"");
     const lb = bonusFor(key);
@@ -2250,7 +2261,7 @@
   // The model's guess for a drafted pick — offered only as a suggestion in the bonus entry
   // form, never shown as fact on announcements, the feed, or tiles.
   function suggestBonus(p) {
-    const comp = DATA.compByName.get(normName(p.player||""));
+    const comp = DATA.compByName.get(normName(p.player || (p.reported && p.reported.player) || ""));
     return comp ? negBonus(comp, p.slot||0, p.overall) : (p.slot > 0 ? p.slot : LATE_EXEMPT);
   }
   function ouTag(over, est) {          // est: falsy | true ("EST") | string label ("RUM")
@@ -2284,8 +2295,8 @@
         pool:0, picksTotal:0, picksMade:0, committedSlot:0, knownSlot:0, poolBonusPaid:0, poolCharge:0, hasEst:false };
       const isPool = p.slot > 0;                    // rounds 1-10 + CB/comp/PPI (rounds 11+ carry slot 0)
       if (isPool) { t.pool += p.slot; t.picksTotal += 1; }
-      if (p.isDrafted) {
-        if (isPool) { t.committedSlot += p.slot; t.picksMade += 1; }
+      if (p.isDrafted || repHard(p.reported)) {   // hard-reported picks book entered money early
+        if (p.isDrafted && isPool) { t.committedSlot += p.slot; t.picksMade += 1; }
         const eb = effectiveBonus(p);
         // only KNOWN money hits the books — official feed bonus or a war-room logged
         // figure; the model's automatic guess never accrues against a team's pool
@@ -3661,11 +3672,17 @@
     if (!Number.isFinite(amt) || amt<=0) { alert("Enter a bonus amount."); return; }
     const p = (currentState?.picks||[]).find(x=>x.overall===ov); if (!p) return;
     bonusEdit = null;
-    if (MODE==="mock") { p.bonus = amt; p.bonusV = val; p.bonusUser = true; pushMock(); }
+    // a reported (unofficial) pick takes a bonus too — logged against the reported player,
+    // so the number carries straight through when MLB confirms the pick
+    const repName = !p.isDrafted && p.reported ? p.reported.player : null;
+    if (MODE==="mock") {
+      if (repName) { const rec = REPORTED_MOCK.get(ov); if (rec) { rec.bonus = amt; rec.bonusV = val; } pushMock(); }
+      else { p.bonus = amt; p.bonusV = val; p.bonusUser = true; pushMock(); }
+    }
     else {
       renderBoard(currentState);   // close the form now; loadIntel() re-renders with the logged number
-      postIntel({ kind:"bonus", player_name:p.player, team:p.team, pick_overall:ov,
-        offer_type: val?"confirmed":"estimated", amount:amt, status:"active", note:"board chip" });
+      postIntel({ kind:"bonus", player_name:repName || p.player, team:p.team, pick_overall:ov,
+        offer_type: val?"confirmed":"estimated", amount:amt, status:"active", note: repName ? "board chip (reported pick)" : "board chip" });
     }
   };
 
@@ -3750,7 +3767,30 @@
         body = `${_esc(p.reported.player)}${ourRep?' <span class="svtag">SV</span>':''} <span class="bc-rep${hard?"":" soft"}" title="${_esc(repTitle)}">${hard?"VALIDATED":"REPORTED"}</span>`;
         const comp = DATA.compByName.get(normName(p.reported.player));
         const meta = comp ? [comp.pos, schoolShort(comp.school)].filter(Boolean).join(" · ") : "";
-        if (meta) dotsHtml = `<div class="bc-meta">${meta}</div>`;
+        const lines = meta ? [`<div class="bc-meta">${meta}</div>`] : [];
+        // bonus entry works pre-confirmation too — the war room usually has the number
+        // before MLB posts the pick; logged by player name so it survives the confirm
+        const eb = effectiveBonus(p);
+        const shown = eb.bonus != null && !!eb.src;
+        const validated = eb.src === "confirmed";
+        if (bonusEdit === p.overall) {
+          const cur = Math.round(shown ? eb.bonus : suggestBonus(p));
+          lines.push(`<div class="bc-bform" onclick="event.stopPropagation()">
+            $<input id="bxAmt" type="text" inputmode="numeric" value="${cur.toLocaleString("en-US")}" oninput="fmtBonusInput(this)" onkeydown="if(event.key==='Enter')saveBonusChip(${p.overall},event)">
+            <label><input id="bxVal" type="checkbox"${validated?" checked":""}>validated</label>
+            <button class="ok" onclick="saveBonusChip(${p.overall},event)">Save</button>
+            <button onclick="closeBonusChip(event)">✕</button></div>`);
+        } else if (shown) {
+          const src = eb.src && eb.src!=="confirmed" ? ` <span class="bc-src">${eb.src.slice(0,3)}</span>` : "";
+          const chip = `<span class="bc-chip${validated?" val":""}" title="Click to edit signing bonus" onclick="openBonusChip(${p.overall},event)"><span class="bc-ck">${validated?"✓":""}</span>${fmtM(eb.bonus)}${src}</span>`;
+          const ou = p.slot>0 ? eb.bonus-p.slot : null;
+          const tag = ou!=null ? `<span class="tg ${ou>50000?'over':ou<-50000?'under':'fit'}">${ou>50000?"+":""}${Math.abs(ou)>50000?fmtM(ou)+" vs slot":"at slot"}</span>` : "";
+          if (MOBILE.matches) lines.push(`<div class="bc-bonus">${chip}${tag?` ${tag}`:""}</div>`);
+          else { lines.push(`<div class="bc-bonus">${chip}</div>`); if (tag) lines.push(`<div class="bc-bonus">${tag}</div>`); }
+        } else {
+          lines.push(`<div class="bc-bonus"><span class="bc-chip est" title="Click to enter signing bonus" onclick="openBonusChip(${p.overall},event)"><span class="bc-ck"></span>$—</span></div>`);
+        }
+        dotsHtml = lines.join("");
       } else if (leadMap.has(p.overall)) {
         // active X lead resolved to this pick: amber chip, flashing until the card is opened
         const l = leadMap.get(p.overall);
@@ -6759,7 +6799,17 @@
   function autoPickOne() {
     const oi = mockOfficialIdx();
     if (oi < 0) return false;
-    applyPick(oi, choosePick(mock.picks[oi])); return true;
+    const pk = mock.picks[oi];
+    const rep = REPORTED_MOCK.get(pk.overall);
+    if (rep) {   // war room reported this slot — the sim CONFIRMS the reported player, never drafts over him
+      const comp = DATA.compByName.get(normName(rep.player||""));
+      applyPick(oi, comp ? { comp, bonus: rep.bonus != null ? rep.bonus : negBonus(comp, pk.slot, pk.overall) } : null);
+      if (!comp) { pk.player = rep.player; pk.bonus = rep.bonus != null ? rep.bonus : null; }
+      if (rep.bonus != null) { pk.bonusUser = true; pk.bonusV = !!rep.bonusV; }   // entered chip carries through the confirm
+      REPORTED_MOCK.delete(pk.overall);
+      return true;
+    }
+    applyPick(oi, choosePick(pk)); return true;
   }
   window.draftManual = (name) => {
     if (MODE!=="mock" || mock.running || !mock.picks) return;
@@ -6785,6 +6835,7 @@
   function stepOnce() { if (MODE==="mock" && mock.picks) { autoPickOne(); mock.nextAt=0; pushMock(); } }
   function resetMock() {
     mock.running=false; mock.picks=null; mock.nextAt=0; timer.pick=null;
+    REPORTED_MOCK = new Map();   // fresh board = clean reported slate (stale chips otherwise survive reset)
     announcedPicks = null; tickerQueue = [];   // re-seed the ticker silently on the fresh board
     $("btnRun").textContent="▶ Start"; $("btnRun").classList.add("primary");
     seedFromLive().then(pushMock);
