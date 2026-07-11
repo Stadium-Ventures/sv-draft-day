@@ -746,6 +746,14 @@
   .res-agein input { width:70px; padding:4px 6px; border:1px solid var(--line); border-radius:7px; font:inherit; font-size:13px; font-variant-numeric:tabular-nums; }
   .res-agein span { color:var(--muted); font-size:11px; font-weight:700; }
   .res-slab { font-size:11px; font-weight:800; font-variant-numeric:tabular-nums; }
+  /* the black range numbers ARE the editable fields — quiet until hover/focus */
+  .res-sledit { display:inline-flex; align-items:center; gap:2px; }
+  .res-slabin { width:62px; border:none; background:transparent; color:inherit; font:inherit; font-size:11px; font-weight:800; font-variant-numeric:tabular-nums; padding:1px 3px; border-radius:5px; }
+  .res-slabin:first-child { text-align:right; }
+  .res-slabin:hover { background:rgba(0,0,0,.06); }
+  .res-slabin:focus { outline:none; background:#fff; box-shadow:0 0 0 1.5px #c8102e; }
+  .res-sldash { font-size:11px; font-weight:800; color:var(--muted); }
+  .res-stmenu { max-height:280px; overflow:auto; min-width:340px; }
   .res-slider .dual { flex-basis:100%; }
   .dual { position:relative; height:22px; }
   .dual input[type=range] { position:absolute; inset:0; width:100%; margin:0; -webkit-appearance:none; appearance:none; background:none; pointer-events:none; height:22px; }
@@ -1705,6 +1713,7 @@
         rows.push({ year:+f[1], round:f[2], overall:num(f[3]), mlbid:f[5]||"", first:f[6], last:f[7], pos:f[8], group:posGroupOf(f[8]),
           level:(f[13]==="HS"?"HS":(isJucoSchool(f[14])?"JuCo":"College")), school:f[14], team:f[17], bonus, slot,
           bats:f[9]||"", throws:f[10]||"", born:f[15]||"", ht:f[18]||"", wt:num(f[19]), full:f[16]||"",
+          homeplace:(f[12]||"").trim(), hst:((/,\s*([A-Z]{2})\s*$/.exec(f[12]||"")||[])[1]||""),
           diff:(f[22]!==""&&f[22]!=null?num(f[22]):(bonus!=null&&slot!=null?bonus-slot:null)) });
       }
       DATA.slotHistory = rows;
@@ -3596,7 +3605,7 @@
   document.addEventListener("click", (e) => {
     if (playerMenuOpen && !(e.target.closest && e.target.closest(".pdrop"))) { playerMenuOpen = false; renderBoardPlayers(currentState); }
     if (bonusEdit!=null && !(e.target.closest && e.target.closest(".bc-bform"))) { bonusEdit = null; renderBoard(currentState); }
-    if (resPosOpen && !(e.target.closest && e.target.closest(".res-pdrop"))) { resPosOpen = false; renderResearch(); }
+    if ((resPosOpen||resStOpen) && !(e.target.closest && e.target.closest(".res-pdrop"))) { resPosOpen = false; resStOpen = false; renderResearch(); }
     if (baOpen && !(e.target.closest && e.target.closest(".ba-drop"))) { baOpen = null; renderBaChips(); }
     if ((rfClientsMenu||rfBoardMenu||rfPosMenu||rfRankMenu) && !(e.target.closest && e.target.closest(".rf-drop, .res-pdrop"))) { rfClientsMenu = false; rfBoardMenu = false; rfPosMenu = false; rfRankMenu = false; if (VIEW==="fit") renderRfControls(); }
   });
@@ -4807,7 +4816,7 @@
   // dropdown with group-selects, dual-thumb Age and Bonus range sliders, and a fully
   // sortable results table. Sliders repaint ONLY the results (no full re-render
   // mid-drag); the view never re-renders on live ticks.
-  let researchDrawn = false, resPosOpen = false, resClientsOpen = false, resColsOpen = false, resFiltersOpen = false;
+  let researchDrawn = false, resPosOpen = false, resStOpen = false, resClientsOpen = false, resColsOpen = false, resFiltersOpen = false;
   window.toggleResClients = () => { resClientsOpen = !resClientsOpen; renderResearch(); };
   window.toggleResFilters = () => { resFiltersOpen = !resFiltersOpen; renderResearch(); };   // mobile-only head
   const BN_MAX = 10000000, OV_MAX = 1220;
@@ -4815,17 +4824,24 @@
   // dual-thumb slider specs — one table drives RES_DEF defaults, the pane markup,
   // the shared resSlide handler, and the range filters (active only when narrowed;
   // rows missing the value drop out only while the slider is active)
+  // parse: lenient reader for the editable formatted labels — must roundtrip fmt's own
+  // output ("$10M+", "'19", 5'8") plus whatever a human types ("1.5m", "2019", "74")
   const RES_SLIDERS = [
-    { key:"age", lab:"Age",     min:16,   max:25,     step:0.1,   fmt:v=>v.toFixed(1),               of:r=>wizAgeOf(r), input:true },
-    { key:"bn",  lab:"Bonus",   min:0,    max:BN_MAX, step:50000, fmt:v=>v>=BN_MAX?"$10M+":fmtM(v),  of:r=>r.bonus },
-    { key:"yr",  lab:"Year",    min:2018, max:2025,   step:1,     fmt:v=>"'"+String(v).slice(2),     of:r=>r.year },
-    { key:"ov",  lab:"Overall", min:1,    max:OV_MAX, step:1,     fmt:v=>"#"+v,                      of:r=>r.overall },
-    { key:"ht",  lab:"Height",  min:64,   max:84,     step:1,     fmt:ftIn,                          of:r=>htIn(r) },
+    { key:"age", lab:"Age",     min:16,   max:25,     step:0.1,   fmt:v=>v.toFixed(1),               of:r=>wizAgeOf(r) },
+    { key:"bn",  lab:"Bonus",   min:0,    max:BN_MAX, step:50000, fmt:v=>v>=BN_MAX?"$10M+":fmtM(v),  of:r=>r.bonus,
+      parse:v=>{ const t=String(v).replace(/[$,\s+]/g,""); const n=parseFloat(t); if(!Number.isFinite(n)) return NaN;
+        return /m$/i.test(t)?n*1e6:/k$/i.test(t)?n*1e3:n<=100?n*1e6:n; } },
+    { key:"yr",  lab:"Year",    min:2018, max:2025,   step:1,     fmt:v=>"'"+String(v).slice(2),     of:r=>r.year,
+      parse:v=>{ const n=parseInt(String(v).replace(/[^\d]/g,""),10); return n<100?2000+n:n; } },
+    { key:"ov",  lab:"Overall", min:1,    max:OV_MAX, step:1,     fmt:v=>"#"+v,                      of:r=>r.overall,
+      parse:v=>parseInt(String(v).replace(/[^\d]/g,""),10) },
+    { key:"ht",  lab:"Height",  min:64,   max:84,     step:1,     fmt:ftIn,                          of:r=>htIn(r),
+      parse:v=>{ const m=/(\d+)\s*'\s*(\d+)?/.exec(String(v)); return m?(+m[1])*12+(+(m[2]||0)):parseFloat(v); } },
     { key:"wt",  lab:"Weight",  min:145,  max:300,    step:5,     fmt:v=>v+" lb",                    of:r=>r.wt },
   ];
-  const resSlId = k => "res" + k[0].toUpperCase() + k.slice(1);   // "age" -> resAgeLo/resAgeHi/resAgeLab
+  const resSlId = k => "res" + k[0].toUpperCase() + k.slice(1);   // "age" -> resAgeLo/Hi (thumbs), resAgeLoT/HiT (editable labels)
   const RES_DEF = () => { const d = { pos:new Set(), cls:new Set(), lvl:new Set(), money:new Set(), round:new Set(),
-      hl:new Set(), bats:new Set(), thr:new Set(), client:null, hist:null, sortKey:"year", sortDir:-1 };
+      hl:new Set(), bats:new Set(), thr:new Set(), st:new Set(), client:null, hist:null, sortKey:"year", sortDir:-1 };
     for (const s of RES_SLIDERS) { d[s.key+"Lo"] = s.min; d[s.key+"Hi"] = s.max; }
     return d; };
   research = RES_DEF();
@@ -4839,6 +4855,7 @@
     ["age",    "Age",    r => { const a = wizAgeOf(r); return a==null ? "—" : a.toFixed(1); }],
     ["cls",    "Class",  r => wizClsOf(r) || "—"],
     ["school", "School", r => r.school || "—"],
+    ["home",   "Home",   r => r.homeplace ? r.homeplace.replace(/,\s*/, ", ") : "—"],
     ["bt",     "B/T",    r => fmtBT(r)],
     ["htwt",   "Ht/Wt",  r => fmtHtWt(r)],
     ["slot",   "Slot $", r => r.slot!=null ? fmtM(r.slot) : "—"],
@@ -4850,7 +4867,7 @@
   window.resPctSet = (v) => { resPctMode = !!v; try { localStorage.setItem("dd:resPct", v?"1":"0"); } catch(e){} renderResearchResults(); };
   const slotPct = (r) => (r.diff!=null && r.slot>0) ? r.diff/r.slot : null;   // +0.18 = signed 18% over slot
   const slotPctFmt = (r) => { const d = slotPct(r); return d==null ? null : `${d>0?"+":""}${Math.round(100*d)}%`; };
-  window.toggleResCols = (e) => { if (e) e.stopPropagation(); resColsOpen = !resColsOpen; resPosOpen = false; renderResearch(); };
+  window.toggleResCols = (e) => { if (e) e.stopPropagation(); resColsOpen = !resColsOpen; resPosOpen = false; resStOpen = false; renderResearch(); };
   window.resColTok = (k, e) => { if (e) e.stopPropagation(); setTog(resCols, k);
     localStorage.setItem("dd:resCols", JSON.stringify([...resCols])); renderResearch(); };
   const RES_ROUNDS = ["1","2","3","4","5","6","7","8","9","10","11+"];
@@ -4861,10 +4878,13 @@
   // any manual filter tweak drops whichever lens (client preload or player-search comp) is active
   const resClearLens = () => { research.client = null; research.hist = null; resShown = 50; };
   window.resChip = (g, v) => { setTog(research[g], v); resClearLens(); renderResearch(); };
-  window.resReset = () => { research = RES_DEF(); resPosOpen = false; resFindQ = ""; resShown = 50; renderResearch(); };
+  window.resReset = () => { research = RES_DEF(); resPosOpen = false; resStOpen = false; resFindQ = ""; resShown = 50; renderResearch(); };
   window.resMore = () => { resShown += 250; renderResearchResults(); };
   window.resAll = () => { resShown = Infinity; renderResearchResults(); };
-  window.toggleResPos = (e) => { if (e) e.stopPropagation(); resPosOpen = !resPosOpen; resColsOpen = false; renderResearch(); };
+  window.toggleResPos = (e) => { if (e) e.stopPropagation(); resPosOpen = !resPosOpen; resColsOpen = false; resStOpen = false; renderResearch(); };
+  // home-state dropdown — same pattern as the position dropdown, options from the data
+  window.toggleResSt = (e) => { if (e) e.stopPropagation(); resStOpen = !resStOpen; resPosOpen = false; resColsOpen = false; renderResearch(); };
+  window.resStTok = (t, e) => { if (e) e.stopPropagation(); setTog(research.st, t); resClearLens(); renderResearch(); };
   window.resPosTok = (t, e) => { if (e) e.stopPropagation(); setTog(research.pos, t); resClearLens(); renderResearch(); };
   window.resPosGrp = (g, e) => { if (e) e.stopPropagation();
     const toks = POS_TREE[g], all = toks.every(t=>research.pos.has(t));
@@ -4907,7 +4927,7 @@
   };
   window.resSort = (k) => {
     if (research.sortKey === k) research.sortDir *= -1;
-    else { research.sortKey = k; research.sortDir = (k==="player"||k==="pos"||k==="team"||k==="cls"||k==="school"||k==="bt") ? 1 : -1; }
+    else { research.sortKey = k; research.sortDir = (k==="player"||k==="pos"||k==="team"||k==="cls"||k==="school"||k==="home"||k==="bt") ? 1 : -1; }
     renderResearchResults(); };
   // Preload a client's comp profile: level, class proxy, positions, age ±1.
   // Clicking the already-selected client clears back to defaults.
@@ -4923,46 +4943,30 @@
     const a = parseFloat(compAge(c.born, 2026));
     if (Number.isFinite(a)) { research.ageLo = Math.max(16, Math.round((a-1)*10)/10); research.ageHi = Math.min(25, Math.round((a+1)*10)/10); }
     renderResearch(); };
-  // Age is typed, not slid: two decimal inputs sharing the ageLo/ageHi state. Repaint
-  // results only — a full re-render would wipe the field mid-typing. onchange (commit)
-  // normalizes the display: clamp 16–25, swap lo>hi, always one decimal.
-  window.resAgeType = (commit) => {
-    const loEl = $("resAgeLo"), hiEl = $("resAgeHi"); if (!loEl || !hiEl) return;
-    const clamp = v => Math.min(25, Math.max(16, Math.round(v*10)/10));
-    let lo = parseFloat(loEl.value), hi = parseFloat(hiEl.value);
-    lo = Number.isFinite(lo) ? clamp(lo) : 16;
-    hi = Number.isFinite(hi) ? clamp(hi) : 25;
-    if (lo > hi) [lo, hi] = [hi, lo];
-    research.ageLo = lo; research.ageHi = hi;
-    research.client = null; research.hist = null;   // manual tweak drops the active lens
-    resShown = 50;
-    if (commit === true) { loEl.value = lo.toFixed(1); hiEl.value = hi.toFixed(1); }
-    renderResearchResults();
-  };
   window.resSlide = () => {
     const upd = {};
     for (const s of RES_SLIDERS) {
-      if (s.input) continue;   // typed inputs (age) keep their own handler/state
       const id = resSlId(s.key);
       let lo = parseFloat($(id+"Lo").value), hi = parseFloat($(id+"Hi").value);
       if (lo > hi) [lo, hi] = [hi, lo];
       upd[s.key+"Lo"] = lo; upd[s.key+"Hi"] = hi;
-      $(id+"Lab").textContent = `${s.fmt(lo)} – ${s.fmt(hi)}`;
-      const lt = $(id+"LoT"), ht = $(id+"HiT");   // keep the typed twins in step
-      if (lt) lt.value = lo; if (ht) ht.value = hi;
+      const lt = $(id+"LoT"), ht = $(id+"HiT");   // the editable labels track the thumbs
+      if (lt) lt.value = s.fmt(lo); if (ht) ht.value = s.fmt(hi);
     }
     Object.assign(research, upd, { client:null, hist:null });
     resShown = 50;
     renderResearchResults();
   };
-  // typed twin of a dual slider: same clamp/swap contract as resAgeType, results-only
-  // repaint mid-typing; commit (blur/Enter) snaps the fields and thumbs into place
+  // the black label IS the editable field: lenient parse mid-typing (results-only repaint
+  // so the field survives), clamp + lo>hi swap, thumbs track live; commit (blur/Enter)
+  // rewrites both fields back to the canonical fmt
   window.resType = (key, commit) => {
     const s = RES_SLIDERS.find(x => x.key === key); if (!s) return;
     const id = resSlId(key);
     const loEl = $(id+"LoT"), hiEl = $(id+"HiT"); if (!loEl || !hiEl) return;
+    const parse = s.parse || parseFloat;
     const clamp = v => Math.min(s.max, Math.max(s.min, v));
-    let lo = parseFloat(loEl.value), hi = parseFloat(hiEl.value);
+    let lo = parse(loEl.value), hi = parse(hiEl.value);
     lo = Number.isFinite(lo) ? clamp(lo) : s.min;
     hi = Number.isFinite(hi) ? clamp(hi) : s.max;
     if (lo > hi) [lo, hi] = [hi, lo];
@@ -4970,8 +4974,7 @@
     research.client = null; research.hist = null;
     resShown = 50;
     $(id+"Lo").value = lo; $(id+"Hi").value = hi;   // move the slider thumbs
-    $(id+"Lab").textContent = `${s.fmt(lo)} – ${s.fmt(hi)}`;
-    if (commit === true) { loEl.value = lo; hiEl.value = hi; }
+    if (commit === true) { loEl.value = s.fmt(lo); hiEl.value = s.fmt(hi); }
     renderResearchResults();
   };
   function researchRows() {
@@ -4986,6 +4989,7 @@
     if (research.hl.size)   rows = rows.filter(r => research.hl.has(hiLvlOf(r)));
     if (research.bats.size) rows = rows.filter(r => research.bats.has((r.bats||"").replace("B","S")));
     if (research.thr.size)  rows = rows.filter(r => research.thr.has(r.throws));
+    if (research.st.size)   rows = rows.filter(r => research.st.has(r.hst));
     for (const s of RES_SLIDERS) {
       const lo = research[s.key+"Lo"], hi = research[s.key+"Hi"];
       if (lo > s.min || hi < s.max) rows = rows.filter(r => { const v = s.of(r); return v!=null && v>=lo && v<=hi; });
@@ -4997,6 +5001,7 @@
       : k==="year" ? r.year : k==="overall" ? r.overall
       : k==="bonus" ? (r.bonus!=null?r.bonus:-1)
       : k==="age" ? (wizAgeOf(r) ?? -1) : k==="cls" ? (wizClsOf(r)||"") : k==="school" ? (r.school||"").toLowerCase()
+      : k==="home" ? ((r.hst||"~")+" "+(r.homeplace||"")).toLowerCase()
       : k==="bt" ? fmtBT(r) : k==="htwt" ? (htIn(r) ?? -1) : k==="slot" ? (r.slot!=null?r.slot:-1)
       : k==="hilvl" ? (HI_RANK[hiLvlOf(r)] || -1)
       : resPctMode ? (slotPct(r) ?? -Infinity)
@@ -5012,7 +5017,7 @@
     const set = (lbl, s) => { if (s.size) parts.push(`${lbl} ${[...s].join("/")}`); };
     set("Pos", research.pos); set("Class", research.cls); set("Level", research.lvl);
     set("Money", research.money); set("Round", research.round); set("Hi level", research.hl);
-    set("Bats", research.bats); set("Throws", research.thr);
+    set("Bats", research.bats); set("Throws", research.thr); set("Home", research.st);
     for (const s of RES_SLIDERS) { const lo = research[s.key+"Lo"], hi = research[s.key+"Hi"];
       if (lo > s.min || hi < s.max) parts.push(`${s.lab} ${s.fmt(lo)}–${s.fmt(hi)}`); }
     return parts.length ? parts.join(" · ") : "All 2018–25 signings (no lenses)";
@@ -5144,7 +5149,7 @@
     researchDrawn = true;
     loadSlotHistory();   // lazy — repaints this view when the CSV lands
     const anyOn = research.pos.size||research.cls.size||research.lvl.size||research.money.size||research.round.size
-      || research.hl.size||research.bats.size||research.thr.size
+      || research.hl.size||research.bats.size||research.thr.size||research.st.size
       || RES_SLIDERS.some(s => research[s.key+"Lo"] > s.min || research[s.key+"Hi"] < s.max);
     const chipRow = (g, label, opts) => `<div class="tc-wizgrp"><span class="tc-wizlab">${label}</span>${opts.map(v=>
       `<button class="tc-chip${research[g].has(v)?' on':''}" onclick="resChip('${g}','${v}')">${v}</button>`).join("")}</div>`;
@@ -5161,6 +5166,12 @@
         `<button class="tc-chip${research.pos.has(t)?' on':''}" onclick="resPosTok('${t}',event)">${t}</button>`).join("")}</div>`;}).join("")}</div>`;
     const posBtn = `<div class="tc-wizgrp res-pdrop"><span class="tc-wizlab">Position</span>
       <button class="tc-chip${research.pos.size?' on':''}" onclick="toggleResPos(event)">${research.pos.size?(hitOnly?"Hitters":[...research.pos].join(" ")):"Any"} ▾</button>${posMenu}</div>`;
+    // home-state dropdown — options are whatever states the tracker actually carries
+    const sts = [...new Set(DATA.slotHistory.map(r=>r.hst).filter(Boolean))].sort();
+    const stMenu = !resStOpen ? "" : `<div class="res-posmenu res-stmenu" onclick="event.stopPropagation()"><div class="res-posrow">${sts.map(t=>
+      `<button class="tc-chip${research.st.has(t)?' on':''}" onclick="resStTok('${t}',event)">${t}</button>`).join("")}</div></div>`;
+    const stBtn = `<div class="tc-wizgrp res-pdrop"><span class="tc-wizlab">Home</span>
+      <button class="tc-chip${research.st.size?' on':''}" onclick="toggleResSt(event)">${research.st.size?[...research.st].sort().join(" "):"Any state"} ▾</button>${stMenu}</div>`;
     // display-columns dropdown: same pattern as the position dropdown
     const colsMenu = !resColsOpen ? "" : `<div class="res-posmenu" onclick="event.stopPropagation()"><div class="res-posrow">${RES_XCOLS.map(([k,lbl])=>
       `<button class="tc-chip${resCols.has(k)?' on':''}" onclick="resColTok('${k}',event)">${lbl}</button>`).join("")}</div></div>`;
@@ -5193,22 +5204,17 @@
       ${chipRow("hl", "Hi level", ["MLB","AAA","AA","A+","A","Rk"])}
       ${chipRow("bats", "Bats", ["R","L","S"])}
       ${chipRow("thr", "Throws", ["R","L"])}
+      ${stBtn}
       ${colsBtn}
-      ${RES_SLIDERS.map(s => { const id = resSlId(s.key);
-        if (s.input) return `<div class="res-slider"><span class="tc-wizlab">${s.lab}</span>
-          <div class="res-agein"><input type="number" id="${id}Lo" min="${s.min}" max="${s.max}" step="${s.step}" inputmode="decimal" value="${research[s.key+"Lo"].toFixed(1)}" oninput="resAgeType()" onchange="resAgeType(true)">
-          <span>to</span>
-          <input type="number" id="${id}Hi" min="${s.min}" max="${s.max}" step="${s.step}" inputmode="decimal" value="${research[s.key+"Hi"].toFixed(1)}" oninput="resAgeType()" onchange="resAgeType(true)"></div></div>`;
-        return `<div class="res-slider"><span class="tc-wizlab">${s.lab}</span><span class="res-slab" id="${id}Lab"></span>
-        <span class="res-typed"><input type="number" class="res-slin" id="${id}LoT" min="${s.min}" max="${s.max}" step="${s.step}" inputmode="numeric" value="${research[s.key+"Lo"]}" oninput="resType('${s.key}')" onchange="resType('${s.key}',true)">
-        <span>–</span>
-        <input type="number" class="res-slin" id="${id}HiT" min="${s.min}" max="${s.max}" step="${s.step}" inputmode="numeric" value="${research[s.key+"Hi"]}" oninput="resType('${s.key}')" onchange="resType('${s.key}',true)"></span>
+      ${RES_SLIDERS.map(s => { const id = resSlId(s.key), q = v => s.fmt(v).replace(/"/g,"&quot;");
+        return `<div class="res-slider"><span class="tc-wizlab">${s.lab}</span>
+        <span class="res-sledit"><input type="text" class="res-slabin" id="${id}LoT" inputmode="decimal" value="${q(research[s.key+"Lo"])}" onfocus="this.select()" oninput="resType('${s.key}')" onchange="resType('${s.key}',true)" onkeydown="if(event.key==='Enter')this.blur()">
+        <span class="res-sldash">–</span>
+        <input type="text" class="res-slabin" id="${id}HiT" inputmode="decimal" value="${q(research[s.key+"Hi"])}" onfocus="this.select()" oninput="resType('${s.key}')" onchange="resType('${s.key}',true)" onkeydown="if(event.key==='Enter')this.blur()"></span>
         <div class="dual"><input type="range" id="${id}Lo" min="${s.min}" max="${s.max}" step="${s.step}" value="${research[s.key+"Lo"]}" oninput="resSlide()">
         <input type="range" id="${id}Hi" min="${s.min}" max="${s.max}" step="${s.step}" value="${research[s.key+"Hi"]}" oninput="resSlide()"></div></div>`; }).join("")}
       ${anyOn?`<div class="tc-wizgrp"><button class="tc-chip clear" onclick="resReset()">✕ clear all</button></div>`:""}
     </div></div></div>${cBox}`;
-    for (const s of RES_SLIDERS) { if (s.input) continue; $(resSlId(s.key)+"Lab").textContent =
-      `${s.fmt(research[s.key+"Lo"])} – ${s.fmt(research[s.key+"Hi"])}`; }
     if (resFindQ) resFindInput(resFindQ);   // rebuild the typeahead menu after the innerHTML swap
     renderResearchResults();
   }
