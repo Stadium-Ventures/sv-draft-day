@@ -1230,10 +1230,10 @@
      sideways-scrolling table — everything dropped here lives in the team card / player
      dossier. Desktop keeps the full tables (all rules key off body.mob). */
   /* pools: Team / Picks / Pool / Overage / Room (the priority columns, in Mike's order) —
-     Spent(7) / Over-Under(8) / %(9) go; Committed is hide-sm */
+     Spent(6) / Over-Under(7) / %(8) go */
+  body.mob #viewPools th:nth-child(6), body.mob #viewPools td:nth-child(6),
   body.mob #viewPools th:nth-child(7), body.mob #viewPools td:nth-child(7),
-  body.mob #viewPools th:nth-child(8), body.mob #viewPools td:nth-child(8),
-  body.mob #viewPools th:nth-child(9), body.mob #viewPools td:nth-child(9) { display:none; }
+  body.mob #viewPools th:nth-child(8), body.mob #viewPools td:nth-child(8) { display:none; }
   /* best available on mobile: full table, swipeable left-right (all hide-sm columns
      come back — School/Commit/Agency/Age/Ranks/Trend — reachable by horizontal scroll
      rather than being dropped). B/T stays always-visible. */
@@ -1947,12 +1947,17 @@
   const MOBILE = matchMedia("(max-width:640px)");
   // Table headers stick just below whichever chrome bars are visible (header / tabs /
   // mock bar / countdown banner) — measured live, since the set changes by mode + viewport.
+  // Each bar is measured at its PINNED position (sticky top + height), not its natural
+  // flow position: the bars' hardcoded sticky tops overlap once scrolled, so measuring
+  // unscrolled rects overshoots and leaves a gap rows scroll through above the thead.
   const setTheadTop = () => {
     let t = 0;
     document.querySelectorAll("header, nav.tabs, #mockBar, #preBanner").forEach(el => {
       if (!el.offsetParent) return;
-      const r = el.getBoundingClientRect();
-      if (r.top <= t + 2 && r.bottom > t) t = r.bottom;
+      const st = getComputedStyle(el);
+      const pin = st.position === "sticky" ? (parseFloat(st.top) || 0) : el.getBoundingClientRect().top;
+      const bottom = pin + el.getBoundingClientRect().height;
+      if (pin <= t + 2 && bottom > t) t = bottom;
     });
     document.documentElement.style.setProperty("--theadTop", `${Math.round(t)}px`);
   };
@@ -2276,15 +2281,18 @@
     for (const p of picks) {
       if (!p.team) continue;
       const t = pools[p.team] = pools[p.team] || { team:p.team, teamName:p.teamName,
-        pool:0, picksTotal:0, picksMade:0, committedSlot:0, poolBonusPaid:0, poolCharge:0, hasEst:false };
+        pool:0, picksTotal:0, picksMade:0, committedSlot:0, knownSlot:0, poolBonusPaid:0, poolCharge:0, hasEst:false };
       const isPool = p.slot > 0;                    // rounds 1-10 + CB/comp/PPI (rounds 11+ carry slot 0)
       if (isPool) { t.pool += p.slot; t.picksTotal += 1; }
       if (p.isDrafted) {
         if (isPool) { t.committedSlot += p.slot; t.picksMade += 1; }
         const eb = effectiveBonus(p);
-        if (eb.bonus != null) {
+        // only KNOWN money hits the books — official feed bonus or a war-room logged
+        // figure; the model's automatic guess never accrues against a team's pool
+        const known = eb.bonus != null && (p.bonus != null || eb.src);
+        if (known) {
           if (eb.est) t.hasEst = true;
-          if (isPool) t.poolBonusPaid += eb.bonus;
+          if (isPool) { t.poolBonusPaid += eb.bonus; t.knownSlot += p.slot; }
           t.poolCharge += isPool ? eb.bonus : Math.max(0, eb.bonus - LATE_EXEMPT);
         }
       }
@@ -2293,7 +2301,7 @@
       t.remainingSlot = t.pool - t.committedSlot;        // slot $ of pool picks not yet made
       t.ceiling = t.pool * CUSHION;                      // hard spend wall
       t.room = t.ceiling - t.poolCharge;                 // AMMO: $ still spendable within the rules
-      t.overUnder = t.poolBonusPaid - t.committedSlot;   // picks over (+) / banked (−) vs slot to date
+      t.overUnder = t.poolBonusPaid - t.knownSlot;       // over (+) / banked (−) vs slot, known-money picks only
       t.overage = t.ceiling - t.pool;                    // the 5% cushion in $ — max spend allowed over the pool
       t.pctNum = t.pool ? (t.poolCharge - t.pool)/t.pool*100 : 0;
     }
@@ -3863,7 +3871,7 @@
   function jumpCurrent() { document.getElementById("ocRow")?.scrollIntoView({ block:"center", behavior:"smooth" }); }
   // ---------- VIEW: BONUS POOLS ----------
   const POOL_COLS = [["team","Team"],["picksMade","Picks"],["pool","Pool"],["overage","Overage"],["room","Room"],
-                     ["committedSlot","Committed slot"],["poolCharge","Spent"],["overUnder","Over/Under"],["pctNum","%"]];
+                     ["poolCharge","Spent"],["overUnder","Over/Under"],["pctNum","%"]];
   let poolSort = { key:"room", dir:-1 };   // dir: -1 desc, 1 asc
   window.sortPools = (key) => {
     if (poolSort.key === key) poolSort.dir *= -1;
@@ -3874,15 +3882,14 @@
     if (!currentState) return;
     $("poolHead").innerHTML = "<tr>" + POOL_COLS.map(([k,label]) => {
       const arrow = poolSort.key===k ? (poolSort.dir<0 ? " ▾" : " ▴") : "";
-      const cls = k==="committedSlot" ? "hide-sm" : "";
-      return `<th class="sortable ${cls}" onclick="sortPools('${k}')">${label}${arrow}</th>`;
+      return `<th class="sortable" onclick="sortPools('${k}')">${label}${arrow}</th>`;
     }).join("") + "</tr>";
     const { key, dir } = poolSort;
     const pools = currentState.pools.slice().sort((a,b) =>
       key==="team" ? dir*a.team.localeCompare(b.team) : dir*(((a[key]??0)) - ((b[key]??0))));
     $("poolNote").textContent = currentState.poolsEst
-      ? "Spent is estimated from the model until signing bonuses are reported"
-      : `${currentState.madeCount} picks in`;
+      ? "Spent counts only official + war-room-entered bonuses (includes unofficial entries)"
+      : `${currentState.madeCount} picks in · Spent counts only official + war-room-entered bonuses`;
     // phone columns are narrow — compact money ("$9.25M") and a signed over/under badge
     const money = MOBILE.matches ? fmtM : fmt$;
     const ou = MOBILE.matches ? (n => !n ? "slot" : (n>0?"+":"−")+fmtM(Math.abs(n))) : fmtOU;
@@ -3902,15 +3909,15 @@
     $("poolBody").innerHTML = pools.map(t => {
       const ouCls = t.overUnder>50000 ? "over" : t.overUnder<-50000 ? "under" : "atslot";
       const pctCls = t.pctNum>=4.8 ? "over" : t.pctNum<0 ? "under" : "atslot";
+      const hasKnown = t.knownSlot > 0 || t.poolCharge > 0;   // any real/entered money on the books yet?
       return `<tr class="clickable" onclick="openTeam('${t.team}')">
         <td><b>${t.team}</b></td>
         <td>${t.picksMade}/${t.picksTotal}</td>
         <td>${money(t.pool)}</td>
         <td>${money(t.overage)}</td>
         <td${roomBg(t.room ?? 0)}>${money(t.room)}</td>
-        <td class="hide-sm">${money(t.committedSlot)}</td>
         <td>${money(t.poolCharge)}${t.hasEst?' <span class="outag est atslot">est</span>':""}</td>
-        <td><span class="outag ${ouCls}">${ou(t.overUnder)}</span></td>
+        <td>${hasKnown ? `<span class="outag ${ouCls}">${ou(t.overUnder)}</span>` : `<span class="sub">—</span>`}</td>
         <td>${t.poolCharge ? `<span class="outag ${pctCls}">${t.pctNum>=0?"+":""}${t.pctNum.toFixed(1)}%</span>` : `<span class="sub">—</span>`}</td>
       </tr>`;
     }).join("");
