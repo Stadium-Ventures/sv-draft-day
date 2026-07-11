@@ -172,6 +172,31 @@
   .tc-rep-opts button span { color:var(--muted); font-weight:600; font-size:12px; flex:0 0 auto; }
   .tc-rep-live { color:#8a6d00; background:#fff3cd; border:1px solid #e3b505; border-radius:6px;
     font-size:12px; font-weight:800; padding:2px 8px; white-space:nowrap; }
+  /* slot calculator: % of slot -> $, launched from the pick card's slot stat. A fixed
+     centered mini-dialog (never clipped by the mobile stat strip's overflow-x scroll). */
+  .tc-calcbtn { border:0; background:none; cursor:pointer; padding:0 2px; margin-left:6px; color:var(--muted); }
+  .tc-calcbtn:hover { color:var(--red); }
+  .tc-calcbtn .ico { width:14px; height:14px; vertical-align:-2px; }
+  #calcPop { position:fixed; inset:0; z-index:200; display:none; }   /* above the pick-card overlay (90) + notebook (98) */
+  #calcPop.on { display:block; }
+  #calcPop .cp-back { position:absolute; inset:0; background:rgba(0,0,0,.25); }
+  #calcPop .cp-card { position:absolute; left:50%; top:38%; transform:translate(-50%,-50%); background:#fff;
+    border:1px solid var(--line); border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.22);
+    padding:13px 16px 15px; width:270px; max-width:calc(100vw - 28px); }
+  #calcPop .cp-h { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.5px; color:var(--muted);
+    display:flex; justify-content:space-between; align-items:center; }
+  #calcPop .cp-x { border:0; background:none; font-size:15px; color:var(--muted); cursor:pointer; padding:2px 4px; }
+  #calcPop .cp-x:hover { color:var(--red); }
+  #calcPop .cp-of { font-size:13px; font-weight:800; margin-top:3px; }
+  #calcPop .cp-row { display:flex; align-items:center; gap:8px; margin-top:10px; }
+  #calcPop input { width:96px; padding:9px 10px; border:1px solid var(--line); border-radius:8px;
+    font-size:16px; font-weight:800; text-align:right; font-variant-numeric:tabular-nums; }  /* 16px: no iOS focus zoom */
+  #calcPop .cp-pc { font-weight:800; font-size:13px; color:var(--muted); }
+  #calcPop .cp-val { font-size:23px; font-weight:900; font-variant-numeric:tabular-nums; margin-top:10px; }
+  #calcPop .cp-diff { font-size:12px; font-weight:800; margin-top:2px; }
+  #calcPop .cp-diff.over { color:#1a7f37; } #calcPop .cp-diff.under { color:#c8102e; } #calcPop .cp-diff.even { color:var(--muted); }
+  /* phones: dock above the thumb zone instead of dead center (keyboard covers center) */
+  body.mob #calcPop .cp-card { top:24%; }
   /* client near-miss net: a drafted feed name that doesn't key to a client but looks like one */
   #nearMiss { display:none; }
   #nearMiss .nm-row { background:#fff7e0; border:1px solid #e3b505; border-radius:8px; padding:8px 12px;
@@ -1505,6 +1530,8 @@
 <div id="nbPanel"></div>
 
 <div id="orgTip"></div>
+<!-- slot calculator mini-dialog (pick card stat strip) — content built by renderCalcPop() -->
+<div id="calcPop"></div>
 <div id="ticker"></div>
 <div id="rksTip"></div>
 <!-- draft-history player card: opened by clicking any historical (2018–25 tracker) name -->
@@ -4298,6 +4325,40 @@
   window.tcRepInput = (v) => { tcRepQ = v; renderTeamCard(currentState); };
   window.tcRepPick = (i, e) => { if (e) e.stopPropagation(); const m = tcRepLast[i]; if (m) reportPick(cardPick, m.name); };
   window.tcRepUndo = (ov, e) => { if (e) e.stopPropagation(); unreportPick(ov); };
+
+  // ---- slot calculator: % of slot -> $ (pick card stat strip) ----
+  // Lives in #calcPop at body level, fixed + backdropped, so the mobile stat strip's
+  // overflow-x scroll can't clip it and live repaints never rebuild it mid-typing.
+  let calcSlot = 0, calcPct = 100;   // calcPct sticks for the session — rooms reuse a working number
+  window.tcCalcOpen = (slot, e) => {
+    if (e) e.stopPropagation();
+    calcSlot = +slot || 0;
+    renderCalcPop();
+    $("calcPop").classList.add("on");
+    const inp = $("cpPct"); if (inp) { inp.focus(); inp.select(); }
+  };
+  window.tcCalcClose = () => { $("calcPop").classList.remove("on"); };
+  window.tcCalcInput = (v) => { calcPct = parseFloat(v); updCalcVal(); };
+  function updCalcVal() {
+    const ok = Number.isFinite(calcPct) && calcSlot > 0;
+    const val = ok ? Math.round(calcSlot * calcPct / 100) : null;
+    $("cpVal").textContent = ok ? fmt$(val) : "—";
+    const d = ok ? val - calcSlot : 0, el = $("cpDiff");
+    el.textContent = ok ? (Math.abs(d) <= 500 ? "at slot" : `${d > 0 ? "+" : "−"}${fmtM(Math.abs(d))} vs slot`) : "";
+    el.className = "cp-diff " + (d > 500 ? "over" : d < -500 ? "under" : "even");
+  }
+  function renderCalcPop() {
+    $("calcPop").innerHTML = `<div class="cp-back" onclick="tcCalcClose()"></div>
+      <div class="cp-card" onclick="event.stopPropagation()">
+        <div class="cp-h">Slot calculator <button class="cp-x" onclick="tcCalcClose()" aria-label="close">✕</button></div>
+        <div class="cp-of">${fmt$(calcSlot)} slot</div>
+        <div class="cp-row"><input id="cpPct" type="number" inputmode="decimal" step="1" min="0" value="${calcPct}"
+          oninput="tcCalcInput(this.value)" onkeydown="if(event.key==='Enter'||event.key==='Escape'){event.preventDefault();tcCalcClose();}">
+          <span class="cp-pc">% of slot</span></div>
+        <div class="cp-val" id="cpVal"></div><div class="cp-diff" id="cpDiff"></div>
+      </div>`;
+    updCalcVal();
+  }
   function reportPick(ov, name) {
     const st = currentState; if (!st) return;
     const pk = pickByOverall(st, ov); if (!pk || pk.isDrafted) return;
@@ -4604,7 +4665,7 @@
     const stats = [
       ["On the clock", `<span id="tcClock">${fmtCountdown(clockMs)}</span>`, onClockHere?"time remaining":"time allotted"],
       ["Available pool", pool?(pool.hasEst?"~":"")+fmt$(pool.room):"—", "team bonus pool"],
-      ["Pick slot value", pk.slot>0?fmtM(pk.slot):"—", "slot value"],
+      ["Pick slot value", pk.slot>0?`${fmtM(pk.slot)}<button class="tc-calcbtn" title="what does X% of slot cost?" onclick="tcCalcOpen(${pk.slot},event)"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="16" y1="14" x2="16" y2="18"/><path d="M16 10h.01M12 10h.01M8 10h.01M12 14h.01M8 14h.01M12 18h.01M8 18h.01"/></svg></button>`:"—", "slot value"],
       ["Their next pick", teamNext?`#${teamNext.overall}`:"—", teamNext?`R${teamNext.round} · slot ${teamNext.slot>0?fmtM(teamNext.slot):"—"}`:"none after this"],
       ["Team spent", pool?fmt$(pool.poolCharge)+(pool.hasEst?" est":""):"—", "spent to date"],
       ["Over / under", pool?fmtOU(pool.overUnder):"—", "vs slot"],
