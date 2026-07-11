@@ -4053,7 +4053,8 @@
   let nbOpen=false, nbFilter="all", nbDraft="", nbTag=null, nbPicker=null, nbQ="", nbBusy=false, nbSearch="";
   // auto-filed X-lead reports (noteNewLeads) can crowd the feed — toggleable, sticky per device
   let nbShowX = (()=>{ try { return localStorage.getItem("dd:nbShowX") !== "0"; } catch (e) { return true; } })();
-  const nbIsXLead = (e) => /^⚡ X lead:/.test(e.note||"");
+  // matches the client mock format (⚡) AND the server xlead formats (📡 raw, 🟡 soft-file)
+  const nbIsXLead = (e) => /^(⚡ X lead:|📡 |🟡 reported)/.test(e.note||"");
   window.nbToggleX = () => { nbShowX = !nbShowX;
     try { localStorage.setItem("dd:nbShowX", nbShowX ? "1" : "0"); } catch (e) {}
     renderNotebook(); };
@@ -7127,8 +7128,10 @@
     const drafted = currentState
       ? new Set(currentState.picks.filter(p => p.isDrafted && p.player).map(p => normName(p.player)))
       : new Set();
-    // a validated (reported) player's lead chips clear too — the board chip carries it now
-    if (currentState) for (const p of currentState.picks) if (repHard(p.reported)) drafted.add(normName(p.reported.player));
+    // ANY reported record clears the player's lead chips — soft included: the server
+    // soft-files credible leads, and a surviving raw chip would re-resolve to the
+    // team's NEXT open pick (same player rendered on two tiles)
+    if (currentState) for (const p of currentState.picks) if (p.reported) drafted.add(normName(p.reported.player));
     return (base || []).filter(l => l.confidence >= LEAD_MIN_CONF
       && (!l.at || isNaN(new Date(l.at)) || now - new Date(l.at).getTime() < LEAD_TTL_MS)
       && !drafted.has(normName(l.player))).slice(0, LEAD_SHOW);
@@ -7172,8 +7175,8 @@
     renderActive();
     if (MODE === "live") try { await fetch(`/api/xlead?id=${encodeURIComponent(id)}`, { method: "DELETE" }); } catch (e) {}
   };
-  // Raw feed → war-room notebook: every lead id gets one note, tagged to the player when
-  // he keys to the board (else the team, else general). Dedupe survives reloads.
+  // MOCK-ONLY (seedMockLeads demo + testSocial): lead → notebook note, deduped per device.
+  // Live never calls this — the server's xlead refresh lock writes live notebook records.
   const LEAD_NOTED_KEY = "dd:leadNoted";
   async function noteNewLeads(leads) {
     let seen; try { seen = new Set(JSON.parse(localStorage.getItem(LEAD_NOTED_KEY) || "[]")); } catch (e) { seen = new Set(); }
@@ -7197,7 +7200,9 @@
     try {
       const d = await fetch("/api/xlead", { cache: "no-store" }).then(r => r.json());
       XLEADS.enabled = !!d.enabled;
-      if (d.enabled) { XLEADS.leads = d.leads || []; noteNewLeads(XLEADS.leads); renderActive(); }
+      // NO noteNewLeads here: api/xlead's refresh lock is the single writer for live
+      // notebook records — client-side noting fires once per war-room device (N dupes)
+      if (d.enabled) { XLEADS.leads = d.leads || []; renderActive(); }
     } catch (e) {}
   }
 
