@@ -334,6 +334,14 @@
   table.ba thead th:first-child { border-top-left-radius:9px; }
   table.ba thead th:last-child { border-top-right-radius:9px; }
   table.ba td { padding:7px 10px; border-bottom:1px solid #f0f1f3; font-size:var(--fs-4); }
+  /* Bonus Pools: click a team row -> inline dropdown of their picks so far (slot + bonus) */
+  #viewPools .pool-caret { display:inline-block; width:12px; color:var(--muted); font-size:9px; }
+  table.ba tr.pool-x > td { background:#fafbfc; padding:4px 10px 10px 26px; }
+  table.ba .pool-picks { width:auto; border-collapse:collapse; background:transparent; border:0; }
+  table.ba .pool-picks th { background:transparent; border:0; padding:3px 14px 3px 0; font-size:10px; }
+  table.ba .pool-picks td { border-bottom:0; border-top:1px solid var(--line); padding:3px 14px 3px 0; font-size:var(--fs-4); }
+  .pool-x .pool-tc { font-size:11px; color:var(--muted); margin:2px 0 4px; }
+  .pool-x .pool-tc a { color:var(--red); cursor:pointer; text-decoration:none; font-weight:700; }
   table.ba tr.sv { background:#fff5f6; }
   table.ba tbody tr.clickrow:hover { background:#f6f7f9; cursor:pointer; }
   table.ba td.ba-draft { width:1%; white-space:nowrap; }
@@ -4037,6 +4045,37 @@
     else poolSort = { key, dir: key==="team" ? 1 : -1 };
     renderPools();
   };
+  // Teams whose pool row is expanded to show their picks so far (session-scoped)
+  const poolOpen = new Set();
+  window.togglePoolTeam = (t) => { poolOpen.has(t) ? poolOpen.delete(t) : poolOpen.add(t); renderPools(); };
+  // The dropdown under a pool row: every selection so far (official + reported) with
+  // slot, known money (same known/est rules as moneyCell — model guesses stay hidden),
+  // and the over/under. Rows click through to the player dossier.
+  function poolPicksHtml(t) {
+    const made = currentState.picks.filter(p => p.team===t.team && (p.isDrafted || p.reported)).sort((a,b)=>a.overall-b.overall);
+    const card = `<div class="pool-tc">${_esc(t.teamName||t.team)} · <a onclick="event.stopPropagation();openTeam('${t.team}')">full team card →</a></div>`;
+    if (!made.length) return card + `<span class="sub">No picks made yet.</span>`;
+    const rows = made.map(p => {
+      const name = p.isDrafted ? p.player : p.reported.player;
+      const key = normName(name||""), ours = DATA.clients.has(key);
+      const comp = DATA.compByName.get(key);
+      const meta = comp ? [comp.pos, schoolShort(comp.school)].filter(Boolean).join(" · ") : schoolShort(p.school)||"";
+      const eb = effectiveBonus(p);
+      const known = MODE==="mock" && p.isDrafted ? !!p.bonusUser : eb.bonus!=null && (p.bonus!=null || eb.src);
+      const src = known && eb.src && eb.src!=="confirmed" ? ` <span class="bc-src">${eb.src.slice(0,3)}</span>` : "";
+      const est = MODE==="mock" && p.isDrafted ? !p.bonusV
+                : eb.src && eb.src!=="confirmed" ? eb.src.slice(0,3).toUpperCase() : eb.est;
+      const tag = known && p.slot>0 ? ouTag(eb.bonus-p.slot, est) : "";
+      return `<tr class="clickable" onclick="event.stopPropagation();openPlayer('${key.replace(/'/g,"\\'")}')">
+        <td>#${p.overall} <span class="sub">${/^\d+$/.test(String(p.round))?"R"+p.round:_esc(String(p.round))}</span></td>
+        <td><b>${_esc(name||"—")}</b>${ours?' <span class="svtag">SV</span>':""}${p.isDrafted?"":' <span class="outag est atslot">REP</span>'}</td>
+        <td class="sub">${_esc(meta)}</td>
+        <td>${p.slot>0?fmt$(p.slot):"—"}</td>
+        <td>${known?fmt$(eb.bonus)+src:'<span class="sub">$—</span>'}</td>
+        <td>${tag||'<span class="sub">—</span>'}</td></tr>`;
+    }).join("");
+    return card + `<table class="pool-picks"><thead><tr><th>Pick</th><th>Player</th><th></th><th>Slot</th><th>Bonus</th><th>vs slot</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
   function renderPools() {
     if (!currentState) return;
     $("poolHead").innerHTML = "<tr>" + POOL_COLS.map(([k,label]) => {
@@ -4069,8 +4108,9 @@
       const ouCls = t.overUnder>50000 ? "over" : t.overUnder<-50000 ? "under" : "atslot";
       const pctCls = t.pctNum>=4.8 ? "over" : t.pctNum<0 ? "under" : "atslot";
       const hasKnown = t.knownSlot > 0 || t.poolCharge > 0;   // any real/entered money on the books yet?
-      return `<tr class="clickable" onclick="openTeam('${t.team}')">
-        <td><b>${t.team}</b></td>
+      const open = poolOpen.has(t.team);
+      return `<tr class="clickable" onclick="togglePoolTeam('${t.team}')">
+        <td><span class="pool-caret">${open?"▾":"▸"}</span><b>${t.team}</b></td>
         <td>${t.picksMade}/${t.picksTotal}</td>
         <td>${money(t.pool)}</td>
         <td>${money(t.overage)}</td>
@@ -4078,7 +4118,7 @@
         <td>${money(t.poolCharge)}${t.hasEst?' <span class="outag est atslot">est</span>':""}</td>
         <td>${hasKnown ? `<span class="outag ${ouCls}">${ou(t.overUnder)}</span>` : `<span class="sub">—</span>`}</td>
         <td>${t.poolCharge ? `<span class="outag ${pctCls}">${t.pctNum>=0?"+":""}${t.pctNum.toFixed(1)}%</span>` : `<span class="sub">—</span>`}</td>
-      </tr>`;
+      </tr>` + (open ? `<tr class="pool-x"><td colspan="${POOL_COLS.length}">${poolPicksHtml(t)}</td></tr>` : "");
     }).join("");
   }
 
