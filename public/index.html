@@ -4030,12 +4030,27 @@
     }
     return `<div class="feed-hd"><span class="live"></span>Live Pick Feed</div><div class="feed-scroll">${rows}</div>`;
   }
+  // The feed follows the action: pinned to the on-clock row (a third down the panel)
+  // and re-pinned as picks come in. Scrolling away releases it — browse freely, no
+  // fighting the poll — and scrolling back to where the live row is visible re-arms it.
+  let feedFollow = true;
+  function feedScrollToOc(sc) {
+    const oc = sc.querySelector(".feed-row.oc"); if (!oc) return;
+    sc.scrollTop = oc.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop - sc.clientHeight/3;
+  }
   function renderBoardFeed(state) {
     const el = $("boardFeed"); if (!el) return;
     // poll ticks rebuild the feed wholesale — keep a hand-scrolled list where it was
     const sc0 = el.querySelector(".feed-scroll"), top = sc0 ? sc0.scrollTop : 0;
     el.innerHTML = feedHtml(state, false);
-    const sc1 = el.querySelector(".feed-scroll"); if (sc1 && top) sc1.scrollTop = top;
+    const sc1 = el.querySelector(".feed-scroll"); if (!sc1) return;
+    if (feedFollow) feedScrollToOc(sc1);
+    else if (top) sc1.scrollTop = top;
+    sc1.addEventListener("scroll", () => {
+      const oc = sc1.querySelector(".feed-row.oc"); if (!oc) return;
+      const c = sc1.getBoundingClientRect(), r = oc.getBoundingClientRect();
+      feedFollow = r.bottom > c.top && r.top < c.bottom;
+    }, { passive:true });
   }
   // Desktop-only bottom ticker: one-line horizontal pick scroll under the open team card
   // so the room never loses the flow while a card is up. Hidden on mobile and in TV mode.
