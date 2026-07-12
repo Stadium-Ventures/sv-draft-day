@@ -468,6 +468,7 @@
   .bc-bform label { display:inline-flex; align-items:center; gap:2px; color:var(--muted); cursor:pointer; white-space:nowrap; }
   .bc-bform button { font:inherit; border:1px solid var(--line); border-radius:4px; background:#fff; cursor:pointer; padding:1px 5px; }
   .bc-bform button.ok { background:#1a7f37; border-color:#1a7f37; color:#fff; }
+  .bc-pct { font-size:10px; font-weight:700; color:var(--muted); white-space:nowrap; }
   .bc-qk { display:flex; flex-wrap:wrap; gap:3px; width:100%; margin-top:2px; }
   .bc-qk button { color:var(--muted); padding:1px 5px; }
   .bc-qk button:hover { color:var(--ink); border-color:#9aa2ae; }
@@ -3814,6 +3815,13 @@
   // rounds the user manually collapsed (session-scoped) — everything shows by default
   const closedRounds = new Set();
   window.toggleRound = (r) => { closedRounds.has(r) ? closedRounds.delete(r) : closedRounds.add(r); renderActive(); };
+  // "% of pool" on a tile once a number is in: the entered bonus as a share of the
+  // team's full pool (pool picks only — rounds 11+ charge the pool only past $150k)
+  function poolPctTag(p, eb, state) {
+    const tp = state.poolsMap ? state.poolsMap[p.team] : null;
+    if (!(tp && tp.pool > 0) || eb.bonus == null || !(p.slot > 0)) return "";
+    return `<span class="bc-pct" title="share of ${p.team}'s bonus pool (${fmtM(tp.pool)})">${(eb.bonus/tp.pool*100).toFixed(1)}% of pool</span>`;
+  }
   function renderBoardGrid(state) {
     const svOnly = $("bSv").checked, teamSel = $("bTeam")?.value || "", focus = boardSelClients.size>0, CAP = 6;
     const leadMap = leadsByPick();   // active X leads resolved onto their target pick tiles
@@ -3882,8 +3890,9 @@
           const chip = `<span class="bc-chip${validated?" val":""}" title="Click to edit signing bonus" onclick="openBonusChip(${p.overall},event)"><span class="bc-ck">${validated?"✓":""}</span>${fmtM(eb.bonus)}${src}</span>`;
           const ou = p.slot>0 ? eb.bonus-p.slot : null;
           const tag = ou!=null ? `<span class="tg ${ou>50000?'over':ou<-50000?'under':'fit'}">${ou>50000?"+":""}${Math.abs(ou)>50000?fmtM(ou)+" vs slot":"at slot"}</span>` : "";
-          if (MOBILE.matches) lines.push(`<div class="bc-bonus">${chip}${tag?` ${tag}`:""}</div>`);
-          else { lines.push(`<div class="bc-bonus">${chip}</div>`); if (tag) lines.push(`<div class="bc-bonus">${tag}</div>`); }
+          const pct = poolPctTag(p, eb, state);
+          if (MOBILE.matches) lines.push(`<div class="bc-bonus">${chip}${tag?` ${tag}`:""}${pct?` ${pct}`:""}</div>`);
+          else { lines.push(`<div class="bc-bonus">${chip}</div>`); if (tag||pct) lines.push(`<div class="bc-bonus">${tag}${tag&&pct?" ":""}${pct}</div>`); }
         } else {
           lines.push(`<div class="bc-bonus"><span class="bc-chip est" title="Click to enter signing bonus" onclick="openBonusChip(${p.overall},event)"><span class="bc-ck"></span>$—</span></div>`);
         }
@@ -3918,8 +3927,9 @@
           const chip = `<span class="bc-chip${validated?" val":""}" title="Click to edit signing bonus" onclick="openBonusChip(${p.overall},event)"><span class="bc-ck">${validated?"✓":""}</span>${fmtM(eb.bonus)}${src}</span>`;
           const ou = p.slot>0 ? eb.bonus-p.slot : null;
           const tag = ou!=null ? `<span class="tg ${ou>50000?'over':ou<-50000?'under':'fit'}">${ou>50000?"+":""}${Math.abs(ou)>50000?fmtM(ou)+" vs slot":"at slot"}</span>` : "";
-          if (MOBILE.matches) lines.push(`<div class="bc-bonus">${chip}${tag?` ${tag}`:""}</div>`);
-          else { lines.push(`<div class="bc-bonus">${chip}</div>`); if (tag) lines.push(`<div class="bc-bonus">${tag}</div>`); }
+          const pct = poolPctTag(p, eb, state);
+          if (MOBILE.matches) lines.push(`<div class="bc-bonus">${chip}${tag?` ${tag}`:""}${pct?` ${pct}`:""}</div>`);
+          else { lines.push(`<div class="bc-bonus">${chip}</div>`); if (tag||pct) lines.push(`<div class="bc-bonus">${tag}${tag&&pct?" ":""}${pct}</div>`); }
         } else {
           lines.push(`<div class="bc-bonus"><span class="bc-chip est" title="Click to enter signing bonus" onclick="openBonusChip(${p.overall},event)"><span class="bc-ck"></span>$—</span></div>`);
         }
