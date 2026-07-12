@@ -3780,6 +3780,12 @@
     const a = $("bxAmt"); if (a) { a.focus(); a.select(); }
   };
   window.closeBonusChip = (e) => { if (e) e.stopPropagation(); bonusEdit = null; renderBoard(currentState); };
+  // Standard type-over behavior for the amount box: any click/tab into it selects the
+  // whole value, so the next keystroke replaces it — no manual erasing. The mouseup
+  // that follows the focusing click would collapse the selection (browser default),
+  // so swallow exactly that one; later clicks reposition the caret normally.
+  window.bxFocus = (el) => { el.select(); el._selAll = true; };
+  window.bxUp = (el, e) => { if (el._selAll) { e.preventDefault(); el._selAll = false; } };
   // Comma-group the bonus amount as it's typed, keeping the caret with its digit.
   window.fmtBonusInput = (el) => {
     const digitsBefore = el.value.slice(0, el.selectionStart).replace(/\D/g,"").length;
@@ -3903,7 +3909,7 @@
         if (bonusEdit === p.overall) {
           const cur = Math.round(shown ? eb.bonus : suggestBonus(p));
           lines.push(`<div class="bc-bform" onclick="event.stopPropagation()">
-            $<input id="bxAmt" type="text" inputmode="numeric" value="${cur.toLocaleString("en-US")}" oninput="fmtBonusInput(this)" onkeydown="if(event.key==='Enter')saveBonusChip(${p.overall},event)">
+            $<input id="bxAmt" type="text" inputmode="numeric" value="${cur.toLocaleString("en-US")}" onfocus="bxFocus(this)" onmouseup="bxUp(this,event)" oninput="fmtBonusInput(this)" onkeydown="if(event.key==='Enter')saveBonusChip(${p.overall},event);else if(event.key==='Escape')closeBonusChip(event)">
             <label><input id="bxVal" type="checkbox"${validated?" checked":""}>validated</label>
             <button class="ok" onclick="saveBonusChip(${p.overall},event)">Save</button>
             <button onclick="closeBonusChip(event)">✕</button>${bonusQuickRow(p)}</div>`);
@@ -3940,7 +3946,7 @@
         if (bonusEdit === p.overall) {
           const cur = Math.round(shown ? eb.bonus : suggestBonus(p));
           lines.push(`<div class="bc-bform" onclick="event.stopPropagation()">
-            $<input id="bxAmt" type="text" inputmode="numeric" value="${cur.toLocaleString("en-US")}" oninput="fmtBonusInput(this)" onkeydown="if(event.key==='Enter')saveBonusChip(${p.overall},event)">
+            $<input id="bxAmt" type="text" inputmode="numeric" value="${cur.toLocaleString("en-US")}" onfocus="bxFocus(this)" onmouseup="bxUp(this,event)" oninput="fmtBonusInput(this)" onkeydown="if(event.key==='Enter')saveBonusChip(${p.overall},event);else if(event.key==='Escape')closeBonusChip(event)">
             <label><input id="bxVal" type="checkbox"${validated?" checked":""}>validated</label>
             <button class="ok" onclick="saveBonusChip(${p.overall},event)">Save</button>
             <button onclick="closeBonusChip(event)">✕</button>${bonusQuickRow(p)}</div>`);
