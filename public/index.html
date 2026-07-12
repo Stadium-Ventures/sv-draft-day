@@ -1192,13 +1192,21 @@
   /* the side feed is redundant when the board itself is the list */
   body.mob .board-split { display:block; }
   body.mob .board-feed { display:none; }
-  /* toolbar: one swipeable row; TV toggle and the jump button (pill replaces it) hidden */
-  body.mob #viewBoard .ba-filters { flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:4px; }
-  /* overflow-x:auto forces overflow-y to clip too, which swallows the Players dropdown —
-     lift the clip while the menu is open (row briefly stops swiping; fine, a menu is up) */
-  body.mob #viewBoard .ba-filters.menu-open { overflow:visible; }
+  /* toolbar: search folds into the Filter panel (below) so the remaining controls just
+     wrap onto as many rows as needed, instead of the old swipe-to-see-everything row */
+  body.mob #viewBoard .ba-filters { flex-wrap:wrap; row-gap:6px; }
   body.mob #viewBoard .ba-filters label, body.mob #viewBoard .ba-filters .count { white-space:nowrap; }
-  body.mob #tvCtl, body.mob #viewBoard .ba-filters > button.ctl { display:none; }
+  body.mob #tvCtl, body.mob #viewBoard .ba-filters > button.ctl, body.mob #viewBoard .ba-filters > #brQuery { display:none; }
+  /* the Filter chip can land anywhere in the wrapped row (even flush against the right
+     edge) — anchor the panel to #boardChips (full width) instead of the chip itself,
+     so it can't run off-screen */
+  body.mob #boardChips { position:relative; flex:1 1 100%; }
+  body.mob #viewBoard .ba-drop { position:static; }
+  body.mob #viewBoard .ba-drop .res-posmenu { left:0; right:0; width:auto; max-width:none; }
+  /* search row inside the Filter panel: mobile-only stand-in for the toolbar's #brQuery */
+  .board-filtmenu .brq-row { display:none; }
+  body.mob .board-filtmenu .brq-row { display:block; margin-bottom:8px; }
+  .board-filtmenu .brq-row input { width:100%; box-sizing:border-box; }
   /* Best Available filters on mobile: a tidy collapsible 2-row block (no more clipped controls) */
   body.mob #viewBest .ba-filters { align-items:center; row-gap:6px; }
   body.mob #viewBest .ba-filt-toggle { display:inline-flex; align-items:center; gap:6px; font:inherit;
@@ -1473,7 +1481,7 @@
       <label><input type="checkbox" id="bSv" onchange="renderBoard(currentState)"> SV picks only</label>
       <select id="bTeam" class="ctl" title="Show only this team's picks" onchange="renderBoard(currentState)"><option value="">All teams</option></select>
       <div id="boardChips" class="ba-chips"></div>
-      <input id="brQuery" placeholder="search name / school / agency" oninput="renderBoardGrid(currentState)" style="min-width:180px" />
+      <input id="brQuery" placeholder="search name / school / agency" oninput="brSetQuery(this.value)" style="min-width:180px" />
       <span id="boardPlayers" class="board-players"></span>
       <button class="ctl" onclick="jumpCurrent()">↧ Jump to current pick</button>
       <span id="tvCtl"></span>
@@ -3538,11 +3546,11 @@
   // Board chip filters — same dropdown-chip pattern as Best Available (Level / Position /
   // Age / Bats / Throws), applied to drafted & reported tiles' comp data. A pick with no
   // comp match (or not yet made) drops out of the grid whenever a filter is active.
-  const boardFilt = { pos:new Set(), lvl:new Set(), bats:new Set(), throws:new Set(), ageLo:null, ageHi:null };
+  const boardFilt = { pos:new Set(), lvl:new Set(), bats:new Set(), throws:new Set(), ageLo:null, ageHi:null, qRaw:"" };
   let boardOpen = false;   // single filter panel, open or closed
   const boardAgeActive = () => { const b=baAgeBounds(); return boardFilt.ageLo!=null && (boardFilt.ageLo>b.min || boardFilt.ageHi<b.max); };
   const boardActiveCount = () => (boardFilt.lvl.size?1:0) + (boardFilt.pos.size?1:0) + (boardAgeActive()?1:0) + (boardFilt.bats.size?1:0) + (boardFilt.throws.size?1:0);
-  const boardFiltActive = () => !!(boardFilt.pos.size || boardFilt.lvl.size || boardFilt.bats.size || boardFilt.throws.size || boardAgeActive() || normName($("brQuery")?.value||""));
+  const boardFiltActive = () => !!(boardFilt.pos.size || boardFilt.lvl.size || boardFilt.bats.size || boardFilt.throws.size || boardAgeActive() || normName(boardFilt.qRaw));
   const boardCompFor = (p) => {
     const name = p.isDrafted ? p.player : (p.reported ? p.reported.player : null);
     return name ? DATA.compByName.get(normName(name)) : null;
@@ -3555,11 +3563,18 @@
     if (boardFilt.bats.size && !boardFilt.bats.has(baBatNorm(comp.bats))) return false;
     if (boardFilt.throws.size && !boardFilt.throws.has((comp.throws||"").toUpperCase())) return false;
     if (boardAgeActive()) { const a=+comp.age; if (!Number.isFinite(a) || a<boardFilt.ageLo || a>boardFilt.ageHi) return false; }
-    const q = normName($("brQuery")?.value||"");
+    const q = normName(boardFilt.qRaw);
     if (q && !(normName(comp.name).includes(q) || normName(comp.school).includes(q) || normName(agentOf(comp)).includes(q))) return false;
     return true;
   };
   window.brToggleFilter = (e) => { if (e) e.stopPropagation(); boardOpen = !boardOpen; renderBoardChips(); };
+  // search box lives in the toolbar on desktop, folded into the filter panel on mobile —
+  // both inputs (when both exist in the DOM) share this one source of truth.
+  window.brSetQuery = (v) => { boardFilt.qRaw = v;
+    const a = $("brQuery"), b = $("brQueryM");
+    if (a && a.value !== v) a.value = v;
+    if (b && b.value !== v) b.value = v;
+    renderBoardGrid(currentState); };
   window.brTok = (grp, v, e) => { if (e) e.stopPropagation(); setTog(boardFilt[grp], v); renderBoardChips(); renderBoardGrid(currentState); };
   window.brPosGrp = (g, e) => { if (e) e.stopPropagation();
     const toks = POS_TREE[g], all = toks.every(t=>boardFilt.pos.has(t));
@@ -3589,6 +3604,7 @@
       return `<div class="res-posrow">${grpBtn}${toks.map(t=>
         `<button class="tc-chip${boardFilt.pos.has(t)?' on':''}" onclick="brTok('pos','${t}',event)">${t}</button>`).join("")}</div>`;}).join("");
     const panel = !boardOpen ? "" : `<div class="res-posmenu board-filtmenu" onclick="event.stopPropagation()">
+      <div class="brq-row"><input id="brQueryM" placeholder="search name / school / agency" value="${escAttr(boardFilt.qRaw)}" oninput="brSetQuery(this.value)"></div>
       <div class="tc-wizgrp"><span class="tc-wizlab">Level</span></div>${row("lvl", ["HS","College","JUCO"])}
       <div class="tc-wizgrp" style="margin-top:8px"><span class="tc-wizlab">Position</span></div>${posMenu}
       <div class="tc-wizgrp" style="margin-top:8px"><span class="tc-wizlab">Age</span></div>
