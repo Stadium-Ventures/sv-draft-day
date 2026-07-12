@@ -300,6 +300,9 @@
 
   /* best available */
   .ba-filters { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px; }
+  /* board toolbar travels: pinned under the app chrome while the grid scrolls (desktop) */
+  #viewBoard .ba-filters { position:sticky; top:var(--theadTop, 128px); z-index:4; background:var(--bg); padding:6px 0; margin-top:-6px; }
+  body.mob #viewBoard .ba-filters { position:static; padding:0 0 4px; margin-top:0; }
   .ba-filters select, .ba-filters input { font:inherit; padding:6px 9px; border:1px solid var(--line); border-radius:8px; }
   .ba-filters label { font-size:12px; font-weight:700; color:var(--muted); display:inline-flex; align-items:center; gap:5px; }
   .ba-filters .count { margin-left:auto; color:var(--muted); font-size:13px; font-weight:700; }
@@ -348,6 +351,9 @@
   .pool-av:hover { text-decoration:underline; }
   .pool-avmore { color:var(--red); font-weight:700; cursor:pointer; white-space:nowrap; }
   .pool-avmore:hover { text-decoration:underline; }
+  /* Top % of pool leaderboard (toggles above the pools table) */
+  #poolTop .pool-top { max-width:820px; margin:0 0 14px; }
+  #poolTop .pool-top td { padding:5px 10px; }
   table.ba tr.sv { background:#fff5f6; }
   table.ba tbody tr.clickrow:hover { background:#f6f7f9; cursor:pointer; }
   table.ba td.ba-draft { width:1%; white-space:nowrap; }
@@ -469,6 +475,7 @@
   .bc-bform button { font:inherit; border:1px solid var(--line); border-radius:4px; background:#fff; cursor:pointer; padding:1px 5px; }
   .bc-bform button.ok { background:#1a7f37; border-color:#1a7f37; color:#fff; }
   .bc-pct { font-size:10px; font-weight:700; color:var(--muted); white-space:nowrap; }
+  .bc-rk { font-size:9px; font-weight:800; color:var(--muted); white-space:nowrap; letter-spacing:.2px; }
   .bc-qk { display:flex; flex-wrap:wrap; gap:3px; width:100%; margin-top:2px; }
   .bc-qk button { color:var(--muted); padding:1px 5px; }
   .bc-qk button:hover { color:var(--ink); border-color:#9aa2ae; }
@@ -1082,6 +1089,8 @@
     position:sticky; top:140px; max-height:calc(100vh - 160px); display:flex; flex-direction:column; overflow:hidden; }
   .feed-hd { display:flex; align-items:center; gap:7px; padding:11px 13px; border-bottom:1px solid var(--line); font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); }
   .feed-hd .live { width:8px; height:8px; border-radius:50%; background:var(--red); }
+  .feed-jump { margin-left:auto; font:inherit; font-size:10px; border:1px solid var(--line); border-radius:6px; background:#fff; color:var(--muted); cursor:pointer; padding:2px 7px; }
+  .feed-jump:hover { color:var(--ink); border-color:#9aa2ae; }
   .feed-scroll { overflow-y:auto; padding:6px; }
   .feed-rnd { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); padding:8px 6px 3px; }
   .feed-row { display:flex; align-items:center; gap:8px; padding:6px 7px; border-radius:8px; cursor:pointer; }
@@ -1443,7 +1452,8 @@
 
   <!-- BONUS POOLS (all 30 teams) -->
   <section id="viewPools" class="view">
-    <div class="ba-filters"><span class="count" id="poolNote"></span></div>
+    <div class="ba-filters"><button class="ctl" id="poolTopBtn" onclick="togglePoolTop()">▸ Top % of pool</button><span class="count" id="poolNote"></span></div>
+    <div id="poolTop"></div>
     <table class="ba">
       <thead id="poolHead"></thead>
       <tbody id="poolBody"></tbody>
@@ -3815,16 +3825,23 @@
   // rounds the user manually collapsed (session-scoped) — everything shows by default
   const closedRounds = new Set();
   window.toggleRound = (r) => { closedRounds.has(r) ? closedRounds.delete(r) : closedRounds.add(r); renderActive(); };
-  // "% of pool" on a tile once a number is in: the entered bonus as a share of the
-  // team's full pool. Rounds 11+ (slot 0) charge the pool only past the $150k
-  // exemption, so their tag shows just that excess — mirrors poolCharge in derive().
-  function poolPctTag(p, eb, state) {
+  // A pick's pool charge as a share of the team's full pool. Rounds 11+ (slot 0)
+  // charge the pool only past the $150k exemption — mirrors poolCharge in derive().
+  // Returns {pct, pool, late} or null (no pool, no bonus, or fully exempt).
+  function poolPctOf(p, eb, state) {
     const tp = state.poolsMap ? state.poolsMap[p.team] : null;
-    if (!(tp && tp.pool > 0) || eb.bonus == null) return "";
-    if (p.slot > 0)
-      return `<span class="bc-pct" title="share of ${p.team}'s bonus pool (${fmtM(tp.pool)})">${(eb.bonus/tp.pool*100).toFixed(1)}% of pool</span>`;
-    if (eb.bonus <= LATE_EXEMPT) return "";   // fully exempt — no pool charge
-    return `<span class="bc-pct" title="amount over the $150k rounds-11+ exemption vs ${p.team}'s pool (${fmtM(tp.pool)})">+${((eb.bonus-LATE_EXEMPT)/tp.pool*100).toFixed(1)}% of pool</span>`;
+    if (!(tp && tp.pool > 0) || eb.bonus == null) return null;
+    if (p.slot > 0) return { pct: eb.bonus/tp.pool*100, pool: tp.pool, late: false };
+    if (eb.bonus <= LATE_EXEMPT) return null;
+    return { pct: (eb.bonus-LATE_EXEMPT)/tp.pool*100, pool: tp.pool, late: true };
+  }
+  // "% of pool" on a tile once a number is in ("+" marks a rounds-11+ excess-only share)
+  function poolPctTag(p, eb, state) {
+    const x = poolPctOf(p, eb, state);
+    if (!x) return "";
+    const ttl = x.late ? `amount over the $150k rounds-11+ exemption vs ${p.team}'s pool (${fmtM(x.pool)})`
+                       : `share of ${p.team}'s bonus pool (${fmtM(x.pool)})`;
+    return `<span class="bc-pct" title="${ttl}">${x.late?"+":""}${x.pct.toFixed(1)}% of pool</span>`;
   }
   function renderBoardGrid(state) {
     const svOnly = $("bSv").checked, teamSel = $("bTeam")?.value || "", focus = boardSelClients.size>0, CAP = 6;
@@ -3868,9 +3885,10 @@
       let cardCls = `bcard ${ours?"sv":""} ${onclock?"oc":""}`, dotsHtml = "", body, cardStyle = "";
       if (p.isDrafted) {
         // Selected player: one line per vital — position, school (denotes level), agency,
-        // bonus, slot diff. No hometown on tiles.
-        body = (p.player||"—") + (ours?' <span class="svtag">SV</span>':"");
+        // bonus, slot diff. No hometown on tiles. Composite rank rides next to the name.
         const comp = DATA.compByName.get(normName(p.player||""));
+        body = (p.player||"—") + (comp?.rank ? ` <span class="bc-rk" title="composite board rank">CB ${comp.rank}</span>` : "")
+             + (ours?' <span class="svtag">SV</span>':"");
         const eb = effectiveBonus(p);
         // mobile tiles are rows, not columns — meta joins onto one line, money onto another
         const metaParts = [pickPos(p, comp), schoolShort(comp?.school || p.school), comp?.agent].filter(Boolean);
@@ -4028,12 +4046,19 @@
         <div class="fr-body"><div class="fr-who">${who}${ours?' <span class="svtag">SV</span>':""}</div>${sub?`<div class="fr-sub">${sub}</div>`:""}</div>
         <span class="fr-val">${val}</span></div>`;
     }
-    return `<div class="feed-hd"><span class="live"></span>Live Pick Feed</div><div class="feed-scroll">${rows}</div>`;
+    const jump = inCard ? "" : `<button class="feed-jump" title="re-pin the feed to the pick on the clock" onclick="feedJump(event)">⏱ current</button>`;
+    return `<div class="feed-hd"><span class="live"></span>Live Pick Feed${jump}</div><div class="feed-scroll">${rows}</div>`;
   }
   // The feed follows the action: pinned to the on-clock row (a third down the panel)
   // and re-pinned as picks come in. Scrolling away releases it — browse freely, no
   // fighting the poll — and scrolling back to where the live row is visible re-arms it.
   let feedFollow = true;
+  // Feed's own jump + rides along with the board's "Jump to current pick" button
+  window.feedJump = (e) => {
+    if (e) e.stopPropagation();
+    feedFollow = true;
+    const sc = document.querySelector("#boardFeed .feed-scroll"); if (sc) feedScrollToOc(sc);
+  };
   function feedScrollToOc(sc) {
     const oc = sc.querySelector(".feed-row.oc"); if (!oc) return;
     sc.scrollTop = oc.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop - sc.clientHeight/3;
@@ -4073,7 +4098,7 @@
       <div class="tc-ticker-scroll">${pills}</div></div>`;
   }
 
-  function jumpCurrent() { document.getElementById("ocRow")?.scrollIntoView({ block:"center", behavior:"smooth" }); }
+  function jumpCurrent() { document.getElementById("ocRow")?.scrollIntoView({ block:"center", behavior:"smooth" }); feedJump(); }
   // ---------- VIEW: BONUS POOLS ----------
   const POOL_COLS = [["team","Team"],["picksMade","Picks"],["pool","Pool"],["overage","Overage"],["roomPool","Pool Room"],
                      ["room","Overage Room"],["poolCharge","Spent"],["overUnder","Over/Under"],["pctNum","%"],["svAvail","SV Available"]];
@@ -4127,8 +4152,47 @@
     }).join("");
     return card + `<table class="pool-picks"><thead><tr><th>Pick</th><th>Player</th><th></th><th>Slot</th><th>Bonus</th><th>vs slot</th></tr></thead><tbody>${rows}</tbody></table>`;
   }
+  // "Top % of pool" leaderboard: every pick in the class with real money in (official
+  // or war-room logged — estimated entries included, model guesses never), ranked by
+  // its pool charge as a share of the team's pool. Toggles above the pools table.
+  let poolTopOpen = false;
+  window.togglePoolTop = () => { poolTopOpen = !poolTopOpen; renderPools(); };
+  function renderPoolTop() {
+    const el = $("poolTop"); if (!el) return;
+    const btn = $("poolTopBtn"); if (btn) btn.textContent = (poolTopOpen?"▾":"▸") + " Top % of pool";
+    if (!poolTopOpen) { el.innerHTML = ""; return; }
+    const rows = [];
+    for (const p of currentState.picks) {
+      if (!(p.isDrafted || p.reported)) continue;
+      const eb = effectiveBonus(p);
+      const known = MODE==="mock" && p.isDrafted ? !!p.bonusUser : eb.bonus!=null && (p.bonus!=null || eb.src);
+      if (!known) continue;
+      const x = poolPctOf(p, eb, currentState);
+      if (x) rows.push({ p, eb, pct:x.pct, pool:x.pool, late:x.late });
+    }
+    rows.sort((a,b)=>b.pct-a.pct);
+    const top = rows.slice(0, 25);
+    if (!top.length) { el.innerHTML = `<div class="count" style="margin:0 0 10px">No entered bonuses yet — plug numbers into the board chips and the ranking builds itself.</div>`; return; }
+    el.innerHTML = `<table class="ba pool-top"><thead><tr><th></th><th>Pick</th><th>Player</th><th>Team</th><th>Bonus</th><th>Pool</th><th>% of pool</th></tr></thead><tbody>` +
+      top.map((r,i) => {
+        const p = r.p, name = p.isDrafted ? p.player : p.reported.player;
+        const key = normName(name||""), ours = DATA.clients.has(key);
+        const src = r.eb.src && r.eb.src!=="confirmed" ? ` <span class="bc-src">${r.eb.src.slice(0,3)}</span>` : "";
+        return `<tr class="clickable" onclick="openPlayer('${key.replace(/'/g,"\\'")}')">
+          <td class="sub">${i+1}</td>
+          <td>#${p.overall} <span class="sub">${/^\d+$/.test(String(p.round))?"R"+p.round:_esc(String(p.round))}</span></td>
+          <td><b>${_esc(name||"—")}</b>${ours?' <span class="svtag">SV</span>':""}${p.isDrafted?"":' <span class="outag est atslot">REP</span>'}</td>
+          <td>${teamLogo(p.team,15)} ${p.team}</td>
+          <td>${fmt$(r.eb.bonus)}${src}</td>
+          <td>${fmtM(r.pool)}</td>
+          <td><b>${r.late?"+":""}${r.pct.toFixed(1)}%</b>${r.late?' <span class="sub" title="rounds 11+: only the amount over the $150k exemption charges the pool">over exempt</span>':""}</td>
+        </tr>`;
+      }).join("") + `</tbody></table>` +
+      (rows.length>top.length ? `<div class="count" style="margin:4px 0 10px">top 25 of ${rows.length} picks with money in</div>` : "");
+  }
   function renderPools() {
     if (!currentState) return;
+    renderPoolTop();
     $("poolHead").innerHTML = "<tr>" + POOL_COLS.map(([k,label]) => {
       const arrow = poolSort.key===k ? (poolSort.dir<0 ? " ▾" : " ▴") : "";
       return `<th class="sortable" onclick="sortPools('${k}')">${label}${arrow}</th>`;
