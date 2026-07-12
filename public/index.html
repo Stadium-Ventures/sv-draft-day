@@ -326,6 +326,9 @@
   .ba-agemenu .dual { width:100%; }
   .ba-agemenu .dual input[type=range] { border:0; padding:0; }
   .ba-agemenu .tc-chip.clear { margin-top:12px; }
+  /* single combined filter panel on the Board — stacks every group, so it needs more
+     room and a scroll cap than the one-group ba-menu dropdowns it's built from */
+  .ba-drop .res-posmenu.board-filtmenu { max-width:min(360px, calc(100vw - 24px)); max-height:70vh; overflow-y:auto; }
   /* sortable column headers on Best Available */
   table.ba th.basort { cursor:pointer; white-space:nowrap; }
   table.ba th.basort:hover { color:var(--ink); }
@@ -637,6 +640,9 @@
   /* Pick Economics — the "if we got popped here" read at the bottom of panel 2 */
   .tc-pecon { margin-top:14px; border-top:2px solid var(--ink); padding-top:8px; }
   .tc-pecon h5 { margin:0 0 6px; font-size:var(--fs-0); font-weight:900; text-transform:uppercase; letter-spacing:.4px; color:var(--red); }
+  /* Panel 3's second widget (round + pick-in-round history) — same red-caption
+     treatment as Pick Economics' h5, with its own divider to read as a distinct sub-section */
+  .tc-subhead { margin:14px 0 0; border-top:2px solid var(--ink); padding-top:8px; font-size:var(--fs-0); font-weight:900; text-transform:uppercase; letter-spacing:.4px; color:var(--red); }
   .tc-pecon .tc-kv:first-of-type { border-top:none; }
   .tc-kv { display:flex; justify-content:space-between; align-items:baseline; padding:4px 0; border-top:1px solid var(--line); }
   .tc-kv:first-of-type { border-top:none; }
@@ -1466,9 +1472,12 @@
     <div class="ba-filters">
       <label><input type="checkbox" id="bSv" onchange="renderBoard(currentState)"> SV picks only</label>
       <select id="bTeam" class="ctl" title="Show only this team's picks" onchange="renderBoard(currentState)"><option value="">All teams</option></select>
+      <div id="boardChips" class="ba-chips"></div>
+      <input id="brQuery" placeholder="search name / school / agency" oninput="renderBoardGrid(currentState)" style="min-width:180px" />
       <span id="boardPlayers" class="board-players"></span>
       <button class="ctl" onclick="jumpCurrent()">↧ Jump to current pick</button>
       <span id="tvCtl"></span>
+      <span id="brExpandAllWrap"></span>
       <span id="boardSelNames" class="board-selnames"></span>
       <span class="count" id="boardCount"></span>
     </div>
@@ -1827,6 +1836,11 @@
           sst: f[13]==="HS" ? "" : (collSt[(f[14]||"").split(",").pop().trim()] || ""),
           diff:(f[22]!==""&&f[22]!=null?num(f[22]):(bonus!=null&&slot!=null?bonus-slot:null)) });
       }
+      // pick-in-round: this row's rank within its own year+round, since comp picks
+      // shift the overall numbering year to year but not the round-relative slot
+      const rndGrp = new Map();
+      for (const r of rows) { const k = r.year+"|"+r.round; if (!rndGrp.has(k)) rndGrp.set(k, []); rndGrp.get(k).push(r); }
+      for (const g of rndGrp.values()) { g.sort((a,b)=>a.overall-b.overall); g.forEach((r,i)=>r.pickInRound=i+1); }
       DATA.slotHistory = rows;
       leagueTendencies();
       // name index for looking up a specific player's signing — index first+last AND the CSV's
@@ -3521,6 +3535,78 @@
     renderBoardFeed(state);
   }
 
+  // Board chip filters — same dropdown-chip pattern as Best Available (Level / Position /
+  // Age / Bats / Throws), applied to drafted & reported tiles' comp data. A pick with no
+  // comp match (or not yet made) drops out of the grid whenever a filter is active.
+  const boardFilt = { pos:new Set(), lvl:new Set(), bats:new Set(), throws:new Set(), ageLo:null, ageHi:null };
+  let boardOpen = false;   // single filter panel, open or closed
+  const boardAgeActive = () => { const b=baAgeBounds(); return boardFilt.ageLo!=null && (boardFilt.ageLo>b.min || boardFilt.ageHi<b.max); };
+  const boardActiveCount = () => (boardFilt.lvl.size?1:0) + (boardFilt.pos.size?1:0) + (boardAgeActive()?1:0) + (boardFilt.bats.size?1:0) + (boardFilt.throws.size?1:0);
+  const boardFiltActive = () => !!(boardFilt.pos.size || boardFilt.lvl.size || boardFilt.bats.size || boardFilt.throws.size || boardAgeActive() || normName($("brQuery")?.value||""));
+  const boardCompFor = (p) => {
+    const name = p.isDrafted ? p.player : (p.reported ? p.reported.player : null);
+    return name ? DATA.compByName.get(normName(name)) : null;
+  };
+  const boardMatchesFilt = (p) => {
+    const comp = boardCompFor(p);
+    if (!comp) return false;
+    if (boardFilt.lvl.size && !boardFilt.lvl.has(comp.level)) return false;
+    if (boardFilt.pos.size && !baPosTokens(comp).some(t=>boardFilt.pos.has(t))) return false;
+    if (boardFilt.bats.size && !boardFilt.bats.has(baBatNorm(comp.bats))) return false;
+    if (boardFilt.throws.size && !boardFilt.throws.has((comp.throws||"").toUpperCase())) return false;
+    if (boardAgeActive()) { const a=+comp.age; if (!Number.isFinite(a) || a<boardFilt.ageLo || a>boardFilt.ageHi) return false; }
+    const q = normName($("brQuery")?.value||"");
+    if (q && !(normName(comp.name).includes(q) || normName(comp.school).includes(q) || normName(agentOf(comp)).includes(q))) return false;
+    return true;
+  };
+  window.brToggleFilter = (e) => { if (e) e.stopPropagation(); boardOpen = !boardOpen; renderBoardChips(); };
+  window.brTok = (grp, v, e) => { if (e) e.stopPropagation(); setTog(boardFilt[grp], v); renderBoardChips(); renderBoardGrid(currentState); };
+  window.brPosGrp = (g, e) => { if (e) e.stopPropagation();
+    const toks = POS_TREE[g], all = toks.every(t=>boardFilt.pos.has(t));
+    toks.forEach(t => all ? boardFilt.pos.delete(t) : boardFilt.pos.add(t));
+    renderBoardChips(); renderBoardGrid(currentState); };
+  window.brAgeSlide = () => {
+    let lo = parseFloat($("brAgeLo").value), hi = parseFloat($("brAgeHi").value);
+    if (lo > hi) { const t=lo; lo=hi; hi=t; }
+    boardFilt.ageLo = lo; boardFilt.ageHi = hi;
+    const lab = $("brAgeLab"); if (lab) lab.textContent = `${lo.toFixed(1)} – ${hi.toFixed(1)}`;
+    renderBoardGrid(currentState); };
+  window.brAgeClear = (e) => { if (e) e.stopPropagation(); boardFilt.ageLo = boardFilt.ageHi = null; renderBoardChips(); renderBoardGrid(currentState); };
+  window.brClearAll = (e) => { if (e) e.stopPropagation();
+    boardFilt.pos.clear(); boardFilt.lvl.clear(); boardFilt.bats.clear(); boardFilt.throws.clear(); boardFilt.ageLo = boardFilt.ageHi = null;
+    renderBoardChips(); renderBoardGrid(currentState); };
+  // One "Filter" button opens a single dropdown panel with every group stacked inside
+  // (labeled rows, same pattern as the Research filter bar) — keeps the board's toolbar
+  // to one control instead of five separate chip-dropdown buttons.
+  function renderBoardChips() {
+    const el = $("boardChips"); if (!el) return;
+    const b = baAgeBounds(), ageOn = boardAgeActive(), n = boardActiveCount();
+    const row = (grp, opts) => `<div class="res-posrow">${opts.map(v=>
+      `<button class="tc-chip${boardFilt[grp].has(v)?' on':''}" onclick="brTok('${grp}','${v}',event)">${v}</button>`).join("")}</div>`;
+    const posMenu = Object.entries(POS_TREE).map(([g,toks])=>{
+      const all = toks.every(t=>boardFilt.pos.has(t));
+      const grpBtn = toks.length>1 ? `<button class="tc-chip grp${all?' on':''}" onclick="brPosGrp('${g}',event)">${g} · all</button>` : "";
+      return `<div class="res-posrow">${grpBtn}${toks.map(t=>
+        `<button class="tc-chip${boardFilt.pos.has(t)?' on':''}" onclick="brTok('pos','${t}',event)">${t}</button>`).join("")}</div>`;}).join("");
+    const panel = !boardOpen ? "" : `<div class="res-posmenu board-filtmenu" onclick="event.stopPropagation()">
+      <div class="tc-wizgrp"><span class="tc-wizlab">Level</span></div>${row("lvl", ["HS","College","JUCO"])}
+      <div class="tc-wizgrp" style="margin-top:8px"><span class="tc-wizlab">Position</span></div>${posMenu}
+      <div class="tc-wizgrp" style="margin-top:8px"><span class="tc-wizlab">Age</span></div>
+      <div class="ba-agemenu"><div class="res-slab" id="brAgeLab">${
+          ageOn ? `${boardFilt.ageLo.toFixed(1)} – ${boardFilt.ageHi.toFixed(1)}` : `${b.min.toFixed(1)} – ${b.max.toFixed(1)}`}</div>
+        <div class="dual"><input type="range" id="brAgeLo" min="${b.min}" max="${b.max}" step="0.1" value="${boardFilt.ageLo??b.min}" oninput="brAgeSlide()">
+        <input type="range" id="brAgeHi" min="${b.min}" max="${b.max}" step="0.1" value="${boardFilt.ageHi??b.max}" oninput="brAgeSlide()"></div>
+        ${ageOn?`<button class="tc-chip clear" onclick="brAgeClear(event)">✕ clear age</button>`:""}</div>
+      <div class="tc-wizgrp" style="margin-top:8px"><span class="tc-wizlab">Bats</span></div>${row("bats", ["L","R","S"])}
+      <div class="tc-wizgrp" style="margin-top:8px"><span class="tc-wizlab">Throws</span></div>${row("throws", ["L","R"])}
+      ${n?`<button class="tc-chip clear" style="margin-top:8px" onclick="brClearAll(event)">✕ clear all filters</button>`:""}
+    </div>`;
+    el.innerHTML = `<div class="ba-drop">
+      <button class="tc-chip${n?' on':''}" onclick="brToggleFilter(event)">Filter${n?` (${n})`:""} <span class="cx">▾</span></button>
+      ${panel}
+    </div>`;
+  }
+
   // ---------- Client evaluation module: Recent Draft Comparisons (Our Clients view) ----------
   // "If this team comes with interest, what should we look at for X?" — baseball comps that
   // anchor evaluation, in live and mock alike. Curated lists come from the SV deck; drafted
@@ -3758,6 +3844,7 @@
     if (bonusEdit!=null && !(e.target.closest && e.target.closest(".bc-bform"))) { bonusEdit = null; renderBoard(currentState); }
     if ((resPosOpen||resStOpen) && !(e.target.closest && e.target.closest(".res-pdrop"))) { resPosOpen = false; resStOpen = false; renderResearch(); }
     if (baOpen && !(e.target.closest && e.target.closest(".ba-drop"))) { baOpen = null; renderBaChips(); }
+    if (boardOpen && !(e.target.closest && e.target.closest(".ba-drop"))) { boardOpen = null; renderBoardChips(); }
     if ((rfClientsMenu||rfBoardMenu||rfPosMenu||rfRankMenu) && !(e.target.closest && e.target.closest(".rf-drop, .res-pdrop"))) { rfClientsMenu = false; rfBoardMenu = false; rfPosMenu = false; rfRankMenu = false; if (VIEW==="fit") renderRfControls(); }
   });
   window.toggleBoardClient = (key, e) => {
@@ -3841,6 +3928,13 @@
   // rounds the user manually collapsed (session-scoped) — everything shows by default
   const closedRounds = new Set();
   window.toggleRound = (r) => { closedRounds.has(r) ? closedRounds.delete(r) : closedRounds.add(r); renderActive(); };
+  // bulk version of the same manual override — collapses/expands every round at once,
+  // labeled from current state rather than a separate flag (closedRounds is the truth)
+  window.brToggleExpandAll = () => {
+    if (closedRounds.size) closedRounds.clear();
+    else (currentState?.picks||[]).forEach(p => closedRounds.add(String(p.round)));
+    renderBoardGrid(currentState);
+  };
   // A pick's pool charge as a share of the team's full pool. Rounds 11+ (slot 0)
   // charge the pool only past the $150k exemption — mirrors poolCharge in derive().
   // Returns {pct, pool, late} or null (no pool, no bonus, or fully exempt).
@@ -3860,7 +3954,11 @@
     return `<span class="bc-pct" title="${ttl}">${x.late?"+":""}${x.pct.toFixed(1)}% of pool</span>`;
   }
   function renderBoardGrid(state) {
+    if ($("boardChips") && !$("boardChips").firstChild) renderBoardChips();   // first paint of the chip bar
+    const wrap = $("brExpandAllWrap");
+    if (wrap) wrap.innerHTML = `<button class="ctl" onclick="brToggleExpandAll()">${closedRounds.size?"Expand all":"Collapse all"}</button>`;
     const svOnly = $("bSv").checked, teamSel = $("bTeam")?.value || "", focus = boardSelClients.size>0, CAP = 6;
+    const filtOn = boardFiltActive();
     const leadMap = leadsByPick();   // active X leads resolved onto their target pick tiles
     // Exactly one player selected → full intel-color "heat" board around that player.
     const single = boardSelClients.size===1 ? [...boardSelClients][0] : null;
@@ -3888,6 +3986,7 @@
       const ours = p.isDrafted && DATA.clients.has(normName(p.player||""));
       if (svOnly && !ours) continue;
       if (teamSel && p.team!==teamSel) continue;
+      if (filtOn && !boardMatchesFilt(p)) continue;
       const rs = rdStat.get(p.round), complete = rs.done === rs.total;
       // manual-only fold; activeStart still guards CBT stragglers sitting past the active round
       const folded = complete && p.overall < activeStart && !svOnly && !teamSel && closedRounds.has(String(p.round));
@@ -5146,7 +5245,40 @@
       <td>${r.bonus!=null?fmtM(r.bonus):`<span style="color:var(--muted);font-weight:600;font-size:11px">unsigned</span>`}</td>
       <td>${r.diff!=null?`<span class="vsv ${r.diff>50000?'over':r.diff<-50000?'under':'even'}">${r.diff>0?"+":""}${fmtM(r.diff)}</span>`:"—"}</td></tr>`).join("");
     h += `</tbody></table>`;
+    h += renderTcRoundPickHistory(pk);
     return h + `</div>`;
+  }
+
+  // Same idea as above, but keyed off round + pick-in-round instead of overall —
+  // useful once comp/supplemental shuffling makes the overall-slot precedent thin
+  // (late rounds especially), since "round 11, pick 1" is stable year to year.
+  function renderTcRoundPickHistory(pk) {
+    const H = DATA.slotHistory;
+    if (!H.length) return "";
+    const span = roundSpan(pk.round);
+    if (!span) return "";
+    const pir = pk.overall - span.first + 1;
+    if (!(pir > 0)) return "";
+    const rows = H.filter(r => String(r.round) === String(pk.round) && r.pickInRound === pir).sort((a,b)=>b.year-a.year);
+    let h = `<h5 class="tc-subhead">Round ${pk.round} Pick ${pir} History</h5>
+      <div class="tc-sub">every team's pick at this round-slot, 2018–25</div>`;
+    if (!rows.length) return h + `<div class="placeholder">No history at Round ${pk.round} Pick ${pir}.</div>`;
+    const wd = rows.filter(r=>r.diff!=null), n = wd.length;
+    const avg = n ? wd.reduce((s,r)=>s+r.diff,0)/n : 0;
+    const overN = wd.filter(r=>r.diff>0).length;
+    h += `<div class="tc-fitline sm"><span>${n?`<b>${Math.round(100*overN/n)}% over slot</b> · avg ${sgn$(avg)}`:""}</span></div>`;
+    const rec = rows.filter(r=>r.bonus!=null).sort((a,b)=>b.bonus-a.bonus)[0];
+    if (rec) h += `<div class="tc-fitline sm"><span>Record <b>${fmtM(rec.bonus)}</b> — <span${histAttr(rec)}>${rec.first?rec.first+" ":""}${rec.last}</span>, ${teamAbbrevOf(rec.team)} '${String(rec.year).slice(2)}</span></div>`;
+    h += `<table class="tc-upc"><thead><tr><th>Yr</th><th>Player</th><th>Pos</th><th>Team</th><th>Bonus</th><th>vs Slot</th></tr></thead><tbody>`;
+    h += rows.map(r=>`<tr>
+      <td>'${String(r.year).slice(2)}</td>
+      <td class="pl"><span${histAttr(r)}>${r.first?r.first[0]+". ":""}${r.last}</span> ${lvlTag(r)}</td>
+      <td style="color:var(--muted)">${posDispB(r)}</td>
+      <td style="color:var(--muted)">${teamAbbrevOf(r.team)}</td>
+      <td>${r.bonus!=null?fmtM(r.bonus):`<span style="color:var(--muted);font-weight:600;font-size:11px">unsigned</span>`}</td>
+      <td>${r.diff!=null?`<span class="vsv ${r.diff>50000?'over':r.diff<-50000?'under':'even'}">${r.diff>0?"+":""}${fmtM(r.diff)}</span>`:"—"}</td></tr>`).join("");
+    h += `</tbody></table>`;
+    return h;
   }
 
   // Prior Drafts (behind panel 1's "Past Drafts" button): this org's full classes
