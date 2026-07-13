@@ -48,3 +48,39 @@ Feed fields we rely on: `pickNumber`, `pickRound`, `roundPickNumber`, `team.id`
 
 Vercel project + `REDIS_URL` env var (reuse the sv-teamintel / sv-draft-cards
 Upstash instance). Auto-deploy from git push.
+
+## Season on/off — reactivate for 2027, archive after
+
+This project is built to sit dormant between drafts and get switched back on for
+the next one. There's a single client-side kill switch (`LIVE_POLLING` in
+`public/index.html`, right above the bootstrap IIFE at the bottom of the
+`<script>` block) that gates every recurring poll — the draft clock (3s), shared
+intel (12s), teamintel (15s), pick-in-play (15s), and X leads (20s). The one-shot
+loads on page open stay on regardless, so the site always renders the last known
+board even while `LIVE_POLLING` is `false`.
+
+**Reactivate before a draft:**
+1. Flip `LIVE_POLLING` to `true` in `public/index.html` and push.
+2. Bump the year in `api/draft.js`, `api/reported.js`, `api/xlead.js`
+   (`YEAR`/`DEFAULT_YEAR` constants) and `scripts/build_data.py` /
+   `scripts/build_projection.py` (`DRAFT_YEAR`/`TARGET_YEAR`).
+3. Re-provision Vercel env vars: `REDIS_URL`, `SITE_PASSWORD`,
+   `ANTHROPIC_API_KEY`, VAPID keys (push), and — only if the X-lead feed is
+   wanted again — `DRAFTDAY_SHEET_CSV_URL` (or `DRAFTDAY_SHEET_ID`),
+   `DD_INGEST_KEY`, `DD_POLL_SECONDS`. `/api/xlead` and `/api/xlead-ingest`
+   stay dormant on their own until these are set, regardless of `LIVE_POLLING`.
+4. If using X leads, re-deploy the Google Apps Script trigger
+   (`scripts/sv_draftday_capture_v1.0.0.gs`) and the browser watcher
+   (`scripts/sv_x_watcher.user.js`).
+5. Refresh `public/data/*.json` for the new year via `scripts/refresh.sh` /
+   `scripts/build_data.py`.
+6. Smoke-test with `vercel dev` before opening the war room.
+
+**Archive right after the draft:**
+1. Flip `LIVE_POLLING` back to `false` in `public/index.html` and push — this
+   alone stops the recurring client polling that drives most Vercel usage.
+2. Disable the Apps Script trigger and the userscript watcher if X leads were
+   in use, so nothing keeps feeding the (now-unpolled) sheet.
+3. Optional deeper cleanup: unset `DRAFTDAY_SHEET_CSV_URL`/`DD_INGEST_KEY`/
+   `ANTHROPIC_API_KEY` in Vercel so `/api/xlead*` 200-noop even if something
+   still hits them directly.

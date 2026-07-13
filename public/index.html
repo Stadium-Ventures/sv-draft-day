@@ -7912,6 +7912,15 @@
   };
   window.addEventListener("hashchange", applyResHash);
 
+  // ---------- Season switch — the one lever for recurring Vercel traffic ----------
+  // true only while a draft is actually live. Every setInterval below is a client hitting
+  // a Vercel function on a timer, multiplied by every war-room device left open — that's
+  // the whole "spend" surface, not the one-shot loads above (those just paint whatever
+  // state exists so the archived board still renders between drafts). Flip this to true a
+  // day or two before the next draft and back to false right after; see README's
+  // "Reactivate / archive" section for the rest of the pre/post-draft checklist.
+  const LIVE_POLLING = false;
+
   (async () => {
     initOrgTooltip();
     initPush();   // async — renders the header bell if server + device both support push
@@ -7924,12 +7933,14 @@
     loadSlotHistory();                                // historical draft-slot signings for the team card's Q4
     await loadPickInPlay();                           // sv-teamintel per-pick "in play" checkboxes
     pollLive();
-    setInterval(pollLive, 3000);
-    pollXLeads();
-    setInterval(pollXLeads, 20000);           // X insider leads from DraftDay_Feed (no-op unless configured)
-    setInterval(loadIntel, 12000);            // refresh shared intel so the war room stays in sync
-    setInterval(() => loadTeamIntel(true), 15000);   // re-pull teamintel colors/scores live
-    setInterval(() => loadPickInPlay(true), 15000);  // re-pull per-pick in-play checkboxes
+    if (LIVE_POLLING) {
+      setInterval(pollLive, 3000);
+      pollXLeads();
+      setInterval(pollXLeads, 20000);           // X insider leads from DraftDay_Feed (no-op unless configured)
+      setInterval(loadIntel, 12000);            // refresh shared intel so the war room stays in sync
+      setInterval(() => loadTeamIntel(true), 15000);   // re-pull teamintel colors/scores live
+      setInterval(() => loadPickInPlay(true), 15000);  // re-pull per-pick in-play checkboxes
+    }
     setInterval(tick, 250);
   })();
 </script>
