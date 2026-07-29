@@ -1,0 +1,28 @@
+{
+  "_note": "Per-repo inputs for the SV Way compliance checker (canonical copy: Stadium-Ventures/sv-registry scripts/compliance/sv-way-check.cjs). Authored 2026-07-29 (WP1 role-declaration pass); values established by reading this repo's files, not inference.",
+  "repo": "Stadium-Ventures/sv-draft-day",
+  "roles": {
+    "public/": "surface",
+    "public/data/": "replica",
+    "Supabase table draft_intel_events": "write-home",
+    "Upstash Redis dd:* keys": "write-home"
+  },
+  "_roles_why": "Per CLAUDE.md, README-referenced sv-app.json, and vercel.json: a seasonal MLB Draft war-room hub (dormant off-season behind LIVE_POLLING). The UI and api/ proxy layer are a surface over the live MLB draft tracker feed and sv-teamintel's teamintel.json (fetched live by the browser). public/data/*.json is baked by scripts/refresh.sh from other repos' outputs (draft-rankings-composite, sv-org-review, aWAR.xlsx, sv-draft-fit) — a read replica of upstream data, not canon. Data originated HERE and existing nowhere else: the append-only draft_intel_events log in Supabase (medical/range/bonus intel, war-room shared state, written via api/ functions) and reported-pick/lead state in Upstash Redis (dd:* keys).",
+  "canon_trees": [
+    "Supabase (sv-taskboard project) table draft_intel_events",
+    "Upstash Redis dd:* keys (reported picks, X-lead ladder state)"
+  ],
+  "write_door": "api/ serverless functions (sole write path to the Supabase intel log and Redis dd:* state)",
+  "upstream": {
+    "repo": "multiple",
+    "mechanism": "Live: MLB Stats API draft feed via /api/draft proxy; sv-teamintel teamintel.json fetched by the client. Baked: scripts/refresh.sh merges draft-rankings-composite, sv-org-review, sv-draft-fit local files into public/data/*.json. Not sourced from sv-registry."
+  },
+  "canon_doc": "THE-SV-WAY.md",
+  "canon_doc_home": false,
+  "hub_registration": "sv-app.json",
+  "_open_questions": [
+    "Read-duty gap: SV client tracking (client picks trigger push notifications) keys off baked composite data, not resolution against sv-registry canon.",
+    "Draft-weekend intel captured in draft_intel_events is firm work about players; whether/how it actualizes into sv-registry through the write door post-draft is undecided.",
+    "Whether the X-insider Apps Script trigger is still installed post-draft is unconfirmed (per sv-app.json crons note)."
+  ]
+}
