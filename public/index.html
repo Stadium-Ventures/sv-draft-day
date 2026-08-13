@@ -1408,6 +1408,8 @@
     <!-- Mock pulled for the live draft (7/11) — engine kept intact; unhide + drop the setMode guard to restore -->
     <button id="mMock" style="display:none" onclick="setMode('mock')"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.08a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.08a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.08a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Mock</button>
   </span>
+  <button id="btnPreview" class="ctl" style="margin-left:6px" onclick="togglePreview()"
+    title="Preview mode — shows the board as if no picks have been made yet (order/teams/slots only). Nothing is deleted or written anywhere; toggle off to go back to the real board.">🔍 Preview pre-draft</button>
   <!-- push bell: rendered only when /api/push says the server is configured AND the
        browser can push (on iOS that means the installed home-screen PWA) -->
   <span id="pushCtl"></span>
@@ -2077,6 +2079,11 @@
     return Math.max(50000, Math.round(b));
   }
   let MODE = "live", VIEW = "board", selected = null;
+  // Preview: pre-draft — display-only filter that shows the live order/teams/slots
+  // with every result wiped, so we can see what the board looks like on the morning
+  // of a draft before re-cloning next year. Never writes anywhere; write actions
+  // (report/validate/unreport a pick, log intel) are no-op'd while it's on.
+  let PREVIEW_MODE = false;
   // Mobile companion mode: body.mob mirrors the ≤640px query and drives the stacked
   // PWA layout. On a phone the board IS the app, so it becomes the launch tab.
   const MOBILE = matchMedia("(max-width:640px)");
@@ -2422,10 +2429,19 @@
     return s;
   }
 
+  // Wipes results off a picks array, keeping only the order/teams/slots — same
+  // shape a fresh year's feed starts from. Used by preview mode; never mutates
+  // the objects passed in (returns fresh clones).
+  function stripToPreDraft(picks) {
+    return picks.map(p => ({ ...p, isDrafted:false, isPass:false, player:null, playerId:null, pos:null,
+      throws:null, headshot:null, school:null, schoolClass:null, bucket:"UNK", rank:null, bonus:null,
+      bonusUser:false, bonusV:false, reported:null }));
+  }
   function derive(picks, year) {
+    if (PREVIEW_MODE && MODE === "live") picks = stripToPreDraft(picks);
     // Reported overlay: a validated-but-unofficial selection occupies its pick
     // (board chip + tracker advance) until the feed confirms or it's undone.
-    const reps = MODE === "mock" ? [...REPORTED_MOCK.values()] : REPORTED_LIVE;
+    const reps = PREVIEW_MODE ? [] : (MODE === "mock" ? [...REPORTED_MOCK.values()] : REPORTED_LIVE);
     const repByOv = new Map(reps.map(r0 => [r0.overall, r0]));
     for (const p of picks) p.reported = (!p.isDrafted && repByOv.get(p.overall)) || null;
     const onClockIndex = picks.findIndex(p => !p.isDrafted && !p.isPass && !repHard(p.reported));
@@ -4466,6 +4482,7 @@
   }
 
   async function postIntel(ev, silent) {
+    if (PREVIEW_MODE) return false;   // preview is read-only — no intel writes
     ev.agent = ev.agent || agentName() || "console";
     try {
       const r = await fetch("/api/intel", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(ev) });
@@ -4607,6 +4624,7 @@
     renderNotebook();
   };
   window.nbDelete = async (id) => {
+    if (PREVIEW_MODE) return;   // preview is read-only — no intel writes
     INTEL.events = INTEL.events.filter(e=>e.id!==id); renderNbFeed();   // optimistic; poll reconciles
     try { const r = await fetch(`/api/intel?id=${id}`, { method:"DELETE" }); if (!r.ok) throw new Error(r.status); }
     catch (e) { loadIntel(); }
@@ -4702,6 +4720,7 @@
     updCalcVal();
   }
   function reportPick(ov, name) {
+    if (PREVIEW_MODE) return;   // preview is read-only — never writes a war-room report
     const st = currentState; if (!st) return;
     const pk = pickByOverall(st, ov); if (!pk || pk.isDrafted) return;
     const rec = { overall: ov, player: name, team: pk.team || null, at: new Date().toISOString(), status: "validated" };
@@ -4715,6 +4734,7 @@
   }
   // Upgrade a soft REPORTED chip to VALIDATED (step 2 of the ladder) in place.
   function validateReported(ov) {
+    if (PREVIEW_MODE) return;
     const st = currentState; if (!st) return;
     const pk = pickByOverall(st, ov); if (!pk || !pk.reported || pk.isDrafted) return;
     const rec = { ...pk.reported, status: "validated", at: new Date().toISOString() };
@@ -4727,6 +4747,7 @@
   }
   window.tcRepValidate = (ov, e) => { if (e) e.stopPropagation(); validateReported(ov); };
   function unreportPick(ov) {
+    if (PREVIEW_MODE) return;
     if (MODE === "mock") REPORTED_MOCK.delete(ov);
     else {
       REPORTED_LIVE = REPORTED_LIVE.filter(x => x.overall !== ov);
@@ -7527,6 +7548,12 @@
     }
   }
 
+  function togglePreview() {
+    PREVIEW_MODE = !PREVIEW_MODE;
+    $("btnPreview").classList.toggle("primary", PREVIEW_MODE);
+    if (currentState) setState(derive(lastLive ? lastLive.picks : currentState.picks, currentState.year));
+    renderActive();
+  }
   async function setMode(m) {
     if (m === "mock") return;   // Mock pulled for the live draft (7/11) — sim must not fire pushes/picks today
     MODE = m;
