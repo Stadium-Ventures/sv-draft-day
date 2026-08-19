@@ -9,8 +9,18 @@
 const fs = require("fs"), path = require("path");
 const { normName } = require("../lib/names.js");
 
+// Default source is the canonical org registry (Stadium-Ventures/sv-registry);
+// ~/be-sv-repo was the pre-migration personal home and is defunct as a source.
 const SRC = process.env.SV_REGISTRY_DIR
-  || path.join(process.env.HOME || "", "be-sv-repo", "data", "players");
+  || [
+    path.join("/workspace", "sv-registry", "data", "players"),
+    path.join(process.env.HOME || "", "sv-registry", "data", "players"),
+    path.join(process.env.HOME || "", "be-sv-repo", "data", "players"),
+  ].find((p) => fs.existsSync(p));
+if (!SRC) {
+  console.error("build_svregistry: no registry checkout found — set SV_REGISTRY_DIR to sv-registry/data/players");
+  process.exit(1);
+}
 const OUT = path.join(__dirname, "..", "public", "data", "svregistry.json");
 
 const files = fs.readdirSync(SRC).filter(f =>
@@ -22,8 +32,14 @@ for (const f of files) {
   let d;
   try { d = JSON.parse(fs.readFileSync(path.join(SRC, f), "utf8")); } catch (e) { continue; }
   const id = d.identity || d;
-  const role = d.role || (d.current_state || {}).role || id.role;
-  if (String(role || "").toLowerCase() === "coach") continue;
+  const cs = d.current_state || {};
+  // SV Way agency-status rule: representation is checked FIRST — a former
+  // client (is_client:false — Orf, Glavine, ...) must never badge as SV.
+  if (cs.is_client === false) continue;
+  // Coaches are excluded by the canonical field (current_state.tier), not the
+  // legacy role string — tier is what the registry itself keys careers on.
+  const role = d.role || cs.role || id.role;
+  if (cs.tier === "coach" || String(role || "").toLowerCase() === "coach") continue;
   const full = id.full_name; if (!full) continue;
   players++;
   for (const n of [full, ...(id.aliases || [])]) {
@@ -33,5 +49,5 @@ for (const f of files) {
 }
 
 fs.writeFileSync(OUT, JSON.stringify({ built: new Date().toISOString().slice(0, 10),
-  players, names }, null, 1));
+  source: SRC, players, names }, null, 1));
 console.log(`svregistry.json: ${players} players, ${Object.keys(names).length} name keys`);

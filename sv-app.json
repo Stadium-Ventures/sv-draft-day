@@ -76,6 +76,7 @@
     "Re-bake board data: bash scripts/refresh.sh — needs Mike's local source files (composite_latest.csv, Org.Review xlsx); it commits public/data and pushes",
     "Deploy: push to main — Vercel auto-deploys in ~30s (no build step)",
     "Re-arm for next draft: set LIVE_POLLING=true in public/index.html, bump the hard-coded year in api/xlead.js + api/reported.js, refresh data, re-install the Apps Script trigger for the capture sheet, verify Vercel env vars",
+    "Re-arm step 2 — rebake the SV client badge data: node scripts/build_svregistry.js against a current Stadium-Ventures/sv-registry checkout (set SV_REGISTRY_DIR to its data/players if not auto-found) and commit public/data/svregistry.json — the baked file goes stale as the client roster changes (it excludes coaches and former clients by canon fields) and its 'source'/'built' stamps say where and when it came from",
     "First troubleshooting step: open /api/draft in a browser (after password) — if it returns the normalized board, the spine is healthy; if not, hit https://statsapi.mlb.com/api/v1/draft/2026 directly to isolate MLB-feed vs proxy/Redis"
   ]
 }

@@ -19,7 +19,7 @@ import csv, io, json, os, sys, time, urllib.request
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 CSV_LOCAL = os.path.expanduser("~/Desktop/claude/draft-slot-tracker/data.csv")
-CSV_URL = "https://mdecicco-sv.github.io/draft-slot-tracker/data.csv"
+CSV_URL = "https://stadium-ventures.github.io/draft-slot-tracker/data.csv"  # post-transfer Pages host; old mdecicco-sv host 404s
 OUT = os.path.join(ROOT, "public", "data", "hilevel.json")
 
 # probe order is the hierarchy — first hit wins

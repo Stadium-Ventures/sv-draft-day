@@ -1774,7 +1774,9 @@
       .sort((a,b)=> intelColorRank(a.key,pk.team)-intelColorRank(b.key,pk.team) || (a.comp?.rank ?? 1e9)-(b.comp?.rank ?? 1e9));
   }
   // Historical draft-slot signings (2018–25): per-pick bonus vs slot. CORS-open, so fetch directly.
-  const SLOT_HISTORY_URL = "https://mdecicco-sv.github.io/draft-slot-tracker/data.csv";
+  // Repo transferred to the org 2026; GitHub Pages does NOT redirect on transfer,
+  // so the old mdecicco-sv.github.io host 404s — this is the canonical Pages URL.
+  const SLOT_HISTORY_URL = "https://stadium-ventures.github.io/draft-slot-tracker/data.csv";
   const posGroupOf = (pos) => { const p=(pos||"").toUpperCase();
     if (/P|RHP|LHP|SP|RP/.test(p)) return "P"; if (p==="C") return "C";
     if (/1B|2B|3B|SS|IF|INF/.test(p)) return "IF"; if (/OF|CF|LF|RF/.test(p)) return "OF"; return "?"; };
